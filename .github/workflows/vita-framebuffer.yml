@@ -15,6 +15,9 @@ on:
       - 'vita/include/duck_vita_dma.h'
       - 'vita/src/dma.c'
       - 'vita/tests/dma.c'
+      - 'vita/include/duck_vita_pi.h'
+      - 'vita/src/pi.c'
+      - 'vita/tests/pi.c'
       - '.github/workflows/vita-framebuffer.yml'
   pull_request:
     paths:
@@ -44,3 +47,7 @@ jobs:
         run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/guest_memory.c vita/src/dma.c vita/tests/dma.c -o /tmp/duck-vita-dma
       - name: Test bounded cartridge transfers
         run: /tmp/duck-vita-dma
+      - name: Compile PI register test
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/guest_memory.c vita/src/bus.c vita/src/dma.c vita/src/pi.c vita/tests/pi.c -o /tmp/duck-vita-pi
+      - name: Test PI ROM DMA and interrupt acknowledgment
+        run: /tmp/duck-vita-pi
