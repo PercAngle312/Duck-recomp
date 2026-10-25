@@ -27,7 +27,8 @@ int main() {
     if (a != base || b != base + offset) {
         std::printf("map failed: %lu\n", GetLastError()); return 4;
     }
-    for (SIZE_T i : {SIZE_T(0), SIZE_T(4095), SIZE_T(4096), size - 1}) {
+    const SIZE_T offsets[] = {0, 4095, 4096, size - 1};
+    for (SIZE_T i : offsets) {
         base[i] = 0xA7;
         if (base[offset + i] != 0xA7) return 5;
         base[offset + i] = 0x39;
