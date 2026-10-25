@@ -6,6 +6,9 @@ on:
       - 'vita/include/duck_vita_framebuffer.h'
       - 'vita/src/framebuffer_convert.c'
       - 'vita/tests/framebuffer.c'
+      - 'vita/include/duck_vita_guest_memory.h'
+      - 'vita/src/guest_memory.c'
+      - 'vita/tests/guest_memory.c'
       - '.github/workflows/vita-framebuffer.yml'
   pull_request:
     paths:
@@ -23,3 +26,7 @@ jobs:
           cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/framebuffer_convert.c vita/tests/framebuffer.c -o /tmp/duck-vita-framebuffer
       - name: Test scaled and bounded pixels
         run: /tmp/duck-vita-framebuffer
+      - name: Compile guest memory contract
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/guest_memory.c vita/tests/guest_memory.c -o /tmp/duck-vita-guest-memory
+      - name: Test guest memory boundaries
+        run: /tmp/duck-vita-guest-memory
