@@ -29,6 +29,12 @@ if ($missing.Count) {
   $missing | ForEach-Object { Write-Host "  $_" }
   throw "Full Duck Dodgers game compile aborted before CMake: $($missing.Count) missing input(s)."
 }
+# The public game/CMakeLists.txt is intentionally a test-only scaffold.
+# A real build requires the imported Phase 12 CMake which actually defines duckdodgers.
+$gameCmake = Get-Content -LiteralPath (Join-Path $game "CMakeLists.txt") -Raw
+if ($gameCmake -notmatch '(?m)^\\s*add_executable\\s*\\(\\s*duckdodgers\\b') {
+  throw "Not a full-game CMake source: duckdodgers executable target is missing. Import the actual Phase 12 project to a private checkout; the public CI preflight stub cannot build the game."
+}
 $build = [IO.Path]::GetFullPath($BuildDirectory)
 $arguments = @(
   "-S", $game,
