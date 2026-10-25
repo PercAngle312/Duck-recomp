@@ -36,6 +36,9 @@ on:
       - 'vita/include/duck_vita_context.h'
       - 'vita/src/context.c'
       - 'vita/tests/context.c'
+      - 'vita/include/duck_vita_executor.h'
+      - 'vita/src/executor.c'
+      - 'vita/tests/executor.c'
       - '.github/workflows/vita-framebuffer.yml'
   pull_request:
     paths:
@@ -93,3 +96,7 @@ jobs:
         run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/queue.c vita/src/scheduler.c vita/src/context.c vita/tests/context.c -o /tmp/duck-vita-context
       - name: Test per-thread guest CPU contexts
         run: /tmp/duck-vita-context
+      - name: Compile guest step execution harness
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/queue.c vita/src/scheduler.c vita/src/context.c vita/src/executor.c vita/tests/executor.c -o /tmp/duck-vita-executor
+      - name: Test context-backed guest execution seam
+        run: /tmp/duck-vita-executor
