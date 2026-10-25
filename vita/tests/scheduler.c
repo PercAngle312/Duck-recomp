@@ -14,13 +14,17 @@ int main(void){
  assert(s.threads[0].state==DUCK_THREAD_READY);
  assert(duck_vita_scheduler_wait_recv(&s,2,&q)==0);
  assert(duck_vita_scheduler_next(&s)==1);
- assert(duck_vita_queue_send(&q,0x1234,0)==0);
- assert(duck_vita_scheduler_queue_ready(&s,&q)==2);
+ assert(duck_vita_scheduler_send(&s,&q,0x1234,0)==0);
+ assert(s.threads[1].state==DUCK_THREAD_READY);
  assert(duck_vita_scheduler_next(&s)==2);
  assert(duck_vita_queue_recv(&q,&value)==0&&value==0x1234);
  assert(duck_vita_scheduler_wait_recv(&s,2,&q)==0);
  assert(duck_vita_scheduler_next(&s)==1);
  assert(duck_vita_scheduler_queue_ready(&s,&q)==0);
+ assert(duck_vita_scheduler_send(&s,&q,0xbeef,0)==0);
+ assert(s.threads[1].state==DUCK_THREAD_READY);
+ assert(duck_vita_scheduler_send(&s,&q,0xface,0)==0);
+ assert(duck_vita_scheduler_send(&s,&q,0xdead,0)==DUCK_QUEUE_FULL);
  puts("PASS: priority, blocking receive, queue wake, duplicate thread guard");
  return 0;
 }
