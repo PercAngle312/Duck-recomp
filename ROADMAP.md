@@ -42,3 +42,8 @@ Updated 2026-10-25. **Linux is the gameplay reference; Windows is pre-release.**
 - [x] Ran the game-specific Windows 2022 CMake Release configure, compilation and CTest: [workflow run](https://github.com/PercAngle312/Duck-recomp/actions/runs/40199158516).
 - [x] CI verifies that `DUCK_BUILD_GAME=ON` refuses missing private generated sources and dependency checkouts with a useful error.
 - [ ] Full-game sources are not imported to public CI; this is **not** a full game build or playable executable.
+
+## Full Windows build launcher — 2026-10-25
+- [x] Added `scripts/build-full-windows.ps1`, which validates generated game source, N64Recomp headers, N64ModernRuntime and RT64 before invoking the original full-game CMake with `DUCK_BUILD_GAME=ON`, `DUCK_ENABLE_BOOT_PROBE=ON`, and the `duckdodgers` target. This avoids inadvertently building only tests.
+- [ ] Running the full game compiler/linker still requires a private source checkout plus pinned, complete dependency trees. The public runner does not contain these; no playable EXE exists yet.
+- [ ] Investigate MSVC compilation/linkage and RT64 D3D12 after the actual game inputs are supplied.
