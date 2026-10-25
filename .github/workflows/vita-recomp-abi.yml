@@ -11,6 +11,8 @@ on:
       - 'vita/tests/dispatch.c'
       - 'vita/generate_dispatch.py'
       - 'vita/test_generate_dispatch.py'
+      - 'vita/test_generated_registry.py'
+      - 'vita/CMakeLists.txt'
       - '.github/workflows/vita-recomp-abi.yml'
   pull_request:
     paths:
@@ -30,6 +32,8 @@ jobs:
           grep -Fq 'typedef void (recomp_func_t)(uint8_t* rdram, recomp_context* ctx);' /tmp/duck-abi/recomp.h
       - name: Test private registry generator
         run: python3 vita/test_generate_dispatch.py
+      - name: Compile and link synthetic private function registry
+        run: python3 vita/test_generated_registry.py --recomp-include /tmp/duck-abi
       - name: Compile ABI dispatch test
         run: |
           cc -std=c11 -Wall -Wextra -Werror -O1 -fsanitize=address,undefined -fno-omit-frame-pointer -I /tmp/duck-abi -I vita/include vita/src/queue.c vita/src/scheduler.c vita/src/recomp_bridge.c vita/tests/recomp_bridge.c -lm -o /tmp/duck-vita-recomp-test
