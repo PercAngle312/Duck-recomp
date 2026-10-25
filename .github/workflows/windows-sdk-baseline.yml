@@ -14,7 +14,7 @@ jobs:
         shell: cmd
         run: |
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          cl /nologo /std:c++17 /EHsc /W4 /D_WIN32_WINNT=0x0A00 tests\windows_alias_smoke.cpp /link /OUT:alias_test.exe
+          cl /nologo /std:c++17 /EHsc /W4 /D_WIN32_WINNT=0x0A00 tests\windows_alias_smoke.cpp /link onecore.lib /OUT:alias_test.exe
       - name: Run Windows RAM alias test
         shell: pwsh
         run: |
