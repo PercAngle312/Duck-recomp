@@ -11,9 +11,16 @@ int duck_vita_scheduler_next(DuckVitaScheduler *s){
  int best=-1;
  for(size_t i=0;i<s->count;i++)if(s->threads[i].state==DUCK_THREAD_READY &&
  (best<0||s->threads[i].priority>s->threads[best].priority))best=(int)i;
- if(best<0)return s->current>=0 && s->threads[s->current].state==DUCK_THREAD_RUNNING ? (int)s->threads[s->current].id : -1;
- if(s->current>=0 && s->threads[s->current].state==DUCK_THREAD_RUNNING)
- s->threads[s->current].state=DUCK_THREAD_READY;
+ /* A running thread remains eligible: lower-priority ready work must not
+    preempt it. Equal priority stays running until an explicit yield. */
+ if(s->current>=0 && s->current<(int)s->count &&
+    s->threads[s->current].state==DUCK_THREAD_RUNNING &&
+    (best<0 || s->threads[s->current].priority>=s->threads[best].priority))
+     return (int)s->threads[s->current].id;
+ if(best<0)return -1;
+ if(s->current>=0 && s->current<(int)s->count &&
+    s->threads[s->current].state==DUCK_THREAD_RUNNING)
+     s->threads[s->current].state=DUCK_THREAD_READY;
  s->threads[best].state=DUCK_THREAD_RUNNING;s->current=best;
  return (int)s->threads[best].id;
 }
