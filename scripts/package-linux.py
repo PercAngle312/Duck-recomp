@@ -31,6 +31,9 @@ def main():
     script_root = Path(__file__).resolve().parent
     shutil.copy2(script_root / 'run-linux.sh', root / 'run.sh')
     (root / 'run.sh').chmod(0o755)
+    for source, name in [('graphics-settings.sh', 'Graphics-Settings.sh'), ('safe-mode.sh', 'Safe-Mode.sh')]:
+        shutil.copy2(script_root / source, root / name)
+        (root / name).chmod(0o755)
     for library in sorted(a.runtime_libs.glob('*.so*')):
         if library.is_file():
             shutil.copy2(library, root / 'lib' / library.name)
@@ -67,6 +70,26 @@ libraries and shader compiler are bundled. A developer toolchain is not required
 WASD: move; J: A/jump/accept; K: B/kick; Enter: Start/pause; Space: Z;
 Q/E: L/R; I/P/U/O: C up/down/left/right; arrows: D-pad.
 Close the window to exit cleanly and flush saves.
+
+Press **F5** for the graphics settings window, or start `./Graphics-Settings.sh`.
+**F11** toggles borderless fullscreen. Settings offer window resolutions through
+4K, native/automatic/manual internal rendering, 2x/4x/8x MSAA where supported,
+4:3/window/16:9/21:9 aspect ratios, output filtering and N64 texture filtering.
+Choose Native, Balanced, High or Ultra, then **Apply & save** (Ctrl+Enter).
+Escape/F5 closes the panel. Pause in-game first if needed: gameplay continues
+while the panel is open, with game input disabled in the settings window.
+
+Changes to render scale, AA, aspect and filtering apply live. V-sync changes
+take effect after restarting; disabling V-sync depends on the Vulkan driver.
+Borderless fullscreen uses desktop resolution; the resolution selector sets
+windowed size. Internal scale determines rendered detail independently of the
+window. Widescreen/ultrawide are experimental and can expose HUD or culling
+issues. Output refresh does not unlock game FPS.
+
+Graphics settings are saved to `userdata/graphics.json`. Start `./Safe-Mode.sh`
+or `./run.sh --safe-mode` to recover native rendering without deleting saves.
+Safe mode ignores the saved graphics configuration for that session; Apply
+saves the new settings. Software Vulkan and high scaling/MSAA can be slow.
 
 Saves, settings and the runtime's local ROM cache are written to `userdata/`.
 Set `DUCK_USER_DATA=/your/folder` to choose another location. Preserve that folder

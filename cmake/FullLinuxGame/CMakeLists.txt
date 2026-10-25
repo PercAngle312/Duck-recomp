@@ -56,7 +56,26 @@ add_executable(duckdodgers "${generated}/runtime/audio_rsp.cpp"
   "${DUCK_GAME_SOURCE}/runtime/pi.cpp"
   "${DUCK_GAME_SOURCE}/runtime/memory.cpp")
 target_compile_definitions(duckdodgers PRIVATE DUCK_WITH_RT64 RT64_SDL_WINDOW_VULKAN
-  PLUME_SDL_VULKAN_ENABLED HLSL_CPU FFX_GCC)
+  PLUME_SDL_VULKAN_ENABLED HLSL_CPU FFX_GCC DUCK_DEFER_OVERLAY_UNLOAD)
+target_include_directories(duckdodgers PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../../port/linux")
+file(READ "${DUCK_GAME_SOURCE}/runtime/loader_bridge.cpp" loader_source)
+if(NOT loader_source MATCHES "retired_code.before_load")
+  message(FATAL_ERROR "Apply patches/linux-overlay-lifetime.patch to the private loader before building this release")
+endif()
+option(DUCK_ENABLE_GRAPHICS_SETTINGS "Build the native graphics settings window" ON)
+if(DUCK_ENABLE_GRAPHICS_SETTINGS)
+  file(READ "${DUCK_GAME_SOURCE}/runtime/pc_backend.cpp" backend_source)
+  if(NOT backend_source MATCHES "duck_graphics::initialize")
+    message(FATAL_ERROR "Apply patches/linux-graphics-settings.patch to the private project, or set DUCK_ENABLE_GRAPHICS_SETTINGS=OFF to build the older reference host")
+  endif()
+  target_compile_definitions(duckdodgers PRIVATE DUCK_GRAPHICS_SETTINGS)
+  target_sources(duckdodgers PRIVATE
+    "${CMAKE_CURRENT_LIST_DIR}/../../port/linux/graphics_settings.cpp"
+    "${DUCK_RT64_ROOT}/src/contrib/imgui/backends/imgui_impl_sdlrenderer2.cpp")
+  target_include_directories(duckdodgers PRIVATE
+    "${CMAKE_CURRENT_LIST_DIR}/../../port/linux"
+    "${DUCK_RT64_ROOT}/src/contrib/imgui")
+endif()
 target_include_directories(duckdodgers PRIVATE "${N64RECOMP_ROOT}/include"
   "${generated}/runtime" "${DUCK_GAME_SOURCE}/runtime"
   "${N64MODERN_ROOT}/librecomp/include" "${N64MODERN_ROOT}/ultramodern/include"
@@ -76,3 +95,16 @@ add_executable(duck_memory_alias "${DUCK_GAME_SOURCE}/tests/memory_alias.cpp" "$
 target_include_directories(duck_memory_alias PRIVATE "${N64MODERN_ROOT}/librecomp/include"
   "${N64MODERN_ROOT}/ultramodern/include" "${N64RECOMP_ROOT}/include")
 add_test(NAME rdram_cached_uncached_alias COMMAND duck_memory_alias)
+add_executable(duck_overlay_lifetime
+  "${CMAKE_CURRENT_LIST_DIR}/../../tests/linux_overlay_lifetime.cpp"
+  "${N64MODERN_ROOT}/librecomp/src/overlays.cpp"
+  "${N64MODERN_ROOT}/ultramodern/src/error_handling.cpp")
+target_include_directories(duck_overlay_lifetime PRIVATE
+  "${CMAKE_CURRENT_LIST_DIR}/../../port/linux" "${N64RECOMP_ROOT}/include"
+  "${N64MODERN_ROOT}/librecomp/include" "${N64MODERN_ROOT}/librecomp/include/librecomp"
+  "${N64MODERN_ROOT}/ultramodern/include" "${N64MODERN_ROOT}/thirdparty"
+  "${N64MODERN_ROOT}/thirdparty/concurrentqueue")
+target_compile_options(duck_overlay_lifetime PRIVATE -ffunction-sections -fdata-sections)
+target_link_options(duck_overlay_lifetime PRIVATE -Wl,--gc-sections)
+target_link_libraries(duck_overlay_lifetime PRIVATE pthread m)
+add_test(NAME callback_dispatch_after_free COMMAND duck_overlay_lifetime)
