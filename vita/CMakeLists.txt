@@ -50,6 +50,7 @@ if(DUCK_VITA_FUNCTION_MAP)
   add_custom_command(OUTPUT "${duck_private_registry}"
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/generate_dispatch.py"
       --map "${DUCK_VITA_FUNCTION_MAP}" --output "${duck_private_registry}"
+      --source-root "${generated}"
     DEPENDS "${DUCK_VITA_FUNCTION_MAP}" "${CMAKE_CURRENT_SOURCE_DIR}/generate_dispatch.py"
     VERBATIM)
   add_library(duck_vita_game_registry STATIC "${duck_private_registry}")
