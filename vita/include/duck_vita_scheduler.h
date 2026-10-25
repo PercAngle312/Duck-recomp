@@ -14,6 +14,10 @@ int duck_vita_scheduler_add(DuckVitaScheduler *s,unsigned id,unsigned priority);
 int duck_vita_scheduler_next(DuckVitaScheduler *s);
 int duck_vita_scheduler_wait_recv(DuckVitaScheduler *s,unsigned id,DuckVitaQueue *queue);
 int duck_vita_scheduler_queue_ready(DuckVitaScheduler *s,DuckVitaQueue *queue);
+/* Atomic in this single-threaded cooperative model: enqueue then wake one
+ * highest-priority receiver, never wake if the enqueue fails. */
+int duck_vita_scheduler_send(DuckVitaScheduler *s,DuckVitaQueue *queue,
+                             uint32_t message,int jam);
 #ifdef __cplusplus
 }
 #endif
