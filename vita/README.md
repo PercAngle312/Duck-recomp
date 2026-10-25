@@ -68,10 +68,13 @@ the already generated source. Regeneration remains a private operation.
    libultra bindings, timers, message queues, PI/ROM DMA and overlay dispatch.
    The Linux JIT/mod infrastructure and 4 GiB address reservation cannot simply
    be enabled in this 32-bit host.
-   A direct Vita compiler audit of the unmodified runtime confirms the first
-   blocker: concurrentqueue's semaphore wrapper reports `Unsupported platform`
-   for threads, events, renderer context and the main runtime. The RSP source
-   itself passes that syntax audit. No semaphore shim has been implemented yet.
+   The semaphore blocker now has a VitaSDK adapter in `include/vita_semaphore.hpp`.
+   `prepare_runtime.py` adds it to copied concurrentqueue headers without changing
+   upstream. Its queue compiles and a standalone probe links for ARM against the real SDK; a host API model
+   passed count/poll/timeout/long-timeout/wakeup checks and 20,000 unique queue
+   deliveries from four producers. This does not establish Vita OS behavior.
+   The runtime still needs a Vita window interface, scheduling and memory work;
+   the adapter alone does not make the runtime compile or link.
 2. Implement Vita graphics task and VI presentation callbacks. RT64's current
    Vulkan backend is not a Vita backend. A researched reference is
    `Rinnegatamante/DaedalusX64-vitaGL` at the locked commit: its
@@ -86,3 +89,27 @@ the already generated source. Regeneration remains a private operation.
 
 Linux graphics controls are preserved on `linux/graphics-settings`; that work
 is not a new stable release. The user redirected the current effort to Vita.
+
+## Resume after the semaphore checkpoint
+
+Run the reproducible test and runtime compiler audit (no ROM required):
+
+```sh
+python3 vita/test_runtime.py \
+  --vitasdk /path/to/vitasdk --runtime /deps/N64ModernRuntime \
+  --recompiler /deps/N64Recomp --adapter-include /private/vita-build/include \
+  --output /private/vita-runtime-validation
+```
+
+This uses a host C++ compiler, then the pinned Vita compiler. The host fixture
+models only the semaphore API and is explicitly excluded from native compilation.
+The native queue object imports the five real Vita semaphore APIs; a standalone
+ARM ELF then links against the SDK. Neither binary has been run on Vita OS. The report
+records outstanding runtime syntax failures rather than treating them as a
+complete game build. All tests use assertions enabled by the supplied commands.
+
+Next: supply a real Vita renderer/display interface where the desktop runtime
+requires `WindowHandle`, then implement scheduling and bounded guest memory.
+Keep RT64 desktop assumptions out of this backend. The current diagnostic VPK
+remains the earlier CPU bring-up binary; this checkpoint adds source and tests,
+not a new game/VPK release. Linux Phase 19 and graphics branches remain separate.
