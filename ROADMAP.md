@@ -47,3 +47,10 @@ Updated 2026-10-25. **Linux is the gameplay reference; Windows is pre-release.**
 - [x] Added `scripts/build-full-windows.ps1`, which validates generated game source, N64Recomp headers, N64ModernRuntime and RT64 before invoking the original full-game CMake with `DUCK_BUILD_GAME=ON`, `DUCK_ENABLE_BOOT_PROBE=ON`, and the `duckdodgers` target. This avoids inadvertently building only tests.
 - [ ] Running the full game compiler/linker still requires a private source checkout plus pinned, complete dependency trees. The public runner does not contain these; no playable EXE exists yet.
 - [ ] Investigate MSVC compilation/linkage and RT64 D3D12 after the actual game inputs are supplied.
+
+## Full Windows game-target validation — October 25, 2026
+- [x] Audited recovered Phase 12 original game CMake against the public preflight stub; only the former declares the real `duckdodgers` executable.
+- [x] Hardened `scripts/build-full-windows.ps1` to reject source trees whose CMake cannot build the game target.
+- [x] Added a synthetic-source regression test; [Windows runner passed](https://github.com/PercAngle312/Duck-recomp/actions/runs/40200949284).
+- [ ] Bring original Phase 12 game CMake, generated sources and dependency checkouts into a private Windows build environment; compile/link actual `DuckDodgers.exe`.
+- [ ] Validate ROM loading, RT64 Direct3D 12 rendering, and full game startup.
