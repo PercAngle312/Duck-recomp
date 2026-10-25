@@ -10,6 +10,8 @@ add_executable(duck_windows_alias_smoke tests/windows_alias_smoke.cpp)
 target_compile_definitions(duck_windows_alias_smoke PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX _WIN32_WINNT=0x0A00)
 target_link_libraries(duck_windows_alias_smoke PRIVATE onecore)
 add_test(NAME windows_rdram_alias COMMAND duck_windows_alias_smoke)
+add_executable(duck_windows_display_test port/tests/display.cpp)
+add_test(NAME windows_display_settings COMMAND duck_windows_display_test)
 # The full game will be enabled when the source/dependencies are actually present.
 option(DUCK_BUILD_FULL_GAME "Configure the supplied native game source tree" OFF)
 if(DUCK_BUILD_FULL_GAME)
