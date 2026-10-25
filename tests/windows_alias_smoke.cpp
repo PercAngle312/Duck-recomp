@@ -30,17 +30,17 @@ int main() {
     const SIZE_T offsets[] = {0, 4095, 4096, size - 1};
     for (SIZE_T i : offsets) {
         base[i] = 0xA7;
-        if (base[offset + i] != 0xA7) return 5;
+        if (base[offset + i] != 0xA7) { std::printf("alias read A->B mismatch at %llu\\n", static_cast<unsigned long long>(i)); return 5; }
         base[offset + i] = 0x39;
-        if (base[i] != 0x39) return 6;
+        if (base[i] != 0x39) { std::printf("alias read B->A mismatch at %llu\\n", static_cast<unsigned long long>(i)); return 6; }
     }
     if (!UnmapViewOfFile2(GetCurrentProcess(), b, MEM_PRESERVE_PLACEHOLDER) ||
-        !UnmapViewOfFile2(GetCurrentProcess(), a, MEM_PRESERVE_PLACEHOLDER)) return 7;
+        !UnmapViewOfFile2(GetCurrentProcess(), a, MEM_PRESERVE_PLACEHOLDER)) { std::printf("unmap failed: %lu\n", GetLastError()); return 7; }
     CloseHandle(section);
     if (!VirtualFree(base + offset, reserve - offset, MEM_RELEASE | MEM_COALESCE_PLACEHOLDERS) ||
         !VirtualFree(base + size, reserve - size, MEM_RELEASE | MEM_COALESCE_PLACEHOLDERS) ||
         !VirtualFree(base, reserve, MEM_RELEASE | MEM_COALESCE_PLACEHOLDERS) ||
-        !VirtualFree(base, 0, MEM_RELEASE)) return 8;
+        !VirtualFree(base, 0, MEM_RELEASE)) { std::printf("coalesce failed: %lu\n", GetLastError()); return 8; }
     std::puts("PASS: dual RDRAM aliases coherent and released");
     return 0;
 }
