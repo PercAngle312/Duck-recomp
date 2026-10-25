@@ -9,6 +9,9 @@ int main(void){
  assert(duck_vita_scheduler_add(&s,2,10)==0);
  assert(duck_vita_scheduler_add(&s,2,20)==-1);
  assert(duck_vita_scheduler_next(&s)==2);
+ /* Thread 1 is ready, but may not preempt running priority-10 thread 2. */
+ assert(duck_vita_scheduler_next(&s)==2);
+ assert(s.threads[0].state==DUCK_THREAD_READY);
  assert(duck_vita_scheduler_wait_recv(&s,2,&q)==0);
  assert(duck_vita_scheduler_next(&s)==1);
  assert(duck_vita_queue_send(&q,0x1234,0)==0);
