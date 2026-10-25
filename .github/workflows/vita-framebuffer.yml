@@ -1,0 +1,25 @@
+name: Vita framebuffer contract
+on:
+  push:
+    branches: [vita/arm32-bringup]
+    paths:
+      - 'vita/include/duck_vita_framebuffer.h'
+      - 'vita/src/framebuffer_convert.c'
+      - 'vita/tests/framebuffer.c'
+      - '.github/workflows/vita-framebuffer.yml'
+  pull_request:
+    paths:
+      - 'vita/include/duck_vita_framebuffer.h'
+      - 'vita/src/framebuffer_convert.c'
+      - 'vita/tests/framebuffer.c'
+      - '.github/workflows/vita-framebuffer.yml'
+jobs:
+  host-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile native-pixel contract test
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/framebuffer_convert.c vita/tests/framebuffer.c -o /tmp/duck-vita-framebuffer
+      - name: Test scaled and bounded pixels
+        run: /tmp/duck-vita-framebuffer
