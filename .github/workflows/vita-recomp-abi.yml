@@ -6,6 +6,9 @@ on:
       - 'vita/include/duck_vita_recomp_bridge.h'
       - 'vita/src/recomp_bridge.c'
       - 'vita/tests/recomp_bridge.c'
+      - 'vita/include/duck_vita_dispatch.h'
+      - 'vita/src/dispatch.c'
+      - 'vita/tests/dispatch.c'
       - '.github/workflows/vita-recomp-abi.yml'
   pull_request:
     paths:
@@ -28,3 +31,7 @@ jobs:
           cc -std=c11 -Wall -Wextra -Werror -O1 -fsanitize=address,undefined -fno-omit-frame-pointer -I /tmp/duck-abi -I vita/include vita/src/queue.c vita/src/scheduler.c vita/src/recomp_bridge.c vita/tests/recomp_bridge.c -lm -o /tmp/duck-vita-recomp-test
       - name: Verify context-backed ABI dispatch
         run: /tmp/duck-vita-recomp-test
+      - name: Compile exact VRAM dispatcher contract
+        run: cc -std=c11 -Wall -Wextra -Werror -O1 -fsanitize=address,undefined -fno-omit-frame-pointer -I /tmp/duck-abi -I vita/include vita/src/queue.c vita/src/scheduler.c vita/src/recomp_bridge.c vita/src/dispatch.c vita/tests/dispatch.c -lm -o /tmp/duck-vita-dispatch-test
+      - name: Test exact translated function dispatch
+        run: /tmp/duck-vita-dispatch-test
