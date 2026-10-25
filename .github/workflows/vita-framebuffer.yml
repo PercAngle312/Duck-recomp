@@ -33,6 +33,9 @@ on:
       - 'vita/include/duck_vita_event_bridge.h'
       - 'vita/src/event_bridge.c'
       - 'vita/tests/event_bridge.c'
+      - 'vita/include/duck_vita_context.h'
+      - 'vita/src/context.c'
+      - 'vita/tests/context.c'
       - '.github/workflows/vita-framebuffer.yml'
   pull_request:
     paths:
@@ -86,3 +89,7 @@ jobs:
         run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/guest_memory.c vita/src/bus.c vita/src/dma.c vita/src/pi.c vita/src/mi.c vita/src/cpu_irq.c vita/src/queue.c vita/src/scheduler.c vita/src/event_bridge.c vita/tests/event_bridge.c -o /tmp/duck-vita-event-bridge
       - name: Test PI IRQ to message and thread wakeup
         run: /tmp/duck-vita-event-bridge
+      - name: Compile guest context regression
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/queue.c vita/src/scheduler.c vita/src/context.c vita/tests/context.c -o /tmp/duck-vita-context
+      - name: Test per-thread guest CPU contexts
+        run: /tmp/duck-vita-context
