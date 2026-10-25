@@ -43,3 +43,11 @@ int duck_vita_scheduler_queue_ready(DuckVitaScheduler *s,DuckVitaQueue *q){
  s->threads[best].state=DUCK_THREAD_READY;s->threads[best].wait_queue=0;
  return (int)s->threads[best].id;
 }
+
+int duck_vita_scheduler_send(DuckVitaScheduler *s,DuckVitaQueue *queue,
+                             uint32_t message,int jam) {
+ if(!s||!queue)return DUCK_QUEUE_INVALID;
+ int result=duck_vita_queue_send(queue,message,jam);
+ if(result==DUCK_QUEUE_OK)duck_vita_scheduler_queue_ready(s,queue);
+ return result;
+}
