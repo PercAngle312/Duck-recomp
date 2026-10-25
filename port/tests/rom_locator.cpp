@@ -23,6 +23,17 @@ int main() {
   }
   auto found=duck::rom::locate(root);
   if(found.status!=duck::rom::Status::found||found.path!=fake)return 4;
+  // A different game with the correct byte order and size must be rejected.
+  {
+    std::fstream io(fake,std::ios::binary|std::ios::in|std::ios::out);
+    io.seekp(0x10);io.put(char(0));
+  }
+  if(duck::rom::locate(root).status!=duck::rom::Status::invalid)return 7;
+  {
+    std::fstream io(fake,std::ios::binary|std::ios::in|std::ios::out);
+    io.seekp(0x10);io.put(char(0xFB));
+  }
+  if(duck::rom::locate(root).status!=duck::rom::Status::found)return 8;
   fs::copy_file(fake,root/"roms"/"Duck2.z64",fs::copy_options::overwrite_existing,ec);
   if(ec||duck::rom::locate(root).status!=duck::rom::Status::ambiguous)return 5;
   fs::remove_all(root,ec);
