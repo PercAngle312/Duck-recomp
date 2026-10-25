@@ -1,0 +1,30 @@
+name: Windows CMake build gate
+on:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-cmake:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure Windows x64
+        shell: pwsh
+        run: cmake -S . -B build -A x64 -DDUCK_BUILD_FULL_GAME=OFF
+      - name: Build native target
+        shell: pwsh
+        run: cmake --build build --config Release --parallel 2
+      - name: Run real Windows RDRAM alias test
+        shell: pwsh
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Upload test executable and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-cmake-baseline
+          path: |
+            build/Release/duck_windows_alias_smoke.exe
+            build/Testing/Temporary/LastTest.log
+          if-no-files-found: warn
