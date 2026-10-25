@@ -26,6 +26,7 @@ jobs:
             throw "ERROR: full-game configuration failed without a clear missing-input diagnostic"
           }
           Write-Host "PASS: game build accurately reports missing private source/dependencies"
+          exit 0
       - name: Upload preflight logs
         if: always()
         uses: actions/upload-artifact@v4
