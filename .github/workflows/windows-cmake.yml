@@ -19,6 +19,9 @@ jobs:
       - name: Run real Windows RDRAM alias test
         shell: pwsh
         run: ctest --test-dir build -C Release -V --output-on-failure
+      - name: Verify playable-release guard
+        shell: pwsh
+        run: ./scripts/test-release-guard.ps1
       - name: Upload test executable and logs
         if: always()
         uses: actions/upload-artifact@v4
