@@ -9,6 +9,9 @@ on:
       - 'vita/include/duck_vita_guest_memory.h'
       - 'vita/src/guest_memory.c'
       - 'vita/tests/guest_memory.c'
+      - 'vita/include/duck_vita_bus.h'
+      - 'vita/src/bus.c'
+      - 'vita/tests/bus.c'
       - '.github/workflows/vita-framebuffer.yml'
   pull_request:
     paths:
@@ -30,3 +33,7 @@ jobs:
         run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/guest_memory.c vita/tests/guest_memory.c -o /tmp/duck-vita-guest-memory
       - name: Test guest memory boundaries
         run: /tmp/duck-vita-guest-memory
+      - name: Compile memory bus contract
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/guest_memory.c vita/src/bus.c vita/tests/bus.c -o /tmp/duck-vita-bus
+      - name: Test device dispatch isolation
+        run: /tmp/duck-vita-bus
