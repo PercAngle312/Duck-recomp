@@ -1,0 +1,9 @@
+{
+  "sdk_tag": "sdk-snapshot-20261015.850.1",
+  "sdk_url": "https://github.com/vitasdk/autobuilds/releases/download/sdk-snapshot-20261015.850.1/vitasdk-x86_64-linux-gnu-2026-10-15_05-01-16.tar.bz2",
+  "sdk_sha256": "801f483928523fe63547faf58a7dfdaca7482b26c33af0064acea96a906f7662",
+  "samples_commit": "fe8fbef570f3280586c0c20157146e3faefb2181",
+  "N64Recomp_commit": "ffb39cdad1da5de07eaaa48bd1db4a89a7986771",
+  "N64ModernRuntime_commit": "cdf5abbd5026fef5c364c676e4667c45e42b6863",
+  "renderer_reference_commit": "fb7238e2d4b3600e5e5c84986871be1396e337af"
+}
