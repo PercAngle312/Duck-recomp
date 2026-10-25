@@ -262,3 +262,35 @@ The original host UBSan thread test and 16 ARM I/O calls also pass on retest.
 This does not validate real Vita firmware fibers, a physical gamepad, Triangle
 exit, audio hardware, game graphics or gameplay. The unchanged VPK is still a
 runtime diagnostic; no playable game build is established by this result.
+
+## Monotonic timers, VI clock and translated boot (2026-10-25)
+
+The native time service initializes guest FPU/clock services, implements
+64-bit o32 timer arguments, one-shot/periodic deadlines, cancellation and
+nonblocking expiry messages. Clock updates advance CP0 Count and Compare across
+wraps; writing Compare equal to Count waits for a full wrap rather than raising
+a match on the next tick. Logical time starts at initialization while Count
+continues from the bound clock epoch. Timer processing is bounded per poll and
+updates event state before queue delivery, which can switch fibers.
+
+The VI manager starts a configured HLE retrace clock, promotes pending frame
+buffers and delivers osViSetEvent messages at the requested retrace interval.
+Re-registering or disabling that event updates its countdown. This does not
+decode OSViMode timings or implement complete MI/CPU interrupt dispatch/RDP.
+The native clock converts Vita process-time microseconds to N64 Count ticks.
+
+Host UBSan tests cover deadlines, 64-bit ABI, periodic/cancel/drop behavior,
+Compare wrap, VI interval/reset/disable, bounded catch-up, clock reversal and a
+timer message waking an actual blocked guest fiber. A timer test ELF links
+against the real VitaSDK fiber/system imports. Add `--time` alongside `--threads`
+to the private runtime rebuild; it replaces the historical Count and VI state
+sources with current implementations. All 8,956 modules/resident/audio RSP still
+partially link: 29 strong imports and 4 weak references in this scope.
+
+An additional private host execution probe runs actual translated resident
+startup with the supported private ROM, these kernel services and stackful
+threads. It reaches the four game thread entrypoints after startup and then
+halts explicitly at the unimplemented duck_before_free overlay hook (exit 86).
+Unsupported services in that diagnostic terminate; they are not success stubs
+and are not included in the production partial link. This is host translated
+boot progress, not Vita gameplay. See reports/time-checkpoint.json.

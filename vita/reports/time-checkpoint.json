@@ -1,0 +1,27 @@
+{
+  "resolved": [
+    "osInitialize_recomp",
+    "osCreateViManager_recomp",
+    "osSetTimer_recomp"
+  ],
+  "complete_code_strong_imports": 29,
+  "complete_code_weak_imports": 4,
+  "host_ubsan_timer_vi_tests_passed": true,
+  "timer_message_woke_blocked_fiber": true,
+  "native_timer_test_elf_linked": true,
+  "actual_translated_resident_host_boot": true,
+  "guest_thread_entries": [
+    "80000400",
+    "8000A9E8",
+    "8000A8F0",
+    "8000A9C8",
+    "80009960"
+  ],
+  "host_boot_stopped_at": "unimplemented duck_before_free",
+  "host_boot_exit": 86,
+  "host_diagnostic_traps_not_linked_into_production": true,
+  "vi_period_configured_not_mode_decoded": true,
+  "mi_interrupt_dispatch_complete": false,
+  "vita_firmware_execution_tested": false,
+  "gameplay_tested": false
+}

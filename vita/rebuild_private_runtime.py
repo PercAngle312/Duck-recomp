@@ -15,6 +15,7 @@ for name in ('vitasdk','recomp-include','resident-source','private-include','cal
 p.add_argument('--modules',type=Path);p.add_argument('--audio-rsp',type=Path)
 p.add_argument('--jobs',type=int,default=4)
 p.add_argument('--threads',action='store_true',help='Include stack-preserving Vita fibers and guest thread callbacks')
+p.add_argument('--time',action='store_true',help='Include monotonic timers, initialization and VI retrace service')
 a=p.parse_args()
 if a.jobs<1 or a.jobs>8:p.error('--jobs must be 1..8')
 if bool(a.modules)!=bool(a.audio_rsp):p.error('Pass both --modules and --audio-rsp')
@@ -37,9 +38,12 @@ for name,digest in manifest.items():
     if Path(name).name!=name or not name.endswith('.c'):raise ValueError('Unsafe callback basename')
     source=a.callbacks.parent/name
     if hashlib.sha256(source.read_bytes()).hexdigest()!=digest:raise ValueError('Callback checksum mismatch: '+name)
-    if name!='queue_ops.c':sources.append(source)
+    replaced={'queue_ops.c'}
+    if a.time:replaced.update(('count_compare.c','vi_config.c','vi.c'))
+    if name not in replaced:sources.append(source)
 sources += [root/'src/os_core.c',root/'src/os_io.c',root/'src/os_queue.c']
 if a.threads:sources += [root/'src/os_threads.c',root/'src/fiber_vita.c']
+if a.time:sources += [root/'src/os_time.c',root/'src/os_vi.c',root/'src/os_vi_config.c',root/'src/clock_vita.c']
 flags=['-std=c11','-O1','-mcpu=cortex-a9','-mfpu=neon','-mfloat-abi=hard',
        '-ffunction-sections','-fdata-sections','-ffreestanding','-fno-builtin','-fno-tree-loop-distribute-patterns']
 for directory in (a.recomp_include,root/'include',a.private_include,a.resident_source):
@@ -57,6 +61,7 @@ report=dict(compiler=run([cc,'--version']).splitlines()[0],compiled_sources=len(
  float_abi='hard',raw_resident=unresolved(raw),resident_with_sdk_math=unresolved(math),
  full_game_linked=False,playable_game=False,vita_os_tested=False)
 report['fiber_runtime_compiled']=a.threads
+report['timer_vi_runtime_compiled']=a.time
 if a.modules:
     combined=out/'full-code-with-sdk-math.arm.o'
     run([ld,'-r',raw,'--whole-archive',a.modules,a.audio_rsp,'--no-whole-archive',libm,libgcc,'-o',combined])
