@@ -18,7 +18,7 @@ jobs:
         run: cmake --build build --config Release --parallel 2
       - name: Run real Windows RDRAM alias test
         shell: pwsh
-        run: ctest --test-dir build -C Release --output-on-failure
+        run: ctest --test-dir build -C Release -V --output-on-failure
       - name: Upload test executable and logs
         if: always()
         uses: actions/upload-artifact@v4
