@@ -1,12 +1,34 @@
 # Duck Dodgers — native PC recompilation
 
-[Development roadmap](ROADMAP.md) · [Windows CI](https://github.com/PercAngle312/Duck-recomp/actions) · [Portable ROM setup](docs/ROM-SETUP.md)
+[Linux full build](docs/LINUX-FULL-BUILD.md) · [Development roadmap](ROADMAP.md) · [Portable ROM setup](docs/ROM-SETUP.md)
 
-## Goal: one download, supply your ROM, play
+## Linux first
+
+Linux is the primary target until gameplay is stable; Windows follows it.
+The complete private game source and pinned renderer/runtime have now been
+rebuilt into a full Linux `duckdodgers` executable. The Phase 18 historical
+executable is preserved separately as the reference. Native tests pass, and
+the rebuilt game boots with RT64 Vulkan and produces audio samples.
+
+The public `cmake/FullLinuxGame` recipe and `scripts/build-full-linux.py` build
+the actual executable using private generated inputs outside this repository.
+RT64 is linked through its CMake target, retaining SDL2, DBus and other
+transitive dependencies. The portable Linux launcher/package scripts validate
+the supported user ROM, bundle runtime libraries and keep user data separate.
+See [the build and validation instructions](docs/LINUX-FULL-BUILD.md).
+
+Full campaign completion, progress-save reload, physical GPU/audio/controller
+and cross-distro certification remain separate validation work. This repository
+does not include the ROM, proprietary translated game code or a public game
+binary. The Windows CI artifacts below are runtime tests.
+
+## Later Windows goal: one download, supply your ROM, play
 
 The intended **final Windows release** is a single ZIP with `DuckDodgers.exe`, the graphics/input runtime, redistribution-safe DLLs and necessary support data. Extract the ZIP, place your legally owned Duck Dodgers USA 16 MiB big-endian `.z64` file under `roms/`, and double-click `DuckDodgers.exe`. No developer toolchain, standalone emulator, Python install, or additional DLL download should be needed.
 
-**This is not playable yet.** The full game runtime, ROM-to-game-data handoff, RT64 Direct3D 12 binding, complete generated game source, and real `DuckDodgers.exe` are still missing from the public repository. Do not download the current test artifacts expecting a game.
+**There is no full Windows game executable yet.** The RT64 Direct3D 12 binding
+and MSVC full-game integration still need work. Do not download Windows test
+artifacts expecting a game.
 
 ## Verified on Windows Server 2022
 

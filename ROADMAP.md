@@ -2,6 +2,19 @@
 
 Updated 2026-10-25. **Linux is the gameplay reference; Windows is pre-release.**
 
+## Current priority: complete Linux validation
+
+The full Linux executable has been rebuilt from the recovered private game
+source, pinned runtime and RT64. The new public Linux recipe retains upstream
+target link dependencies and uses the SDL Vulkan window and DBus portal backends.
+The portable package boots independently of the development SDK under Lavapipe.
+Phase 18 remains the unchanged historical reference.
+
+Before calling the entire game finished: validate mission completion, later
+worlds, progress-save reload and physical Linux GPU/audio/controller behavior.
+Windows integration below is deferred until this Linux work is established.
+See [the current full Linux build recipe](docs/LINUX-FULL-BUILD.md).
+
 ## Verified milestones
 - [x] Recovered complete Linux source and pinned N64Recomp, N64ModernRuntime and RT64 dependencies in the user-provided handoff.
 - [x] Linux native executable compiled and linked against RT64.
