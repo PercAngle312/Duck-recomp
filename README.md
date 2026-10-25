@@ -8,7 +8,7 @@ Linux is the reference build; Windows x64 is under active development.
 
 - Linux: native executable reached menus and 3D gameplay under RT64/Lavapipe; the complete campaign has **not** been verified.
 - Windows: MSVC Windows SDK test demonstrated coherent RAM aliases and safe release ([passing run](https://github.com/PercAngle312/Duck-recomp/actions/runs/40164179463)).
-- Windows CMake baseline configures and compiles a native test; its CTest result is under investigation.
+- Windows CMake baseline configures and compiles a native test; its Release CTest passed on a real Windows runner.
 - **No playable `DuckDodgers.exe` has been produced.**
 
 ## Source import status
