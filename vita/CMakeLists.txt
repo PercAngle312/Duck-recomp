@@ -39,6 +39,27 @@ target_link_libraries(duck_vita_event_bridge PUBLIC duck_vita_scheduler duck_vit
 add_library(duck_vita_dispatch STATIC src/dispatch.c)
 target_include_directories(duck_vita_dispatch PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(duck_vita_dispatch PUBLIC duck_vita_recomp_bridge)
+# Opt-in private game function map. Generated output stays in build/ and
+# contains proprietary-derived entrypoints; no map is shipped in this repo.
+set(DUCK_VITA_FUNCTION_MAP "" CACHE FILEPATH "Private verified vram,symbol CSV")
+if(DUCK_VITA_FUNCTION_MAP)
+  if(NOT EXISTS "${DUCK_VITA_FUNCTION_MAP}")
+    message(FATAL_ERROR "Private function map does not exist")
+  endif()
+  set(duck_private_registry "${CMAKE_BINARY_DIR}/private/duck_game_dispatch.c")
+  add_custom_command(OUTPUT "${duck_private_registry}"
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/generate_dispatch.py"
+      --map "${DUCK_VITA_FUNCTION_MAP}" --output "${duck_private_registry}"
+    DEPENDS "${DUCK_VITA_FUNCTION_MAP}" "${CMAKE_CURRENT_SOURCE_DIR}/generate_dispatch.py"
+    VERBATIM)
+  add_library(duck_vita_game_registry STATIC "${duck_private_registry}")
+  target_include_directories(duck_vita_game_registry PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include" "${CMAKE_BINARY_DIR}/include")
+  # The registry references the generated functions. This archive intentionally
+  # does not constitute a linked or runnable game.
+  target_link_libraries(duck_vita_game_registry PUBLIC duck_vita_dispatch
+    duck_vita_modules duck_vita_resident)
+endif()
 add_library(duck_vita_recomp_bridge STATIC src/recomp_bridge.c)
 target_include_directories(duck_vita_recomp_bridge PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(duck_vita_recomp_bridge PUBLIC duck_vita_scheduler)
