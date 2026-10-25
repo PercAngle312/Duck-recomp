@@ -7,7 +7,7 @@ int duck_vita_scale_rgba_to_abgr(uint32_t *dst, size_t dst_pixels,
                                  const uint8_t *src, unsigned sw, unsigned sh,
                                  size_t stride) {
     if (!dst || !src || !dw || !dh || !sw || !sh || pitch < dw ||
-        (uint64_t)sw * 4 > SIZE_MAX || stride < (size_t)sw * 4 ||
+        stride / 4 < sw ||
         dh > SIZE_MAX / pitch || dst_pixels < (size_t)dh * pitch ||
         sh > SIZE_MAX / stride || dw > UINT32_MAX / 4)
         return -1;
