@@ -17,7 +17,7 @@ DuckDodgers-Windows/
 No Visual Studio, SDK, separate SDL/RT64 download, Python installation, developer tools, or online setup should be necessary for the **released** build. A compatible Windows operating system and GPU/driver remain necessary.
 
 ## Runtime ROM handling requirement (NOT YET IMPLEMENTED)
-- Accept Duck Dodgers ROMs in `roms/` automatically.
+- Locate one 16 MiB big-endian `.z64` in `roms/` automatically and verify Duck Dodgers USA multilingual N64 cartridge CRC1/CRC2 and ID; this locator is implemented and tested using synthetic files. **A production launcher must also verify an approved SHA-256 and load the ROM for runtime assets.**
 - Recognize .z64/.v64/.n64 formats only after validating byte order and supported ROM hashes.
 - Report a clear in-app missing-ROM or unsupported-ROM message.
 - Keep saves/configuration next to the portable launcher, without administrator privileges.
