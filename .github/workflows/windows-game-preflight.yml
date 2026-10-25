@@ -1,0 +1,37 @@
+name: Phase 13 Windows game build preflight
+on:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  game-preflight:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure imported game source preflight
+        run: cmake -S game -B build-game-preflight -A x64 -DDUCK_BUILD_GAME=OFF
+      - name: Compile runtime integration tests
+        run: cmake --build build-game-preflight --config Release --parallel 2
+      - name: Run Windows Release regression tests
+        run: ctest --test-dir build-game-preflight -C Release --output-on-failure
+      - name: Verify full build fails without private generated inputs
+        shell: pwsh
+        run: |
+          cmake -S game -B build-game-full -A x64 -DDUCK_BUILD_GAME=ON *> full-build-preflight.log
+          if ($LASTEXITCODE -eq 0) { throw "ERROR: Full game unexpectedly configured without private source" }
+          if (!(Select-String -Path full-build-preflight.log -Pattern "required input missing" -Quiet)) {
+            Get-Content full-build-preflight.log
+            throw "ERROR: full-game configuration failed without a clear missing-input diagnostic"
+          }
+          Write-Host "PASS: game build accurately reports missing private source/dependencies"
+      - name: Upload preflight logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase13-windows-source-preflight
+          path: |
+            full-build-preflight.log
+            build-game-preflight/Testing/Temporary/LastTest.log
+          if-no-files-found: warn
