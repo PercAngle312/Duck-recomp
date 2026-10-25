@@ -94,3 +94,5 @@ inline bool destroy(Allocation& a) {
     return true;
 }
 }
+
+#endif // _WIN32
