@@ -29,6 +29,11 @@ target_compile_options(duck_vita_modules PRIVATE -O1 -include "${generated}/modu
 add_library(duck_vita_resident STATIC ${resident_c})
 target_include_directories(duck_vita_resident PRIVATE "${generated}/runtime" "${DUCK_GAME_SOURCE}/runtime")
 target_compile_options(duck_vita_resident PRIVATE -O1)
+# Native display presenter, intentionally separate from translated graphics tasks.
+# Building this archive verifies VitaSDK header/API compatibility, not rendering.
+add_library(duck_vita_display STATIC src/display.c src/framebuffer_convert.c)
+target_include_directories(duck_vita_display PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
 add_library(duck_vita_audio_rsp STATIC "${generated}/runtime/audio_rsp.cpp")
 target_compile_options(duck_vita_audio_rsp PRIVATE -O1)
 
