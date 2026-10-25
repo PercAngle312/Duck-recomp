@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 
 SYMBOL = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
-def generate(mapping: Path, output: Path) -> int:
+def generate(mapping: Path, output: Path, source_root: Path | None = None) -> int:
     records = []
     with mapping.open(newline="", encoding="utf-8") as stream:
         rows = csv.DictReader(stream)
@@ -30,6 +30,29 @@ def generate(mapping: Path, output: Path) -> int:
         raise ValueError("duplicate VRAM entry")
     if len({s for _, s in records}) != len(records):
         raise ValueError("duplicate function symbol")
+    if source_root is not None:
+        # Symbols are expected as C function definitions from the *private*
+        # generated game tree. Confirm presence before emitting the registry.
+        # This is a source-level preflight; the linker remains authoritative.
+        if not source_root.is_dir():
+            raise ValueError("private source directory does not exist")
+        wanted = {symbol for _, symbol in records}
+        found = set()
+        definition = re.compile(
+            r"\b(?:RECOMP_FUNC\s+)?void\s+([A-Za-z_][A-Za-z0-9_]*)\s*"
+            r"\(\s*uint8_t\s*\*\s*\w+\s*,\s*recomp_context\s*\*\s*\w+\s*\)"
+            r"\s*\{"
+        )
+        for path in source_root.rglob("funcs_*.c"):
+            # Private generated modules/resident/boot functions only.
+            for match in definition.finditer(path.read_text(encoding="utf-8", errors="replace")):
+                if match.group(1) in wanted:
+                    found.add(match.group(1))
+            if found == wanted:
+                break
+        missing = wanted - found
+        if missing:
+            raise ValueError("unverified function definitions: " + ", ".join(sorted(missing)[:12]))
     code = ['/* Generated from PRIVATE explicit address map. Do not publish with game source. */',
             '#include "duck_vita_dispatch.h"']
     for _, symbol in records:
@@ -49,5 +72,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--map", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--source-root", type=Path, help="Private generated C source directory for symbol validation")
     args = parser.parse_args()
-    print(f"Generated {generate(args.map, args.output)} explicit entries")
+    print(f"Generated {generate(args.map, args.output, args.source_root)} explicit entries")
