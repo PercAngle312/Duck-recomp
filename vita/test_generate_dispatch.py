@@ -23,6 +23,13 @@ class GeneratorTests(unittest.TestCase):
             (generated/"funcs_0.c").write_text(
                 "RECOMP_FUNC void func_A(uint8_t* rdram, recomp_context* ctx) { (void)rdram; (void)ctx; }")
             self.assertEqual(generate(source,output,root/"private"),1)
+            other=root/"private"/"resident"
+            other.mkdir()
+            (other/"funcs_1.c").write_text(
+                "RECOMP_FUNC void func_A(uint8_t *ram, recomp_context *cpu) {}")
+            with self.assertRaisesRegex(ValueError,"ambiguous duplicate"):
+                generate(source,output,root/"private")
+            (other/"funcs_1.c").unlink()
             source.write_text("vram,symbol\n0x80001000,func_missing\n")
             with self.assertRaisesRegex(ValueError,"unverified function"):
                 generate(source,output,root/"private")
