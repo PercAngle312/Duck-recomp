@@ -12,6 +12,11 @@ typedef struct { DuckVitaThread threads[DUCK_SCHED_MAX_THREADS]; size_t count; i
 void duck_vita_scheduler_init(DuckVitaScheduler *s);
 int duck_vita_scheduler_add(DuckVitaScheduler *s,unsigned id,unsigned priority);
 int duck_vita_scheduler_next(DuckVitaScheduler *s);
+/* Cooperative lifecycle operations; do not save ARM/MIPS registers. */
+int duck_vita_scheduler_stop(DuckVitaScheduler *s,unsigned id);
+int duck_vita_scheduler_resume(DuckVitaScheduler *s,unsigned id);
+int duck_vita_scheduler_set_priority(DuckVitaScheduler *s,unsigned id,unsigned priority);
+int duck_vita_scheduler_yield(DuckVitaScheduler *s);
 int duck_vita_scheduler_wait_recv(DuckVitaScheduler *s,unsigned id,DuckVitaQueue *queue);
 int duck_vita_scheduler_queue_ready(DuckVitaScheduler *s,DuckVitaQueue *queue);
 /* Atomic in this single-threaded cooperative model: enqueue then wake one
