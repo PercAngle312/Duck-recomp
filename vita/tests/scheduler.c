@@ -25,6 +25,18 @@ int main(void){
  assert(s.threads[1].state==DUCK_THREAD_READY);
  assert(duck_vita_scheduler_send(&s,&q,0xface,0)==0);
  assert(duck_vita_scheduler_send(&s,&q,0xdead,0)==DUCK_QUEUE_FULL);
+ /* Highest-priority blocked receiver is awakened; stopped threads stay stopped. */
+ assert(duck_vita_scheduler_stop(&s,2)==0);
+ assert(s.threads[1].state==DUCK_THREAD_STOPPED);
+ assert(duck_vita_scheduler_stop(&s,2)==-1);
+ assert(duck_vita_scheduler_resume(&s,2)==0);
+ assert(duck_vita_scheduler_set_priority(&s,1,20)==0);
+ assert(duck_vita_scheduler_next(&s)==1);
+ assert(duck_vita_scheduler_yield(&s)==1);
+ assert(duck_vita_scheduler_stop(&s,1)==0);
+ assert(duck_vita_scheduler_next(&s)==2);
+ assert(duck_vita_scheduler_resume(&s,1)==0);
+ assert(duck_vita_scheduler_next(&s)==1);
  puts("PASS: priority, blocking receive, queue wake, duplicate thread guard");
  return 0;
 }
