@@ -219,7 +219,8 @@ wake/preemption, self-destruction, dispatch budgets, external queue wakeups and
 floating-point rounding modes across equal-priority yields. Existing I/O ARM
 checks and ABI/dispatch regressions pass. The native test ELF/SELF/VPK builds
 against the real Vita fiber libraries, with 30 assertion call sites retained.
-Vita OS execution has **not** been tested. Thread stack size is initially
+Physical Vita/firmware execution has **not** been tested. The later Vita3K
+result below validates the actual VPK with HLE fibers. Thread stack size is initially
 128 KiB each, limited to 16 concurrent guest contexts; gameplay usage is unmeasured.
 
 The private whole-code partial link resolves six prior game symbols. It now
@@ -239,3 +240,25 @@ Install it in VitaShell and open **Duck Vita Thread Test**. It reads no ROM/save
 and uses a different title ID from the earlier CPU diagnostic. It shows PASS or
 an assertion failure and Triangle exits. A PASS is a runtime prerequisite,
 not a gameplay result. No new playable VPK is claimed.
+
+## Actual thread-test VPK execution in Vita3K (2026-10-25)
+
+The unchanged `DuckDodgers-Vita-Thread-Test.vpk` boots and displays
+**Native fiber / guest thread tests: PASS (0)** in Vita3K v0.2.1
+4232-92bda548. Its SHA-256 and precise conditions are recorded in
+`reports/vita3k-thread-test.json`. This runs the packaged ARM SELF through the
+emulator, rather than substituting the host ucontext test for Vita APIs.
+
+No Sony firmware was installed. Automatic module selection first failed because
+it requested absent libfiber.suprx. Manual modules with an empty LLE list use
+Vita3K's implemented HLE fibers; the same VPK then passes. Host gamepad, rumble,
+sensor and camera discovery was disabled in a private emulator copy because this
+sandbox cannot enumerate those devices. Only that host SDL initialization flag
+was changed; guest CPU execution, Vita fiber HLE and the VPK/assertions were
+unchanged. Audio/video initialization still ran, using virtual X11, llvmpipe
+OpenGL and dummy host audio. It remained on PASS until emulator shutdown.
+
+The original host UBSan thread test and 16 ARM I/O calls also pass on retest.
+This does not validate real Vita firmware fibers, a physical gamepad, Triangle
+exit, audio hardware, game graphics or gameplay. The unchanged VPK is still a
+runtime diagnostic; no playable game build is established by this result.
