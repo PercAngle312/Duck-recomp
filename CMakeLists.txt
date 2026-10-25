@@ -12,6 +12,8 @@ target_link_libraries(duck_windows_alias_smoke PRIVATE onecore)
 add_test(NAME windows_rdram_alias COMMAND duck_windows_alias_smoke)
 add_executable(duck_windows_display_test port/tests/display.cpp)
 add_test(NAME windows_display_settings COMMAND duck_windows_display_test)
+add_executable(duck_windows_controller_test port/tests/controller.cpp)
+add_test(NAME windows_controller_mapping COMMAND duck_windows_controller_test)
 # The full game will be enabled when the source/dependencies are actually present.
 option(DUCK_BUILD_FULL_GAME "Configure the supplied native game source tree" OFF)
 if(DUCK_BUILD_FULL_GAME)
