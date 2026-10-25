@@ -38,6 +38,7 @@ def generate(mapping: Path, output: Path, source_root: Path | None = None) -> in
             raise ValueError("private source directory does not exist")
         wanted = {symbol for _, symbol in records}
         found = set()
+        duplicate = set()
         definition = re.compile(
             r"\b(?:RECOMP_FUNC\s+)?void\s+([A-Za-z_][A-Za-z0-9_]*)\s*"
             r"\(\s*uint8_t\s*\*\s*\w+\s*,\s*recomp_context\s*\*\s*\w+\s*\)"
@@ -47,9 +48,11 @@ def generate(mapping: Path, output: Path, source_root: Path | None = None) -> in
             # Private generated modules/resident/boot functions only.
             for match in definition.finditer(path.read_text(encoding="utf-8", errors="replace")):
                 if match.group(1) in wanted:
+                    if match.group(1) in found:
+                        duplicate.add(match.group(1))
                     found.add(match.group(1))
-            if found == wanted:
-                break
+        if duplicate:
+            raise ValueError("ambiguous duplicate function definitions: " + ", ".join(sorted(duplicate)[:12]))
         missing = wanted - found
         if missing:
             raise ValueError("unverified function definitions: " + ", ".join(sorted(missing)[:12]))
