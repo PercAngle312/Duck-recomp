@@ -9,6 +9,8 @@ on:
       - 'vita/include/duck_vita_dispatch.h'
       - 'vita/src/dispatch.c'
       - 'vita/tests/dispatch.c'
+      - 'vita/generate_dispatch.py'
+      - 'vita/test_generate_dispatch.py'
       - '.github/workflows/vita-recomp-abi.yml'
   pull_request:
     paths:
@@ -26,6 +28,8 @@ jobs:
           mkdir -p /tmp/duck-abi
           curl -fLsS --retry 3 https://raw.githubusercontent.com/N64Recomp/N64Recomp/ffb39cdad1da5de07eaaa48bd1db4a89a7986771/include/recomp.h -o /tmp/duck-abi/recomp.h
           grep -Fq 'typedef void (recomp_func_t)(uint8_t* rdram, recomp_context* ctx);' /tmp/duck-abi/recomp.h
+      - name: Test private registry generator
+        run: python3 vita/test_generate_dispatch.py
       - name: Compile ABI dispatch test
         run: |
           cc -std=c11 -Wall -Wextra -Werror -O1 -fsanitize=address,undefined -fno-omit-frame-pointer -I /tmp/duck-abi -I vita/include vita/src/queue.c vita/src/scheduler.c vita/src/recomp_bridge.c vita/tests/recomp_bridge.c -lm -o /tmp/duck-vita-recomp-test
