@@ -33,6 +33,8 @@ target_compile_options(duck_vita_resident PRIVATE -O1)
 # Building this archive verifies VitaSDK header/API compatibility, not rendering.
 add_library(duck_vita_display STATIC src/display.c src/framebuffer_convert.c)
 add_library(duck_vita_guest_memory STATIC src/guest_memory.c)
+add_library(duck_vita_queue STATIC src/queue.c)
+target_include_directories(duck_vita_queue PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 add_library(duck_vita_cpu_irq STATIC src/cpu_irq.c)
 target_include_directories(duck_vita_cpu_irq PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 add_library(duck_vita_mi STATIC src/mi.c)
