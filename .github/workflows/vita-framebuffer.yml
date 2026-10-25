@@ -27,6 +27,9 @@ on:
       - 'vita/include/duck_vita_queue.h'
       - 'vita/src/queue.c'
       - 'vita/tests/queue.c'
+      - 'vita/include/duck_vita_scheduler.h'
+      - 'vita/src/scheduler.c'
+      - 'vita/tests/scheduler.c'
       - '.github/workflows/vita-framebuffer.yml'
   pull_request:
     paths:
@@ -72,3 +75,7 @@ jobs:
         run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/queue.c vita/tests/queue.c -o /tmp/duck-vita-queue
       - name: Test queue wraparound and priority
         run: /tmp/duck-vita-queue
+      - name: Compile scheduler test
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/queue.c vita/src/scheduler.c vita/tests/scheduler.c -o /tmp/duck-vita-scheduler
+      - name: Test cooperative scheduling and message wakeup
+        run: /tmp/duck-vita-scheduler
