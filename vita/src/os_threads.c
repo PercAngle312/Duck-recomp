@@ -1,12 +1,22 @@
 #include "duck_vita_threads.h"
 #include <string.h>
 enum { FREE,STOPPED,READY,RUNNING,RECV,SEND,DEAD,MAX_THREADS=16 };
-static struct {uint32_t address,entry,queue;int priority,state;uint64_t order;recomp_context ctx;} threads[MAX_THREADS];
+static struct {uint32_t address,entry,queue,rcp_mask;int priority,state;uint64_t order;recomp_context ctx;} threads[MAX_THREADS];
 static uint8_t *ram;
 static DuckThreadLookup lookup;
 static DuckThreadPump pump;
 static int current=-1,fault;
 static uint64_t clock_order;
+static uint32_t boot_rcp_mask=0x3f;
+uint32_t duck_vita_thread_rcp_mask(void){return current>=0?threads[current].rcp_mask:boot_rcp_mask;}
+void duck_vita_thread_set_rcp_mask(uint32_t mask){
+ if(current<0){boot_rcp_mask=mask&0x3f;return;}
+ threads[current].rcp_mask=mask&0x3f;
+ if(threads[current].address){
+  uint32_t value=mask&0x3f;
+  memcpy(ram+(threads[current].address&0x1fffffffu)+0x128,&value,4);
+ }
+}
 static int offset(uint64_t v,uint32_t size,uint32_t *out) {
  uint32_t a=(uint32_t)v,p=a&0x1fffffffu;
  if(v!=(uint64_t)a&&v!=(uint64_t)(int64_t)(int32_t)a)return -1;
@@ -71,6 +81,7 @@ static int create(uint32_t address,uint32_t pc,uint32_t stack,uint32_t arg,int p
  if(i==MAX_THREADS)return -1;
  memset(&threads[i],0,sizeof threads[i]);threads[i].address=address;threads[i].entry=pc;
  threads[i].priority=priority;threads[i].ctx.r29=(gpr)(int32_t)(stack-16);
+ threads[i].rcp_mask=0x3f;
  threads[i].ctx.r4=(gpr)(int32_t)arg;threads[i].ctx.status_reg=0xff01;
  threads[i].ctx.f_odd=&threads[i].ctx.f0.u32h;
  if(duck_fiber_create((unsigned)i,entry))return -1;
@@ -80,7 +91,7 @@ static int create(uint32_t address,uint32_t pc,uint32_t stack,uint32_t arg,int p
 int duck_vita_threads_init(uint8_t *rdram,DuckThreadLookup resolve,DuckThreadPump service){
  if(current>=0)return -1;
  for(unsigned i=0;i<MAX_THREADS;i++){duck_fiber_destroy(i);memset(&threads[i],0,sizeof threads[i]);}
- ram=rdram;lookup=resolve;pump=service;fault=0;clock_order=0;
+ ram=rdram;lookup=resolve;pump=service;fault=0;clock_order=0;boot_rcp_mask=0x3f;
  if(duck_fiber_prepare()){fault=1;return -1;}
  duck_vita_os_queue_hooks(wait_queue,wake_queue,preempt);
  return ram&&lookup?0:-1;

@@ -45,11 +45,15 @@ static void root(uint8_t *r,recomp_context *c){
  assert(local==0x314159);record(8);
 }
 static void equal_a(uint8_t *r,recomp_context *c){
+ c->r4=1;osSetIntMask_recomp(r,c);assert(c->r2==0x003fff01u);
  assert(!fesetround(FE_DOWNWARD));record(11);osYieldThread_recomp(r,c);
+ assert(duck_vita_thread_rcp_mask()==0&&(c->status_reg&0xff00)==0);
  assert(fegetround()==FE_DOWNWARD);record(13);
 }
 static void equal_b(uint8_t *r,recomp_context *c){
+ c->r4=0x000c2001;osSetIntMask_recomp(r,c);assert(c->r2==0x003fff01u);
  assert(!fesetround(FE_UPWARD));record(12);osYieldThread_recomp(r,c);
+ assert(duck_vita_thread_rcp_mask()==0xc&&(c->status_reg&0xff00)==0x2000);
  assert(fegetround()==FE_UPWARD);record(14);
 }
 static recomp_func_t *lookup(uint32_t pc){return pc==0x80001000?root:pc==0x80002000?receive:pc==0x80003000?send:pc==0x80004000?equal_a:pc==0x80005000?equal_b:NULL;}

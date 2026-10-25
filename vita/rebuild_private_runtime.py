@@ -16,6 +16,8 @@ p.add_argument('--modules',type=Path);p.add_argument('--audio-rsp',type=Path)
 p.add_argument('--jobs',type=int,default=4)
 p.add_argument('--threads',action='store_true',help='Include stack-preserving Vita fibers and guest thread callbacks')
 p.add_argument('--time',action='store_true',help='Include monotonic timers, initialization and VI retrace service')
+p.add_argument('--overlay-catalog',type=Path,help='Private generated module catalog; use observed allocator source')
+p.add_argument('--input',action='store_true',help='Include asynchronous SI completion and native Vita input')
 a=p.parse_args()
 if a.jobs<1 or a.jobs>8:p.error('--jobs must be 1..8')
 if bool(a.modules)!=bool(a.audio_rsp):p.error('Pass both --modules and --audio-rsp')
@@ -40,10 +42,15 @@ for name,digest in manifest.items():
     if hashlib.sha256(source.read_bytes()).hexdigest()!=digest:raise ValueError('Callback checksum mismatch: '+name)
     replaced={'queue_ops.c'}
     if a.time:replaced.update(('count_compare.c','vi_config.c','vi.c'))
+    if a.input:replaced.add('controller_batch.c')
     if name not in replaced:sources.append(source)
 sources += [root/'src/os_core.c',root/'src/os_io.c',root/'src/os_queue.c']
-if a.threads:sources += [root/'src/os_threads.c',root/'src/fiber_vita.c']
+if a.threads:sources += [root/'src/os_threads.c',root/'src/fiber_vita.c',root/'src/os_interrupt.c']
 if a.time:sources += [root/'src/os_time.c',root/'src/os_vi.c',root/'src/os_vi_config.c',root/'src/clock_vita.c']
+if a.overlay_catalog:sources += [root/'src/os_overlays.c',a.overlay_catalog]
+if a.overlay_catalog and not any('duck_vita_after_allocation(' in s.read_text() for s in a.resident_source.glob('funcs_*.c')):
+    raise ValueError('Overlay retention requires observed allocator source; regenerate into an isolated output')
+if a.input:sources += [root/'src/os_input.c',root/'src/input_vita.c']
 flags=['-std=c11','-O1','-mcpu=cortex-a9','-mfpu=neon','-mfloat-abi=hard',
        '-ffunction-sections','-fdata-sections','-ffreestanding','-fno-builtin','-fno-tree-loop-distribute-patterns']
 for directory in (a.recomp_include,root/'include',a.private_include,a.resident_source):
@@ -62,6 +69,8 @@ report=dict(compiler=run([cc,'--version']).splitlines()[0],compiled_sources=len(
  full_game_linked=False,playable_game=False,vita_os_tested=False)
 report['fiber_runtime_compiled']=a.threads
 report['timer_vi_runtime_compiled']=a.time
+report['overlay_runtime_compiled']=bool(a.overlay_catalog)
+report['si_input_runtime_compiled']=a.input
 if a.modules:
     combined=out/'full-code-with-sdk-math.arm.o'
     run([ld,'-r',raw,'--whole-archive',a.modules,a.audio_rsp,'--no-whole-archive',libm,libgcc,'-o',combined])

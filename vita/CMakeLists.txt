@@ -86,9 +86,16 @@ target_include_directories(duck_vita_os_io PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/i
 add_library(duck_vita_os_time STATIC src/os_time.c src/os_vi.c src/os_vi_config.c src/clock_vita.c)
 target_include_directories(duck_vita_os_time PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(duck_vita_os_time PUBLIC duck_vita_os_io m)
-add_library(duck_vita_os_threads STATIC src/os_threads.c src/fiber_vita.c)
+add_library(duck_vita_os_threads STATIC src/os_threads.c src/fiber_vita.c src/os_interrupt.c)
 target_include_directories(duck_vita_os_threads PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(duck_vita_os_threads PUBLIC duck_vita_os_io SceFiber_stub SceSysmodule_stub)
+# Runtime dispatch catalog is generated privately by generate_overlay_catalog.py.
+# Linking these archives alone does not execute graphics or produce a game VPK.
+add_library(duck_vita_overlays STATIC src/os_overlays.c)
+target_include_directories(duck_vita_overlays PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+add_library(duck_vita_os_input STATIC src/os_input.c src/input_vita.c)
+target_include_directories(duck_vita_os_input PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(duck_vita_os_input PUBLIC duck_vita_os_io SceCtrl_stub)
 add_library(duck_vita_pi STATIC src/pi.c)
 target_include_directories(duck_vita_pi PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(duck_vita_pi PUBLIC duck_vita_bus duck_vita_dma)

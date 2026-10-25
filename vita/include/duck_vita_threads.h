@@ -1,6 +1,9 @@
 #pragma once
 #include "recomp.h"
 #include <stdint.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef recomp_func_t *(*DuckThreadLookup)(uint32_t address);
 typedef int (*DuckThreadPump)(void);
 enum { DUCK_THREADS_IDLE=0,DUCK_THREADS_WAITING=1,DUCK_THREADS_BUDGET=2,DUCK_THREADS_ERROR=-1 };
@@ -15,6 +18,9 @@ void osStartThread_recomp(uint8_t*,recomp_context*);
 void osDestroyThread_recomp(uint8_t*,recomp_context*);
 void osSetThreadPri_recomp(uint8_t*,recomp_context*);
 void osYieldThread_recomp(uint8_t*,recomp_context*);
+void osSetIntMask_recomp(uint8_t*,recomp_context*);
+uint32_t duck_vita_thread_rcp_mask(void);
+void duck_vita_thread_set_rcp_mask(uint32_t mask);
 /* Internal stack backend; Vita uses SceFiber, host tests use ucontext. */
 int duck_fiber_create(unsigned slot,void (*entry)(unsigned));
 int duck_fiber_prepare(void);
@@ -24,3 +30,7 @@ void duck_fiber_destroy(unsigned slot);
 typedef int (*DuckQueueWait)(uint32_t queue,int sending);
 typedef void (*DuckQueueWake)(uint32_t queue,int sending);
 void duck_vita_os_queue_hooks(DuckQueueWait wait,DuckQueueWake wake,void (*preempt)(void));
+
+#ifdef __cplusplus
+}
+#endif

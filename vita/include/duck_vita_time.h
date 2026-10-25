@@ -1,6 +1,9 @@
 #pragma once
 #include "recomp.h"
 #include <stdint.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef uint64_t (*DuckVitaTickClock)(void *opaque);
 typedef struct {uint32_t mode_address,special_features,event_queue,event_message,retrace_count;} DuckViConfig;
 typedef struct {uint64_t timer_messages,vi_messages,dropped_messages,retraces;} DuckVitaTimeStats;
@@ -26,3 +29,7 @@ int duck_vi_config_snapshot(DuckViConfig*);
 uint32_t duck_vi_config_generation(void);
 void duck_vi_reset(void);
 void duck_vi_retrace(void);
+
+#ifdef __cplusplus
+}
+#endif
