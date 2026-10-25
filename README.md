@@ -1,26 +1,28 @@
-# Duck Dodgers — PC Native Recompilation
+# Duck Dodgers — native PC recompilation
 
-Linux is the reference build; Windows x64 is under active development.
+[Development roadmap](ROADMAP.md) · [Windows CI](https://github.com/PercAngle312/Duck-recomp/actions) · [Portable ROM setup](docs/ROM-SETUP.md)
 
-**[Roadmap](ROADMAP.md)** · **[Windows CI](https://github.com/PercAngle312/Duck-recomp/actions)**
+## Goal: one download, supply your ROM, play
 
-## Current verification
+The intended **final Windows release** is a single ZIP with `DuckDodgers.exe`, the graphics/input runtime, redistribution-safe DLLs and necessary support data. Extract the ZIP, place your legally owned Duck Dodgers USA 16 MiB big-endian `.z64` file under `roms/`, and double-click `DuckDodgers.exe`. No developer toolchain, standalone emulator, Python install, or additional DLL download should be needed.
 
-- Linux: native executable reached menus and 3D gameplay under RT64/Lavapipe; the complete campaign has **not** been verified.
-- Windows: MSVC Windows SDK test demonstrated coherent RAM aliases and safe release ([passing run](https://github.com/PercAngle312/Duck-recomp/actions/runs/40164179463)).
-- Windows CMake baseline configures and compiles a native test; its Release CTest passed on a real Windows runner.
-- **No playable `DuckDodgers.exe` has been produced.**
+**This is not playable yet.** The full game runtime, ROM-to-game-data handoff, RT64 Direct3D 12 binding, complete generated game source, and real `DuckDodgers.exe` are still missing from the public repository. Do not download the current test artifacts expecting a game.
 
-## Source import status
+## Verified on Windows Server 2022
 
-The Phase 11 CMake and game source checkpoint has been recovered and tested locally, but **the full generated game source and pinned third-party source trees are not yet committed**. This repository currently contains the native Windows validation and CI foundation. See [ROADMAP.md](ROADMAP.md) for the complete import/build sequence.
+- Native Win32 dual RDRAM aliasing and the imported Phase 11 mapper, including coherent 8 MiB views and cleanup
+- Graphics option parsing and controller button translation
+- Windows executable-relative portable save folder handling
+- Automatic recognition of exactly one correctly structured 16 MiB big-endian `.z64` file in `roms/` (test uses synthetic data, **not** the actual game)
 
-**No original ROM, proprietary assets, or EEPROM saves should ever be committed to this public repository.** Players must supply their own legitimate game data locally.
+**[CMake / Release 6/6 passing CI run](https://github.com/PercAngle312/Duck-recomp/actions/runs/40166192168)**
 
-## CI
+The Linux reference build previously reached the opening menus and 3D scene with Lavapipe. Full campaign validation is pending.
 
-`windows-sdk-baseline.yml` directly compiles/tests the Win32 memory alias API. `windows-cmake.yml` separately exercises the CMake + CTest path.
+## Source import
 
-## Build status
+`port/runtime` contains source-level Windows mapper, graphics, controller, save path and ROM locator components from / inspired by the recovered Phase 11 checkpoint. `port/tests` contains the associated Windows regression tests. `scripts/package-release.ps1` stages a future portable ZIP **only after** a real `DuckDodgers.exe` is available. `game/` remains a missing full-game source integration target; translated proprietary game code and ROM are not committed here.
 
-The CMake root currently builds a stand-alone Win32 test. `-DDUCK_BUILD_FULL_GAME=ON` intentionally fails with a clear message until `game/CMakeLists.txt` is imported.
+## Copyright and release constraints
+
+Never commit game ROMs, extracted game assets, EEPROM saves or proprietary game payloads. The launcher should request the user-supplied ROM locally and validate it. Release ZIPs should contain only materials that can legally be redistributed, along with required licenses. A complete dependency and clean-machine test is required before describing the Windows package as standalone.
