@@ -21,6 +21,9 @@ on:
       - 'vita/include/duck_vita_mi.h'
       - 'vita/src/mi.c'
       - 'vita/tests/mi_pi.c'
+      - 'vita/include/duck_vita_cpu_irq.h'
+      - 'vita/src/cpu_irq.c'
+      - 'vita/tests/cpu_irq.c'
       - '.github/workflows/vita-framebuffer.yml'
   pull_request:
     paths:
@@ -58,3 +61,7 @@ jobs:
         run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/guest_memory.c vita/src/bus.c vita/src/dma.c vita/src/pi.c vita/src/mi.c vita/tests/mi_pi.c -o /tmp/duck-vita-mi-pi
       - name: Test interrupt mask and acknowledgement
         run: /tmp/duck-vita-mi-pi
+      - name: Compile CPU IRQ delivery test
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/guest_memory.c vita/src/bus.c vita/src/dma.c vita/src/pi.c vita/src/mi.c vita/src/cpu_irq.c vita/tests/cpu_irq.c -o /tmp/duck-vita-cpu-irq
+      - name: Test CPU IP2 and exception-level gating
+        run: /tmp/duck-vita-cpu-irq
