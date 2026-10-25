@@ -36,3 +36,9 @@ Updated 2026-10-25. **Linux is the gameplay reference; Windows is pre-release.**
 - Do not commit Duck Dodgers ROMs (.z64/.n64/.v64), extracted images/audio, EEPROM saves, or binary game payloads.
 - Preserve dependency license notices, pinned upstream source revisions, and the original Linux test baseline.
 - Do not label a CI test executable as a playable Windows game.
+
+## Phase 13 Windows game CMake preflight — 2026-10-25
+- [x] Added `game/CMakeLists.txt` with isolated MSVC runtime integration builds and clear full-game dependency checks.
+- [x] Ran the game-specific Windows 2022 CMake Release configure, compilation and CTest: [workflow run](https://github.com/PercAngle312/Duck-recomp/actions/runs/40199158516).
+- [x] CI verifies that `DUCK_BUILD_GAME=ON` refuses missing private generated sources and dependency checkouts with a useful error.
+- [ ] Full-game sources are not imported to public CI; this is **not** a full game build or playable executable.
