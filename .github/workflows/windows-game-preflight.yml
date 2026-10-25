@@ -41,6 +41,9 @@ jobs:
           }
           if (!$rejected) { throw "Build script accepted missing dependencies" }
           Write-Host "PASS: full game builder refused unavailable dependency tree"
+      - name: Verify real game target guard
+        shell: pwsh
+        run: ./scripts/test-full-target-guard.ps1
       - name: Upload preflight logs
         if: always()
         uses: actions/upload-artifact@v4
