@@ -3,8 +3,16 @@
 set -eu
 app_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 expected=2bbfe0cfc6aff7b623ae53673b8f91e9008cc5749fe07920712e0d0f9abe3fc5
+if [ "${1:-}" = --safe-mode ]; then
+    export DUCK_GRAPHICS_SAFE=1
+    shift
+fi
+if [ "${1:-}" = --settings ]; then
+    export DUCK_SHOW_GRAPHICS=1
+    shift
+fi
 if [ "$#" -gt 1 ]; then
-    echo 'Usage: ./run.sh [path/to/Duck-Dodgers-US.z64]' >&2
+    echo 'Usage: ./run.sh [--safe-mode] [--settings] [path/to/Duck-Dodgers-US.z64]' >&2
     exit 2
 fi
 if [ "$#" -eq 1 ]; then

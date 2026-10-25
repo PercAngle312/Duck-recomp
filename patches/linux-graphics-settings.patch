@@ -1,0 +1,127 @@
+--- a/runtime/pc_backend.cpp
++++ b/runtime/pc_backend.cpp
+@@ -7,14 +7,21 @@
+ #include "pc_backend.h"
+ #include "hle/rt64_application.h"
+ #include "hle/rt64_rsp.h"
++#ifdef DUCK_GRAPHICS_SETTINGS
++#include "graphics_settings.h"
++#endif
+ static std::atomic<uint16_t> buttons{0};
+ static std::atomic<float> stick_x{0},stick_y{0};
+ static SDL_AudioDeviceID audio_device;
++static SDL_Window* main_window;
+ static std::mutex audio_mutex;
+ class DuckRenderer final: public ultramodern::renderer::RendererContext {
+     uint8_t header[0x40]{}, dmem[0x1000]{}, imem[0x1000]{};
+     uint32_t mi{}, dpc[8]{};
+     std::unique_ptr<RT64::Application> app;
++    uint64_t settings_revision=0;
++    uint32_t supported_samples=1;
++    std::atomic<float> current_scale{1};
+ public:
+     DuckRenderer(uint8_t* ram, SDL_Window* window) {
+         RT64::Application::Core core{};core.window=window;
+@@ -29,19 +36,47 @@
+ #undef VI
+         RT64::ApplicationConfiguration config;config.useConfigurationFile=false;config.appId="duckdodgers";
+         app=std::make_unique<RT64::Application>(core,config);
++#ifdef DUCK_GRAPHICS_SETTINGS
++        duck_graphics::Settings selected;
++        duck_graphics::take_request(settings_revision,selected);
++        app->userConfig=duck_graphics::renderer_config(selected);
++        current_scale=selected.scale>1?float(app->userConfig.resolutionMultiplier):1;
++#else
+         app->userConfig.graphicsAPI=RT64::UserConfiguration::GraphicsAPI::Vulkan;
+         app->userConfig.resolution=RT64::UserConfiguration::Resolution::Original;
+         app->userConfig.antialiasing=RT64::UserConfiguration::Antialiasing::None;
+         app->userConfig.aspectRatio=RT64::UserConfiguration::AspectRatio::Original;
++#endif
+         auto result=app->setup(0);
+         setup_result=result==RT64::Application::SetupResult::Success?ultramodern::renderer::SetupResult::Success:ultramodern::renderer::SetupResult::GraphicsDeviceNotFound;
+         chosen_api=ultramodern::renderer::GraphicsApi::Vulkan;
+         fprintf(stderr,"[graphics] RT64 setup result %d\n",int(result));
++#ifdef DUCK_GRAPHICS_SETTINGS
++        if(valid()) {
++            supported_samples=app->device->getSampleCountsSupported(RT64::RenderTarget::colorBufferFormat(app->shaderLibrary->usesHDR)) & app->device->getSampleCountsSupported(RT64::RenderTarget::depthBufferFormat());
++            duck_graphics::set_capabilities(supported_samples,app->userConfig.msaaSampleCount());
++            app->swapChain->setVsyncEnabled(selected.vsync);
++            fprintf(stderr,"[settings] GPU sample mask=%u effective MSAA=%ux scale=%.2f\n",supported_samples,app->userConfig.msaaSampleCount(),current_scale.load());
++        }
++#endif
+     }
+     bool valid() override{return setup_result==ultramodern::renderer::SetupResult::Success;}
+     bool update_config(const ultramodern::renderer::GraphicsConfig&,const ultramodern::renderer::GraphicsConfig&) override{return false;}
+     void enable_instant_present() override{}
+     void send_dl(const OSTask* task) override {
++#ifdef DUCK_GRAPHICS_SETTINGS
++        duck_graphics::Settings selected;
++        if(duck_graphics::take_request(settings_revision,selected)) {
++            auto next=duck_graphics::renderer_config(selected);
++            if(!(supported_samples & next.msaaSampleCount()))next.antialiasing=RT64::UserConfiguration::Antialiasing::None;
++            bool change_msaa=app->userConfig.antialiasing!=next.antialiasing;
++            app->userConfig=next;
++            if(change_msaa)app->updateMultisampling();
++            app->updateUserConfig(true);
++            current_scale=selected.scale>1?float(next.resolutionMultiplier):1;
++            fprintf(stderr,"[settings] Applied render scale=%.2f mode=%d MSAA=%ux aspect=%d filter=%d three-point=%d\n",current_scale.load(),int(next.resolution),next.msaaSampleCount(),int(next.aspectRatio),int(next.filtering),next.threePointFiltering);
++        }
++#endif
+         static unsigned count=0;if(++count<=10 || count%300==0)fprintf(stderr,"[graphics] Display list %u: %08X (%u bytes)\n",count,task->t.data_ptr,task->t.data_size);
+         app->state->rsp->reset();
+         app->interpreter->loadUCodeGBI(task->t.ucode&0x3ffffff,task->t.ucode_data&0x3ffffff,true);
+@@ -51,16 +86,30 @@
+     void update_screen() override {app->updateScreen();}
+     void shutdown() override {if(valid())app->end();}
+     uint32_t get_display_framerate() const override{return 60;}
+-    float get_resolution_scale() const override{return 1;}
++    float get_resolution_scale() const override{return current_scale.load();}
+ };
+ void duck_configure_pc(recomp::Configuration& cfg) {
+     cfg.gfx_callbacks.create_window=[](void*)->SDL_Window* {
+         if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_GAMECONTROLLER)) {fprintf(stderr,"SDL: %s\n",SDL_GetError());std::exit(5);}
+         auto* w=SDL_CreateWindow("Duck Dodgers Recompiled",SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,960,720,SDL_WINDOW_VULKAN|SDL_WINDOW_RESIZABLE);
+-        if(!w) {fprintf(stderr,"Window: %s\n",SDL_GetError());std::exit(5);}return w;
++        if(!w) {fprintf(stderr,"Window: %s\n",SDL_GetError());std::exit(5);}
++        main_window=w;
++#ifdef DUCK_GRAPHICS_SETTINGS
++        duck_graphics::initialize(w,recomp::get_config_path());
++#endif
++        return w;
+     };
+     cfg.gfx_callbacks.update_gfx=[](void*) {
+-        SDL_Event e;while(SDL_PollEvent(&e))if(e.type==SDL_QUIT)ultramodern::quit();
++        SDL_Event e;while(SDL_PollEvent(&e)) {
++#ifdef DUCK_GRAPHICS_SETTINGS
++            if(duck_graphics::handle_event(e))continue;
++#endif
++            if(e.type==SDL_QUIT || (e.type==SDL_WINDOWEVENT && e.window.event==SDL_WINDOWEVENT_CLOSE && e.window.windowID==SDL_GetWindowID(main_window)))ultramodern::quit();
++        }
++#ifdef DUCK_GRAPHICS_SETTINGS
++        duck_graphics::draw();
++        if(duck_graphics::is_open()) {buttons=0;stick_x=0;stick_y=0;SDL_Delay(1);return;}
++#endif
+         auto* k=SDL_GetKeyboardState(nullptr);uint16_t b=0;
+         if(k[SDL_SCANCODE_RETURN])b|=0x1000;if(k[SDL_SCANCODE_J])b|=0x8000;if(k[SDL_SCANCODE_K])b|=0x4000;
+         if(k[SDL_SCANCODE_SPACE])b|=0x2000;if(k[SDL_SCANCODE_Q])b|=0x20;if(k[SDL_SCANCODE_E])b|=0x10;
+--- a/runtime/boot_probe.cpp
++++ b/runtime/boot_probe.cpp
+@@ -12,6 +12,9 @@
+ static uint8_t* debug_ram;
+ #include "recomp.h"
+ #include "loader_bridge.h"
++#ifdef DUCK_GRAPHICS_SETTINGS
++#include "graphics_settings.h"
++#endif
+ #ifdef DUCK_WITH_RT64
+ #include "pc_backend.h"
+ extern RspExitReason duck_audio_rsp(uint8_t*, uint32_t);
+@@ -128,5 +131,8 @@
+         fprintf(stderr, "[host] Execution test deadline\n"); std::_Exit(124); }).detach();
+     fprintf(stderr, "[probe] Starting actual native game CPU execution\n");
+     recomp::start(cfg);
++#ifdef DUCK_GRAPHICS_SETTINGS
++    duck_graphics::shutdown();
++#endif
+     return 0;
+ }

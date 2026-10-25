@@ -53,7 +53,7 @@ def main():
     subprocess.run(configure, env=env, check=True)
     if a.configure_only:
         return
-    subprocess.run(['cmake', '--build', str(build), '--target', 'duckdodgers', 'duck_memory_alias',
+    subprocess.run(['cmake', '--build', str(build), '--target', 'duckdodgers', 'duck_memory_alias', 'duck_overlay_lifetime',
                     '--parallel', str(a.jobs)], env=env, check=True)
     subprocess.run(['ctest', '--test-dir', str(build), '--output-on-failure'], env=env, check=True)
     print(f'Linked full Linux executable: {build / "duckdodgers"}. Gameplay requires separate validation.')

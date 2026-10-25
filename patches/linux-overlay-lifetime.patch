@@ -1,0 +1,39 @@
+--- a/runtime/loader_bridge.cpp
++++ b/runtime/loader_bridge.cpp
+@@ -5,6 +5,10 @@
+ #include <unordered_map>
+ #include "loader_bridge.h"
+ #include "librecomp/overlays.hpp"
++#ifdef DUCK_DEFER_OVERLAY_UNLOAD
++#include "retired_code.h"
++static RetiredCode retired_code;
++#endif
+
+ struct Module { uint32_t id, rom, initialized, bss; };
+ static constexpr Module catalog[] = {
+@@ -39,6 +43,12 @@
+             std::exit(82);
+         }
+     }
++#ifdef DUCK_DEFER_OVERLAY_UNLOAD
++    retired_code.before_load(id,base,initialized,[](auto old) {
++        unload_overlays(static_cast<int32_t>(old.base),old.size);
++        fprintf(stderr,"[loader] Replaced retired %08X at %08X\n",old.id,old.base);
++    });
++#endif
+     load_overlays(found->rom, static_cast<int32_t>(base), initialized);
+     loaded.emplace(allocation, Loaded{base, initialized, id});
+     fprintf(stderr, "[loader] Registered %08X at %08X size=%X\n", id, base, initialized);
+@@ -49,7 +59,12 @@
+     std::lock_guard lock(loader_mutex);
+     auto it = loaded.find(allocation);
+     if (it == loaded.end()) return;
++#ifdef DUCK_DEFER_OVERLAY_UNLOAD
++    retired_code.retain({it->second.id,it->second.base,it->second.initialized});
++    fprintf(stderr,"[loader] Retained freed code %08X at %08X until replacement\n",it->second.id,it->second.base);
++#else
+     unload_overlays(static_cast<int32_t>(it->second.base), it->second.initialized);
++#endif
+     fprintf(stderr, "[loader] Unregistered %08X at %08X\n", it->second.id, it->second.base);
+     loaded.erase(it);
+ }
