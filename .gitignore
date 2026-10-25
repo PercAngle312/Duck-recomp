@@ -1,0 +1,30 @@
+# Proprietary game data and user saves
+*.z64
+*.n64
+*.v64
+*.rom
+*.sav
+*.eep
+*.sra
+*.fla
+private/
+roms/
+saves/
+# Compiled programs / build directories
+build/
+out/
+CMakeFiles/
+CMakeCache.txt
+*.obj
+*.o
+*.pdb
+*.exe
+*.dll
+*.lib
+*.a
+# Large vendor and extraction trees
+third_party/binaries/
+*.deb
+*.zip
+*.tar.xz
+__pycache__/
