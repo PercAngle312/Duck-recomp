@@ -8,7 +8,7 @@ Updated 2026-10-25. **Linux is the gameplay reference; Windows is pre-release.**
 - [x] Software Vulkan (Lavapipe) ran the rebuilt Linux game through language selection, save selection, opening sequence and into 3D gameplay.
 - [x] Linux generated 512-byte EEPROM saves, survived restart, and passed native regression tests.
 - [x] Windows Server 2022 MSVC compiled a native RAM-alias test and verified coherent dual mapped views: [successful baseline run](https://github.com/PercAngle312/Duck-recomp/actions/runs/40164179463).
-- [x] Windows CMake x64 configure, Release compile and real RDRAM alias CTest passed on Windows Server 2022 ([passing run](https://github.com/PercAngle312/Duck-recomp/actions/runs/40164854806)).
+- [x] Windows CMake x64 Release build passes RDRAM alias, graphics settings, and controller-mapping CTests ([CI run](https://github.com/PercAngle312/Duck-recomp/actions/runs/40165678745)).
 - [ ] **Full-game Windows executable is not compiled.**
 - [ ] Full game playthrough and true progress-save reload unverified.
 
