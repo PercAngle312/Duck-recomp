@@ -51,3 +51,32 @@ int duck_vita_scheduler_send(DuckVitaScheduler *s,DuckVitaQueue *queue,
  if(result==DUCK_QUEUE_OK)duck_vita_scheduler_queue_ready(s,queue);
  return result;
 }
+
+static DuckVitaThread *find_thread(DuckVitaScheduler *s,unsigned id) {
+ if(!s||!id)return NULL;
+ for(size_t i=0;i<s->count;i++)if(s->threads[i].id==id)return &s->threads[i];
+ return NULL;
+}
+int duck_vita_scheduler_stop(DuckVitaScheduler *s,unsigned id) {
+ DuckVitaThread *t=find_thread(s,id);
+ if(!t||t->state==DUCK_THREAD_STOPPED)return -1;
+ if(s->current>=0&&t==&s->threads[s->current])s->current=-1;
+ t->state=DUCK_THREAD_STOPPED;t->wait_queue=NULL;return 0;
+}
+int duck_vita_scheduler_resume(DuckVitaScheduler *s,unsigned id) {
+ DuckVitaThread *t=find_thread(s,id);
+ if(!t||t->state!=DUCK_THREAD_STOPPED)return -1;
+ t->state=DUCK_THREAD_READY;return 0;
+}
+int duck_vita_scheduler_set_priority(DuckVitaScheduler *s,unsigned id,unsigned priority) {
+ DuckVitaThread *t=find_thread(s,id);
+ if(!t)return -1;
+ t->priority=priority;return 0;
+}
+int duck_vita_scheduler_yield(DuckVitaScheduler *s) {
+ if(!s||s->current<0||s->current>=(int)s->count)return -1;
+ DuckVitaThread *t=&s->threads[s->current];
+ if(t->state!=DUCK_THREAD_RUNNING)return -1;
+ t->state=DUCK_THREAD_READY;s->current=-1;
+ return duck_vita_scheduler_next(s);
+}
