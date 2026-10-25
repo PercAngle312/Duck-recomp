@@ -19,6 +19,8 @@ target_link_libraries(duck_windows_mapper_test PRIVATE onecore)
 add_test(NAME windows_production_mapper COMMAND duck_windows_mapper_test)
 add_executable(duck_windows_paths_test port/tests/paths.cpp)
 add_test(NAME windows_platform_paths COMMAND duck_windows_paths_test)
+add_executable(duck_windows_rom_test port/tests/rom_locator.cpp)
+add_test(NAME windows_portable_rom_detection COMMAND duck_windows_rom_test)
 # The full game will be enabled when the source/dependencies are actually present.
 option(DUCK_BUILD_FULL_GAME "Configure the supplied native game source tree" OFF)
 if(DUCK_BUILD_FULL_GAME)
