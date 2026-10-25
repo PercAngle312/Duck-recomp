@@ -18,6 +18,9 @@ on:
       - 'vita/include/duck_vita_pi.h'
       - 'vita/src/pi.c'
       - 'vita/tests/pi.c'
+      - 'vita/include/duck_vita_mi.h'
+      - 'vita/src/mi.c'
+      - 'vita/tests/mi_pi.c'
       - '.github/workflows/vita-framebuffer.yml'
   pull_request:
     paths:
@@ -51,3 +54,7 @@ jobs:
         run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/guest_memory.c vita/src/bus.c vita/src/dma.c vita/src/pi.c vita/tests/pi.c -o /tmp/duck-vita-pi
       - name: Test PI ROM DMA and interrupt acknowledgment
         run: /tmp/duck-vita-pi
+      - name: Compile PI to MI delivery test
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/guest_memory.c vita/src/bus.c vita/src/dma.c vita/src/pi.c vita/src/mi.c vita/tests/mi_pi.c -o /tmp/duck-vita-mi-pi
+      - name: Test interrupt mask and acknowledgement
+        run: /tmp/duck-vita-mi-pi
