@@ -27,12 +27,13 @@ int main() {
     if (a != base || b != base + offset) {
         std::printf("map failed: %lu\n", GetLastError()); return 4;
     }
+    volatile std::uint8_t* ram = base;
     const SIZE_T offsets[] = {0, 4095, 4096, size - 1};
     for (SIZE_T i : offsets) {
-        base[i] = 0xA7;
-        if (base[offset + i] != 0xA7) { std::printf("alias read A->B mismatch at %llu\\n", static_cast<unsigned long long>(i)); return 5; }
-        base[offset + i] = 0x39;
-        if (base[i] != 0x39) { std::printf("alias read B->A mismatch at %llu\\n", static_cast<unsigned long long>(i)); return 6; }
+        ram[i] = 0xA7;
+        if (ram[offset + i] != 0xA7) { std::printf("alias read A->B mismatch at %llu\\n", static_cast<unsigned long long>(i)); return 5; }
+        ram[offset + i] = 0x39;
+        if (ram[i] != 0x39) { std::printf("alias read B->A mismatch at %llu\\n", static_cast<unsigned long long>(i)); return 6; }
     }
     if (!UnmapViewOfFile2(GetCurrentProcess(), b, MEM_PRESERVE_PLACEHOLDER) ||
         !UnmapViewOfFile2(GetCurrentProcess(), a, MEM_PRESERVE_PLACEHOLDER)) { std::printf("unmap failed: %lu\n", GetLastError()); return 7; }
