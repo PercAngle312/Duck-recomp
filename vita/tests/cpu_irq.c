@@ -23,7 +23,7 @@ int main(void) {
     assert(duck_vita_mi_init(&mi,&bus,duck_vita_cpu_irq_mi_line,&cpu)==0);
     assert(duck_vita_pi_init(&pi,&bus,(DuckVitaRom){data,sizeof(data)},pi_irq,&mi)==0);
     assert(duck_vita_bus_write32(&bus,0xa4600004u,DUCK_PI_CART_BASE)==0);
-    assert(duck_vita_bus_write32(&bus,0xa4600008u,7)==0);
+    assert(duck_vita_bus_write32(&bus,0xa460000cu,7)==0);
     assert(!duck_vita_cpu_irq_pending(&cpu));
     assert(duck_vita_bus_write32(&bus,0xa430000cu,1u<<9)==0);
     assert(cpu.cause & DUCK_CPU_CAUSE_IP2);

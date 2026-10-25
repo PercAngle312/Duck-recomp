@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 /* Deterministic synchronous PI read-DMA checkpoint, not cycle-accurate PI.
- * Register semantics: RD_LEN at +0x08 transfers (value & 0xFFFFFF)+1 bytes
+ * Register semantics: WR_LEN at +0x0C transfers (value & 0xFFFFFF)+1 bytes
  * from cartridge to RDRAM. PI write-to-cart DMA and domain timing are pending.
  */
 int duck_vita_pi_init(DuckVitaPi *pi, DuckVitaBus *bus, DuckVitaRom rom,
@@ -40,7 +40,7 @@ int duck_vita_pi_write(void *opaque, uint32_t physical, uint32_t value) {
                 if (pi->interrupt) pi->interrupt(pi->interrupt_opaque, 0);
             }
             return 0;
-        case 8: {
+        case 0x0c: {
             /* Protect the register state and memory on invalid DMA. */
             size_t count = (size_t)(value & 0x00ffffffu) + 1;
             if (pi->cart_addr < DUCK_PI_CART_BASE) return DUCK_GUEST_RAM_UNMAPPED;
@@ -54,7 +54,7 @@ int duck_vita_pi_write(void *opaque, uint32_t physical, uint32_t value) {
             if (pi->interrupt) pi->interrupt(pi->interrupt_opaque, 1);
             return 0;
         }
-        /* WR_LEN and PI timing/control registers need actual emulation. */
+        /* RD_LEN (RAM -> cart) and PI timing/control registers are pending. */
         default: return DUCK_GUEST_RAM_UNMAPPED;
     }
 }

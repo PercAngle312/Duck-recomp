@@ -65,7 +65,9 @@ the already generated source. Regeneration remains a private operation.
 ## Remaining port work
 
 1. Replace/adapt the platform runtime: N64 CPU-thread scheduling, native
-   libultra bindings, timers, message queues, PI/ROM DMA and overlay dispatch.
+   libultra bindings, timers, blocking message queues and overlay dispatch.
+   Cartridge reads and PI command/completion queues now have a working batch,
+   but the guest CPU loop must still schedule that service and wake waiting threads.
    The Linux JIT/mod infrastructure and 4 GiB address reservation cannot simply
    be enabled in this 32-bit host.
    The semaphore blocker now has a VitaSDK adapter in `include/vita_semaphore.hpp`.
@@ -113,3 +115,77 @@ requires `WindowHandle`, then implement scheduling and bounded guest memory.
 Keep RT64 desktop assumptions out of this backend. The current diagnostic VPK
 remains the earlier CPU bring-up binary; this checkpoint adds source and tests,
 not a new game/VPK release. Linux Phase 19 and graphics branches remain separate.
+
+## Cartridge I/O and complete-code link checkpoint (2026-10-25)
+
+`src/os_io.c` supplies actual guest ABI callbacks for ROM PIO, PI-manager
+command queue setup, queued cartridge-read DMA and hardware-event registration.
+PI service runs at an explicit host CPU-loop poll, handles high-priority jobs
+first, copies big-endian ROM bytes into word-swapped RDRAM, and sends the actual
+OSIoMesg pointer to the completion queue. Invalid jobs do not report success.
+ROM writes are rejected; no ROM or user saves are modified. An event is sent
+only when the host explicitly raises it. This is not timed hardware emulation.
+
+`src/os_core.c` restores reproducible source for early Status/translation/queue
+initialization callbacks that previously survived only in the private object.
+`src/os_queue.c` preserves the earlier guest ring-queue implementation, adds
+canonical-address/null-context checks, and remains **nonblocking only**. A full
+or empty OS_MESG_BLOCK call still returns failure rather than suspending a
+thread. These components are included in the `duck_vita_os_io` CMake archive.
+
+The separate PI register model now uses WR_LEN at +0x0C for cartridge-to-RDRAM
+DMA. RD_LEN at +0x08 is the unsupported RAM-to-cartridge direction. Its own bus
+memory representation is big endian and must not be confused with this
+callback layer's word-swapped translated RDRAM.
+
+| Audit scope | Unresolved result |
+| --- | --- |
+| Supplied resident soft-float object | 30 before, 26 after four callbacks; no new imports |
+| Resident rebuilt from source with VitaSDK hard-float | 27, including the SDK assertion callback |
+| Same resident with real SDK libm/libgcc | 21 (19 game services/diagnostics plus assertion and errno support) |
+| All 8,956 module functions, resident and audio RSP, with SDK math | 29 strong, 4 weak references |
+
+The complete-code audit adds real loader/RSP, libc and exception-table
+requirements, so its count is not comparable to the narrower 26-symbol result.
+It is a relocatable object, **not a final Vita executable**. The three missing
+resident functions are regenerated in an isolated private output. Existing
+native binding replacements are retained. No working Linux source is edited.
+
+Host ASan/UBSan I/O and core tests pass. A hard-float ELF with no unresolved
+symbols executes the four existing private binding wrappers and their callbacks
+in Unicorn: PIO boundary cases, priority DMA, word-swapped bytes, job-pointer
+completion messages and event delivery pass across 16 ARM calls. This tests
+CPU code, not Vita OS, scheduling, rendering or gameplay. The earlier actual
+translated startup (three RAM patterns), 28 module cases and 1,072 multiply
+cases also still pass in ARM emulation.
+
+Reproduce using the private I/O checkpoint's source inputs and reports:
+
+```sh
+python3 vita/test_os_io.py --vitasdk /deps/vitasdk \
+  --recomp-include /checkpoint/headers \
+  --base-object /checkpoint/inputs/base-30.arm.o \
+  --binding-source /checkpoint/inputs/callbacks/runtime_bindings_arm.c \
+  --output /private/io-test
+python3 vita/test_arm_os_io.py --elf /private/io-test/io-cpu-test.elf \
+  --bindings /private/io-test/private-bindings.json --output /private/arm-results.json
+python3 vita/rebuild_private_runtime.py --vitasdk /deps/vitasdk \
+  --recomp-include /checkpoint/headers \
+  --resident-source /checkpoint/inputs/resident \
+  --private-include /checkpoint/inputs/includes \
+  --callbacks /checkpoint/inputs/callbacks/sources.json \
+  --modules /checkpoint/inputs/libduck_vita_modules.a \
+  --audio-rsp /checkpoint/inputs/libduck_vita_audio_rsp.a \
+  --output /private/native-link --jobs 4
+```
+
+Use Unicorn 2.1.4 and pyelftools 0.33 for CPU tests. The SDK archive remains
+pinned in toolchain-lock.json and was re-downloaded and SHA-256 verified.
+The behavior reference was n64decomp/libreultra at
+`1aca5c13ca041cef86f8dc194b727361dad9c09b` (pidma.c, pirawdma.c, devmgr.c and
+seteventmesg.c); this port implements those contracts without copying game code.
+
+Next integration: stack-preserving guest thread suspension/resumption, blocking
+queues, timer/event delivery on the game CPU loop, overlay loading and real SP
+and graphics tasks. The current VPK is still the earlier CPU diagnostic. No new
+playable VPK or hardware result is claimed by this checkpoint.

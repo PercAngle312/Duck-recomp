@@ -80,6 +80,9 @@ target_include_directories(duck_vita_cpu_irq PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}
 add_library(duck_vita_mi STATIC src/mi.c)
 target_include_directories(duck_vita_mi PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(duck_vita_mi PUBLIC duck_vita_bus)
+add_library(duck_vita_os_io STATIC src/os_io.c src/os_core.c src/os_queue.c)
+target_include_directories(duck_vita_os_io PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+# Guest queue operations remain nonblocking until native thread suspension is wired.
 add_library(duck_vita_pi STATIC src/pi.c)
 target_include_directories(duck_vita_pi PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(duck_vita_pi PUBLIC duck_vita_bus duck_vita_dma)

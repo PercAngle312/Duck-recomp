@@ -17,7 +17,7 @@ int main(void) {
     assert(duck_vita_pi_init(&pi,&bus,(DuckVitaRom){rom,sizeof(rom)},pi_irq,&mi)==0);
     assert(duck_vita_bus_write32(&bus,0xa4600000u,0x100)==0);
     assert(duck_vita_bus_write32(&bus,0xa4600004u,DUCK_PI_CART_BASE)==0);
-    assert(duck_vita_bus_write32(&bus,0xa4600008u,7)==0);
+    assert(duck_vita_bus_write32(&bus,0xa460000cu,7)==0);
     assert(memcmp(memory+0x100,rom,8)==0);
     assert(mi.pending==DUCK_MI_INTR_PI && state.up==0);
     assert(duck_vita_bus_write32(&bus,0xa430000cu,1u<<9)==0);

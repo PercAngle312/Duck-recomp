@@ -5,6 +5,12 @@ on:
     paths:
       - 'vita/include/duck_vita_recomp_bridge.h'
       - 'vita/src/recomp_bridge.c'
+      - 'vita/src/os_core.c'
+      - 'vita/src/os_queue.c'
+      - 'vita/src/os_io.c'
+      - 'vita/include/duck_vita_os_io.h'
+      - 'vita/tests/os_core.c'
+      - 'vita/tests/os_io.c'
       - 'vita/tests/recomp_bridge.c'
       - 'vita/include/duck_vita_dispatch.h'
       - 'vita/src/dispatch.c'
@@ -18,6 +24,12 @@ on:
     paths:
       - 'vita/include/duck_vita_recomp_bridge.h'
       - 'vita/src/recomp_bridge.c'
+      - 'vita/src/os_core.c'
+      - 'vita/src/os_queue.c'
+      - 'vita/src/os_io.c'
+      - 'vita/include/duck_vita_os_io.h'
+      - 'vita/tests/os_core.c'
+      - 'vita/tests/os_io.c'
       - 'vita/tests/recomp_bridge.c'
       - '.github/workflows/vita-recomp-abi.yml'
 jobs:
@@ -43,3 +55,11 @@ jobs:
         run: cc -std=c11 -Wall -Wextra -Werror -O1 -fsanitize=address,undefined -fno-omit-frame-pointer -I /tmp/duck-abi -I vita/include vita/src/queue.c vita/src/scheduler.c vita/src/recomp_bridge.c vita/src/dispatch.c vita/tests/dispatch.c -lm -o /tmp/duck-vita-dispatch-test
       - name: Test exact translated function dispatch
         run: /tmp/duck-vita-dispatch-test
+      - name: Test guest OS core callbacks
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -I /tmp/duck-abi vita/src/os_core.c vita/tests/os_core.c -o /tmp/duck-vita-os-core
+          /tmp/duck-vita-os-core
+      - name: Test queued cartridge DMA and event messages
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -I /tmp/duck-abi -I vita/include vita/src/os_io.c vita/src/os_queue.c vita/tests/os_io.c -o /tmp/duck-vita-os-io
+          /tmp/duck-vita-os-io

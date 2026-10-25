@@ -25,7 +25,7 @@ int main(void) {
  duck_vita_cpu_irq_set_status(&cpu,DUCK_CPU_STATUS_IE|DUCK_CPU_STATUS_IM2);
  assert(duck_vita_bus_write32(&bus,0xa430000cu,1u<<9)==0);
  assert(duck_vita_bus_write32(&bus,0xa4600004u,DUCK_PI_CART_BASE)==0);
- assert(duck_vita_bus_write32(&bus,0xa4600008u,3)==0);
+ assert(duck_vita_bus_write32(&bus,0xa460000cu,3)==0);
  assert(bridge.delivered==1 && bridge.dropped==0);
  assert(scheduler.threads[0].state==DUCK_THREAD_READY);
  assert(duck_vita_scheduler_next(&scheduler)==1);
