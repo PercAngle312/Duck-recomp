@@ -28,3 +28,10 @@ third_party/binaries/
 *.zip
 *.tar.xz
 __pycache__/
+
+# Local Linux release work
+*.pyc
+.venv/
+/build*/
+/userdata/
+*.Z64

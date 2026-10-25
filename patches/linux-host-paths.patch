@@ -1,0 +1,39 @@
+--- a/runtime/boot_probe.cpp
++++ b/runtime/boot_probe.cpp
+@@ -56,16 +56,32 @@
+ };
+
+ int main(int argc, char** argv) {
+-    if (argc != 2) { fprintf(stderr, "Usage: duck_boot_probe ROM.z64\n"); return 2; }
++    if (argc != 2) { fprintf(stderr, "Usage: duckdodgers ROM.z64\n"); return 2; }
+     struct sigaction action{}; action.sa_sigaction=fault; action.sa_flags=SA_SIGINFO; sigaction(SIGSEGV,&action,nullptr); sigaction(SIGABRT,&action,nullptr);
+     setvbuf(stdout, nullptr, _IONBF, 0); setvbuf(stderr, nullptr, _IONBF, 0);
+     std::ifstream input(argv[1], std::ios::binary);
++    if (!input || std::filesystem::file_size(argv[1]) != 0x1000000) {
++        fprintf(stderr, "ROM must be the supported 16 MiB USA big-endian .z64 file.\n"); return 3;
++    }
+     std::vector<uint8_t> rom{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
+     if (rom.size() != 0x1000000 || memcmp(rom.data(), "\x80\x37\x12\x40", 4)) return 3;
+-    if (XXH3_64bits(rom.data(), rom.size()) != 0xFB1CBB3738174DE7ull) return 3;
++    if (XXH3_64bits(rom.data(), rom.size()) != 0xFB1CBB3738174DE7ull) {
++        fprintf(stderr, "Unsupported ROM: supply the USA multilingual big-endian .z64 dump.\n"); return 3;
++    }
+     // Exact supplied ROM identity is required before running any native code.
+-    const auto directory = std::filesystem::absolute("private/runtime-probe");
+-    std::filesystem::create_directories(directory);
++    std::filesystem::path directory;
++    if (const char* override_path=std::getenv("DUCK_USER_DATA"); override_path && *override_path)
++        directory=override_path;
++    else if (const char* data_home=std::getenv("XDG_DATA_HOME"); data_home && *data_home)
++        directory=std::filesystem::path(data_home)/"duckdodgers";
++    else if (const char* home=std::getenv("HOME"); home && *home)
++        directory=std::filesystem::path(home)/".local/share/duckdodgers";
++    else directory="userdata";
++    directory=std::filesystem::absolute(directory);
++    std::error_code path_error;
++    std::filesystem::create_directories(directory,path_error);
++    if(path_error) {fprintf(stderr,"Cannot create user data directory %s: %s\n",directory.c_str(),path_error.message().c_str());return 5;}
++    fprintf(stderr,"[host] User data: %s\n",directory.c_str());
+     recomp::register_config_path(directory);
+     recomp::GameEntry game{};
+     game.rom_hash = 0xFB1CBB3738174DE7ull;
