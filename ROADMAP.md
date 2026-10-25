@@ -9,11 +9,14 @@ Updated 2026-10-25. **Linux is the gameplay reference; Windows is pre-release.**
 - [x] Linux generated 512-byte EEPROM saves, survived restart, and passed native regression tests.
 - [x] Windows Server 2022 MSVC compiled a native RAM-alias test and verified coherent dual mapped views: [successful baseline run](https://github.com/PercAngle312/Duck-recomp/actions/runs/40164179463).
 - [x] Windows CMake x64 Release build passes RDRAM alias, graphics settings, and controller-mapping CTests ([CI run](https://github.com/PercAngle312/Duck-recomp/actions/runs/40165678745)).
+- [x] Imported production Phase 11 Windows RDRAM mapper and verified it with native Windows CTest ([passing run](https://github.com/PercAngle312/Duck-recomp/actions/runs/40166061940)).
+- [x] Imported portable Windows save-path handling and one-folder ROM discovery code; automated Windows checks in progress.
+- [x] Added release-packaging script that requires real DuckDodgers.exe, includes runtime DLLs/licenses, and excludes ROMs.
 - [ ] **Full-game Windows executable is not compiled.**
 - [ ] Full game playthrough and true progress-save reload unverified.
 
 ## First Windows playable build
-1. **Import source safely:** Bring Phase 11 game source, portable runtime, tests, and generated recompilation sources into `game/`; exclude ROMs, game image/audio dumps, saves, third-party binary blobs, and proprietary bundled assets. Keep dependency sources as exact pinned upstream clones/submodules rather than uploading vendor binary distributions.
+1. **Import source safely:** Phase 11 mapper, portable paths, graphics and controller parts are imported under `port/`; full generated game source and source-only dependency checkouts remain to be integrated in `game/`. Exclude ROMs, extracted game content, saves, and bundled vendor binaries from the public repository.
 2. **Repair CMake preflight:** Keep small independent Windows tests buildable without the large game dependency tree. The imported game CMake currently requires `N64RECOMP_ROOT` even for basic tests; fix this gate. Set RT64 and runtime paths with verified CMake cache variables.
 3. **Real Windows runtime:** Compile and run the `VirtualAlloc2`/placeholder RDRAM mapper on Windows. Add retry/cleanup tests; check 4 GiB reservation and dirty alias coherence.
 4. **MSVC full build:** Compile translated modules and N64ModernRuntime, RT64 with Direct3D12, SDL2 input, EEPROM loader and PC backend; produce `DuckDodgers.exe` without proprietary ROM embedded in the distributed build.
@@ -22,7 +25,7 @@ Updated 2026-10-25. **Linux is the gameplay reference; Windows is pre-release.**
 7. **Input/audio:** SDL controller hot-plug, deadzones, remapping, audio queue limits, Windows audio device handling.
 8. **Windows smoke checks:** Menu → 3D gameplay, analog movement, clean exit, 512-byte EEPROM roundtrip, restart, audio and shader checks.
 9. **Progression QA:** Checkpoint persistence, cutscenes, level transitions, all objectives, crashes, widescreen and FPS compatibility.
-10. **Release:** Windows ZIP with launcher, dependencies, license notices, troubleshooting and signed build hashes; Linux reference retained.
+10. **Release:** Windows ZIP with DuckDodgers.exe, redistributable runtime DLLs, shader files, license notices, troubleshooting and checksums. User drops a legally owned supported .z64 into `roms/` and starts the game, without additional downloads. The binary still needs an actual compatible game-data loading strategy.
 
 ## CI stages
 - `windows-sdk-baseline.yml`: direct MSVC Windows API smoke test, **passed**.
