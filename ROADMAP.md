@@ -8,7 +8,7 @@ Updated 2026-10-25. **Linux is the gameplay reference; Windows is pre-release.**
 - [x] Software Vulkan (Lavapipe) ran the rebuilt Linux game through language selection, save selection, opening sequence and into 3D gameplay.
 - [x] Linux generated 512-byte EEPROM saves, survived restart, and passed native regression tests.
 - [x] Windows Server 2022 MSVC compiled a native RAM-alias test and verified coherent dual mapped views: [successful baseline run](https://github.com/PercAngle312/Duck-recomp/actions/runs/40164179463).
-- [x] Initial Windows CMake x64 configure and compile passes for the standalone RAM test.
+- [x] Windows CMake x64 configure, Release compile and real RDRAM alias CTest passed on Windows Server 2022 ([passing run](https://github.com/PercAngle312/Duck-recomp/actions/runs/40164854806)).
 - [ ] **Full-game Windows executable is not compiled.**
 - [ ] Full game playthrough and true progress-save reload unverified.
 
@@ -26,7 +26,7 @@ Updated 2026-10-25. **Linux is the gameplay reference; Windows is pre-release.**
 
 ## CI stages
 - `windows-sdk-baseline.yml`: direct MSVC Windows API smoke test, **passed**.
-- `windows-cmake.yml`: CMake x64 baseline. Compilation passed, CTest currently fails on the larger 4 GiB alias reservation scenario; keep logs and investigate.
+- `windows-cmake.yml`: CMake x64 baseline and Release CTest **passed** after fixing test memory access optimization.
 - **Not yet added:** full-game Windows build workflow requiring complete vetted source and reproducible dependency checkouts.
 
 ## Repository rules
