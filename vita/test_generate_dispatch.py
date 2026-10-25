@@ -14,6 +14,18 @@ class GeneratorTests(unittest.TestCase):
             result=output.read_text()
             self.assertLess(result.index("{0x80001000u"), result.index("{0x80002000u"))
             self.assertIn("extern void func_A(uint8_t *, recomp_context *);",result)
+    def test_private_source_validation(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td); source=root/"addresses.csv"; output=root/"registry.c"
+            generated=root/"private"/"modules"
+            generated.mkdir(parents=True)
+            source.write_text("vram,symbol\\n0x80001000,func_A\\n")
+            (generated/"funcs_0.c").write_text(
+                "RECOMP_FUNC void func_A(uint8_t* rdram, recomp_context* ctx) { (void)rdram; (void)ctx; }")
+            self.assertEqual(generate(source,output,root/"private"),1)
+            source.write_text("vram,symbol\\n0x80001000,func_missing\\n")
+            with self.assertRaisesRegex(ValueError,"unverified function"):
+                generate(source,output,root/"private")
     def test_rejects_bad_data(self):
         for entry in ("0x80001001,foo","0x80001000,foo-bar",
                       "0x80001000,x\n0x80001000,y",
