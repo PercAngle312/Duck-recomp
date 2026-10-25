@@ -15,7 +15,6 @@ static size_t cart_size;
 static uint32_t command_queue;
 static int manager_active;
 static struct { uint32_t queue, message; } events[EVENT_COUNT];
-static recomp_context scratch;
 
 static int span(uint64_t address, uint32_t size, uint32_t *offset) {
     uint32_t a=(uint32_t)address, p=a&0x1fffffffu;
@@ -50,6 +49,7 @@ static int cart_span(uint32_t address,uint32_t size,size_t *offset) {
     *offset=off;return 0;
 }
 static int send(uint32_t q,uint32_t message,int jam) {
+    recomp_context scratch;
     uint32_t p;
     if(queue(q,&p))return -1;
     scratch.r4=q;scratch.r5=message;scratch.r6=0;
@@ -97,6 +97,7 @@ void osPiStartDma_recomp(uint8_t *rdram,recomp_context *ctx) {
     ctx->r2=send(command_queue,(uint32_t)ctx->r4,ctx->r5==1)==0 ? 0 : (gpr)-1;
 }
 int duck_vita_os_pi_service(void) {
+    recomp_context scratch;
     uint32_t q,buffer,mb,dest,retq;size_t off;
     if(!ram||!manager_active)return 0;
     if(queue(command_queue,&q))return -1;

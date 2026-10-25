@@ -82,7 +82,10 @@ target_include_directories(duck_vita_mi PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/incl
 target_link_libraries(duck_vita_mi PUBLIC duck_vita_bus)
 add_library(duck_vita_os_io STATIC src/os_io.c src/os_core.c src/os_queue.c)
 target_include_directories(duck_vita_os_io PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
-# Guest queue operations remain nonblocking until native thread suspension is wired.
+# Fiber runtime installs queue wait/wake hooks; standalone queue use remains nonblocking.
+add_library(duck_vita_os_threads STATIC src/os_threads.c src/fiber_vita.c)
+target_include_directories(duck_vita_os_threads PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(duck_vita_os_threads PUBLIC duck_vita_os_io SceFiber_stub SceSysmodule_stub)
 add_library(duck_vita_pi STATIC src/pi.c)
 target_include_directories(duck_vita_pi PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(duck_vita_pi PUBLIC duck_vita_bus duck_vita_dma)
@@ -110,8 +113,27 @@ set_source_files_properties("${generated}/modules/funcs_0.c" PROPERTIES COMPILE_
 target_link_options(duck_vita_probe PRIVATE -Wl,--gc-sections)
 target_link_libraries(duck_vita_probe PRIVATE SceDisplay_stub SceCtrl_stub m)
 vita_create_self(duck_vita_probe.self duck_vita_probe UNSAFE)
+set(duck_original_vpk_flags "${VITA_PACK_VPK_FLAGS}")
 vita_create_vpk(DuckDodgers-Vita-Bringup.vpk DUCKVIT01 duck_vita_probe.self
   VERSION "00.01" NAME "Duck Recomp Vita Lab"
+  FILE "${VITA_SAMPLES_ROOT}/hello_world/sce_sys/icon0.png" sce_sys/icon0.png
+  FILE "${VITA_SAMPLES_ROOT}/hello_world/sce_sys/livearea/contents/bg.png" sce_sys/livearea/contents/bg.png
+  FILE "${VITA_SAMPLES_ROOT}/hello_world/sce_sys/livearea/contents/startup.png" sce_sys/livearea/contents/startup.png
+  FILE "${VITA_SAMPLES_ROOT}/hello_world/sce_sys/livearea/contents/template.xml" sce_sys/livearea/contents/template.xml)
+
+# Separately labeled hardware test. Never presented as the playable game.
+add_executable(duck_vita_thread_probe src/thread_probe.c tests/os_threads.c
+  "${VITA_SAMPLES_ROOT}/common/debugScreen.c")
+target_include_directories(duck_vita_thread_probe PRIVATE "${VITA_SAMPLES_ROOT}/common")
+set_source_files_properties(tests/os_threads.c PROPERTIES COMPILE_DEFINITIONS "main=duck_threads_test_main")
+# Keep assertions active: Release flags otherwise erase the actual test calls.
+target_compile_options(duck_vita_thread_probe PRIVATE -UNDEBUG)
+target_link_libraries(duck_vita_thread_probe PRIVATE duck_vita_os_threads SceDisplay_stub SceCtrl_stub m)
+vita_create_self(duck_vita_thread_probe.self duck_vita_thread_probe UNSAFE)
+# VitaSDK uses a macro that mutates this variable; isolate the second package.
+set(VITA_PACK_VPK_FLAGS "${duck_original_vpk_flags}")
+vita_create_vpk(DuckDodgers-Vita-Thread-Test.vpk DUCKVIT02 duck_vita_thread_probe.self
+  VERSION "00.01" NAME "Duck Vita Thread Test"
   FILE "${VITA_SAMPLES_ROOT}/hello_world/sce_sys/icon0.png" sce_sys/icon0.png
   FILE "${VITA_SAMPLES_ROOT}/hello_world/sce_sys/livearea/contents/bg.png" sce_sys/livearea/contents/bg.png
   FILE "${VITA_SAMPLES_ROOT}/hello_world/sce_sys/livearea/contents/startup.png" sce_sys/livearea/contents/startup.png

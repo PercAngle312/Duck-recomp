@@ -1,8 +1,12 @@
-/* Guest N64 libultra queue ring operations. Nonblocking only until guest
- * threads and their wait lists are wired to the translated scheduler. */
-#include "recomp.h"
+/* Guest ring queues. Optional fiber hooks preserve blocked native call stacks.
+ * Without an active guest fiber a blocking miss fails explicitly. */
+#include "duck_vita_threads.h"
 #include <stdint.h>
 #define RAM_BYTES 0x800000u
+static DuckQueueWait wait_hook;
+static DuckQueueWake wake_hook;
+static void (*preempt_hook)(void);
+void duck_vita_os_queue_hooks(DuckQueueWait wait,DuckQueueWake wake,void (*preempt)(void)){wait_hook=wait;wake_hook=wake;preempt_hook=preempt;}
 static int offset(uint64_t v,uint32_t len,uint32_t *out){
  if(v!=(uint64_t)(uint32_t)v && v!=(uint64_t)(int64_t)(int32_t)v)return -1;
  uint32_t a=(uint32_t)v, p=a&0x1fffffffu;
@@ -21,22 +25,32 @@ static int qvalid(uint8_t *ram,uint64_t v,uint32_t *qp,uint32_t *mp,uint32_t *co
 static void send(uint8_t *rdram,recomp_context *ctx,int jam){
  if(!ctx)return;
  uint32_t qp,mp,cnt,first,cap;
- /* OS_MESG_BLOCK=1 cannot be modeled without guest thread suspension.
-    Return -1 when full, even for blocking requests, rather than lying. */
- if(qvalid(rdram,ctx->r4,&qp,&mp,&cnt,&first,&cap)||cnt==cap){ctx->r2=(uint64_t)-1;return;}
+ for(;;){
+  if(qvalid(rdram,ctx->r4,&qp,&mp,&cnt,&first,&cap)){ctx->r2=(uint64_t)-1;return;}
+  if(cnt<cap)break;
+  if(ctx->r6!=1||!wait_hook||wait_hook((uint32_t)ctx->r4,1)){ctx->r2=(uint64_t)-1;return;}
+ }
  uint32_t index=jam?(first==0?cap-1:first-1):(first+cnt>=cap?first+cnt-cap:first+cnt);
  wr(rdram,mp+index*4u,(uint32_t)ctx->r5);
  if(jam)wr(rdram,qp+12,index);
  wr(rdram,qp+8,cnt+1);
  ctx->r2=0;
+ if(wake_hook)wake_hook((uint32_t)ctx->r4,0);
+ if(preempt_hook)preempt_hook();
 }
 void osSendMesg_recomp(uint8_t *rdram,recomp_context *ctx){send(rdram,ctx,0);}
 void osJamMesg_recomp(uint8_t *rdram,recomp_context *ctx){send(rdram,ctx,1);}
 void osRecvMesg_recomp(uint8_t *rdram,recomp_context *ctx){
  if(!ctx)return;
  uint32_t qp,mp,cnt,first,cap;
- if(qvalid(rdram,ctx->r4,&qp,&mp,&cnt,&first,&cap)||!cnt){ctx->r2=(uint64_t)-1;return;}
+ for(;;){
+  if(qvalid(rdram,ctx->r4,&qp,&mp,&cnt,&first,&cap)){ctx->r2=(uint64_t)-1;return;}
+  if(cnt)break;
+  if(ctx->r6!=1||!wait_hook||wait_hook((uint32_t)ctx->r4,0)){ctx->r2=(uint64_t)-1;return;}
+ }
  if(ctx->r5){uint32_t dst;if(offset(ctx->r5,4,&dst)){ctx->r2=(uint64_t)-1;return;}wr(rdram,dst,rd(rdram,mp+first*4u));}
  wr(rdram,qp+12,first+1==cap?0:first+1);
  wr(rdram,qp+8,cnt-1);ctx->r2=0;
+ if(wake_hook)wake_hook((uint32_t)ctx->r4,1);
+ if(preempt_hook)preempt_hook();
 }

@@ -189,3 +189,53 @@ Next integration: stack-preserving guest thread suspension/resumption, blocking
 queues, timer/event delivery on the game CPU loop, overlay loading and real SP
 and graphics tasks. The current VPK is still the earlier CPU diagnostic. No new
 playable VPK or hardware result is claimed by this checkpoint.
+
+## Stack-preserving guest threads (2026-10-25)
+
+`src/os_threads.c` now runs guest threads on separate native stacks. The Vita
+backend uses SceFiber and loads its system module; the host test backend uses
+ucontext. Guest create/start/destroy/priority/yield callbacks and pause_self are
+implemented. The private yield binding forwards to the actual yield callback
+instead of the old abort-only binding. Missing entrypoints and invalid lifecycle
+operations set a runtime fault; they do not report success.
+
+Queue hooks now suspend a blocked send/receive inside its current native call
+stack, wake the highest-priority eligible waiter, recheck the queue condition
+and preempt at kernel boundaries. Explicit equal-priority yields use FIFO order.
+The PI helper's callback context is now stack-local, so a preempted queue call
+cannot have that context overwritten by a later DMA/event operation.
+
+Initialize with `duck_vita_threads_init(rdram, resolver, service_poll)`, seed an
+entry with `duck_vita_threads_boot`, then call `duck_vita_threads_run` with a
+bounded dispatch budget. Supply the real PI poll as service_poll to process
+queued DMA before selecting runnable threads. Waiting for events is distinct
+from idle and failure. This loop still requires the actual game resolver,
+initialization, timer/VI events, overlay loader and graphics/SP tasks.
+Busy guest loops are not preempted: this is cooperative kernel-boundary scheduling.
+The original generic scheduler/context helpers remain separate and unchanged.
+
+Host UBSan tests pass blocking recv/send with preserved local arrays, priority
+wake/preemption, self-destruction, dispatch budgets, external queue wakeups and
+floating-point rounding modes across equal-priority yields. Existing I/O ARM
+checks and ABI/dispatch regressions pass. The native test ELF/SELF/VPK builds
+against the real Vita fiber libraries, with 30 assertion call sites retained.
+Vita OS execution has **not** been tested. Thread stack size is initially
+128 KiB each, limited to 16 concurrent guest contexts; gameplay usage is unmeasured.
+
+The private whole-code partial link resolves six prior game symbols. It now
+reports 31 strong imports (15 remaining game-side services/state plus 16 SDK or
+linker imports) and 4 weak references. Native fibers introduce real SDK imports,
+so total import counts across these scopes are not progress percentages.
+Use `rebuild_private_runtime.py --threads` and the private callback manifest
+containing the yield binding to reproduce this audit.
+
+Build the separately labeled hardware test:
+
+```sh
+cmake --build /private/vita-build --target DuckDodgers-Vita-Thread-Test.vpk
+```
+
+Install it in VitaShell and open **Duck Vita Thread Test**. It reads no ROM/save
+and uses a different title ID from the earlier CPU diagnostic. It shows PASS or
+an assertion failure and Triangle exits. A PASS is a runtime prerequisite,
+not a gameplay result. No new playable VPK is claimed.
