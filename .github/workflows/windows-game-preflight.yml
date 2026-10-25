@@ -27,6 +27,15 @@ jobs:
           }
           Write-Host "PASS: game build accurately reports missing private source/dependencies"
           exit 0
+      - name: Verify full game build script rejects missing inputs
+        shell: pwsh
+        run: |
+          $game = (Resolve-Path game).Path
+          $missing = Join-Path $env:RUNNER_TEMP "nonexistent-recomp-dependency"
+          & ./scripts/build-full-windows.ps1 -GameSource $game -N64Recomp $missing -N64ModernRuntime $missing -RT64 $missing -ConfigureOnly *> full-game-script-check.log
+          if ($LASTEXITCODE -eq 0) { throw "Build script accepted missing dependencies" }
+          Write-Host "PASS: full game builder refused unavailable dependency tree"
+          exit 0
       - name: Upload preflight logs
         if: always()
         uses: actions/upload-artifact@v4
