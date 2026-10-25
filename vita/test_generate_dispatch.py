@@ -19,11 +19,11 @@ class GeneratorTests(unittest.TestCase):
             root=Path(td); source=root/"addresses.csv"; output=root/"registry.c"
             generated=root/"private"/"modules"
             generated.mkdir(parents=True)
-            source.write_text("vram,symbol\\n0x80001000,func_A\\n")
+            source.write_text("vram,symbol\n0x80001000,func_A\n")
             (generated/"funcs_0.c").write_text(
                 "RECOMP_FUNC void func_A(uint8_t* rdram, recomp_context* ctx) { (void)rdram; (void)ctx; }")
             self.assertEqual(generate(source,output,root/"private"),1)
-            source.write_text("vram,symbol\\n0x80001000,func_missing\\n")
+            source.write_text("vram,symbol\n0x80001000,func_missing\n")
             with self.assertRaisesRegex(ValueError,"unverified function"):
                 generate(source,output,root/"private")
     def test_rejects_bad_data(self):
