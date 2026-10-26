@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-26",
+  "app_version": "00.03",
+  "generated_CPU_functions_checkpointed": 9371,
+  "resident_functions_checkpointed": 415,
+  "module_functions_checkpointed": 8956,
+  "backward_branch_targets": 2555,
+  "native_checkpoint_relocations": 11910,
+  "CPU_sources_recompiled": 189,
+  "total_sources_recompiled": 194,
+  "all_9416_game_exports_preserved": true,
+  "original_sources_modified": false,
+  "quantum_checkpoint_visits": 1024,
+  "host_service_callbacks_on_guest_stack": false,
+  "critical_regions_skipped": [
+    "IE disabled",
+    "EXL or ERL active",
+    "all CPU interrupt masks disabled"
+  ],
+  "equal_priority_order_preserved": true,
+  "private_game_build": {
+    "full_game_elf_linked": true,
+    "elf_sha256": "4cdc3a9e4c0bfa3890abd2c68601ad16119ef69bb7c1c07da3acfbebefb3e846",
+    "vpk_sha256": "24cd63b6c2d206863ac4b29d1dc046f80da111902e6e416513ed55ab66397a69",
+    "vpk_bytes": 4343806,
+    "strong_unresolved_symbols": 0,
+    "translated_module_functions": 8956,
+    "game_exports": 9416,
+    "runtime_sources": 29,
+    "private_catalog_initialized_by_entry": true,
+    "translated_audio_rsp_linked": true,
+    "native_audio_output_linked": true,
+    "persistent_eeprom_linked": true,
+    "ROM_in_vpk": false,
+    "executed_on_vita": false,
+    "graphics_verified": false,
+    "audio_verified": false,
+    "saves_verified_in_game": false,
+    "gameplay_verified": false,
+    "playable_verified": false
+  },
+  "hardware_execution_verified": false,
+  "gameplay_verified": false,
+  "remaining_limits": [
+    "cooperative checkpoints, not cycle-accurate exceptions",
+    "device interrupt-mask/deferred-event fidelity incomplete",
+    "native renderer and audio calls remain synchronous",
+    "disabled-interrupt loops do not yield",
+    "performance needs hardware validation"
+  ]
+}

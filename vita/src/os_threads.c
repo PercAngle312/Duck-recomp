@@ -1,12 +1,13 @@
 #include "duck_vita_threads.h"
 #include <string.h>
 enum { FREE,STOPPED,READY,RUNNING,RECV,SEND,DEAD,MAX_THREADS=16 };
-static struct {uint32_t address,entry,queue,rcp_mask;int priority,state;uint64_t order;recomp_context ctx;} threads[MAX_THREADS];
+static struct {uint32_t address,entry,queue,rcp_mask;unsigned checkpoints;int priority,state;uint64_t order;recomp_context ctx;} threads[MAX_THREADS];
 static uint8_t *ram;
 static DuckThreadLookup lookup;
 static DuckThreadPump pump;
 static int current=-1,fault;
 static uint64_t clock_order;
+static uint64_t checkpoint_yields;
 static uint32_t boot_rcp_mask=0x3f;
 uint32_t duck_vita_thread_rcp_mask(void){return current>=0?threads[current].rcp_mask:boot_rcp_mask;}
 void duck_vita_thread_set_rcp_mask(uint32_t mask){
@@ -49,6 +50,22 @@ static int best(void){
  return b;
 }
 static void suspend(void){int i=current;duck_fiber_suspend((unsigned)i);}
+uint64_t duck_vita_threads_checkpoint_yields(void){return checkpoint_yields;}
+void duck_vita_thread_checkpoint(uint8_t *rdram,recomp_context *ctx){
+ if(current<0)return; // Direct host invocations have no guest stack to suspend.
+ if(rdram!=ram||ctx!=&threads[current].ctx){fault=1;suspend();return;}
+ if(--threads[current].checkpoints)return;
+ threads[current].checkpoints=DUCK_THREADS_CHECKPOINT_QUANTUM;
+ // Never insert a guest scheduling boundary inside disabled-IRQ or exception
+ // regions. This is cooperative scheduling, not cycle-accurate CPU exceptions.
+ if((ctx->status_reg&7u)!=1u||!(ctx->status_reg&0xff00u))return;
+ uint64_t order=threads[current].order;
+ state(current,READY);
+ // A host poll must not act like osYieldThread's equal-priority rotation.
+ threads[current].order=order;
+ checkpoint_yields++;
+ suspend();
+}
 static void preempt(void){
  int b=best();if(current>=0&&b>=0&&threads[b].priority>threads[current].priority){state(current,READY);suspend();}
 }
@@ -80,6 +97,7 @@ static int create(uint32_t address,uint32_t pc,uint32_t stack,uint32_t arg,int p
  int i;for(i=0;i<MAX_THREADS&&threads[i].state!=FREE;i++);
  if(i==MAX_THREADS)return -1;
  memset(&threads[i],0,sizeof threads[i]);threads[i].address=address;threads[i].entry=pc;
+ threads[i].checkpoints=DUCK_THREADS_CHECKPOINT_QUANTUM;
  threads[i].priority=priority;threads[i].ctx.r29=(gpr)(int32_t)(stack-16);
  threads[i].rcp_mask=0x3f;
  threads[i].ctx.r4=(gpr)(int32_t)arg;threads[i].ctx.status_reg=0xff01;
@@ -91,7 +109,7 @@ static int create(uint32_t address,uint32_t pc,uint32_t stack,uint32_t arg,int p
 int duck_vita_threads_init(uint8_t *rdram,DuckThreadLookup resolve,DuckThreadPump service){
  if(current>=0)return -1;
  for(unsigned i=0;i<MAX_THREADS;i++){duck_fiber_destroy(i);memset(&threads[i],0,sizeof threads[i]);}
- ram=rdram;lookup=resolve;pump=service;fault=0;clock_order=0;boot_rcp_mask=0x3f;
+ ram=rdram;lookup=resolve;pump=service;fault=0;clock_order=checkpoint_yields=0;boot_rcp_mask=0x3f;
  if(duck_fiber_prepare()){fault=1;return -1;}
  duck_vita_os_queue_hooks(wait_queue,wake_queue,preempt);
  return ram&&lookup?0:-1;

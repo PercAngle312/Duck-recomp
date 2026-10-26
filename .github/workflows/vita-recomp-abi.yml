@@ -16,6 +16,9 @@ on:
       - 'vita/tests/os_input.c'
       - 'vita/tests/overlays.c'
       - 'vita/generate_overlay_catalog.py'
+      - 'vita/instrument_checkpoints.py'
+      - 'vita/test_instrument_checkpoints.py'
+      - 'vita/tests/checkpoints.c'
       - 'vita/src/os_time.c'
       - 'vita/src/os_vi.c'
       - 'vita/src/os_vi_config.c'
@@ -55,6 +58,9 @@ on:
       - 'vita/tests/os_input.c'
       - 'vita/tests/overlays.c'
       - 'vita/generate_overlay_catalog.py'
+      - 'vita/instrument_checkpoints.py'
+      - 'vita/test_instrument_checkpoints.py'
+      - 'vita/tests/checkpoints.c'
       - 'vita/src/os_time.c'
       - 'vita/src/os_vi.c'
       - 'vita/src/os_vi_config.c'
@@ -119,3 +125,9 @@ jobs:
         run: |
           cc -std=c11 -Wall -Wextra -Werror -O1 -fsanitize=address,undefined -I /tmp/duck-abi -I vita/include vita/src/os_input.c vita/src/os_io.c vita/src/os_queue.c vita/src/os_core.c vita/tests/os_input.c -lm -o /tmp/duck-vita-input
           /tmp/duck-vita-input
+      - name: Check generated loop instrumentation
+        run: python3 vita/test_instrument_checkpoints.py
+      - name: Execute busy-loop guest scheduling checkpoints
+        run: |
+          cc -std=c11 -O1 -Wall -Wextra -Werror -fsanitize=undefined -I/tmp/duck-abi -Ivita/include vita/src/os_threads.c vita/src/os_queue.c vita/src/os_core.c vita/tests/fiber_host.c vita/tests/checkpoints.c -lm -o /tmp/duck-checkpoints
+          /tmp/duck-checkpoints
