@@ -4,7 +4,10 @@
 extern "C" {
 #endif
 /* load: 0=loaded, 1=no image yet, -1=I/O/format failure. commit: 0=durable.
+ * -2 means the new main image may be visible but durability is uncertain;
+ * detach the guest device until an explicit reload rather than serve stale RAM.
  * A write is acknowledged only after the backend commits the complete image. */
+enum {DUCK_EEPROM_COMMIT_UNCERTAIN=-2};
 typedef struct {
  int (*load)(void *opaque,uint8_t *image,unsigned bytes);
  int (*commit)(void *opaque,const uint8_t *image,unsigned bytes);

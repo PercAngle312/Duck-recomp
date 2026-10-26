@@ -8,6 +8,7 @@ static struct {
  struct {uint32_t address,bytes;unsigned rate;} fifo[2];
  DuckAiOutput output;void *opaque;
 } ai;
+void duck_vita_ai_detach(void){memset(&ai,0,sizeof ai);}
 int duck_vita_ai_init(uint8_t *ram,unsigned clock,DuckAiOutput output,void *opaque){
  if(!ram||!clock||!output)return -1;
  memset(&ai,0,sizeof ai);ai.ram=ram;ai.clock=clock;ai.output=output;ai.opaque=opaque;return 0;

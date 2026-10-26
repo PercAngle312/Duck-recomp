@@ -20,7 +20,10 @@ static int output(void *opaque,const uint8_t *ram,uint32_t address,unsigned fram
  return sceAudioOutOutput(port,0);
 }
 void duck_vita_ai_vita_close(void){
- if(port>=0){sceAudioOutOutput(port,0);sceAudioOutReleasePort(port);port=-1;}
+ if(port>=0){
+  duck_vita_ai_detach();
+  sceAudioOutOutput(port,0);sceAudioOutReleasePort(port);port=-1;
+ }
 }
 int duck_vita_ai_vita_init(uint8_t *ram,unsigned clock){
  if(!ram||!clock||port>=0)return -1;

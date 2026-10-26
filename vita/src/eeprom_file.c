@@ -71,7 +71,9 @@ static int commit(void *opaque,const uint8_t *image,unsigned bytes){
   if(old>=0)SAVE_RENAME(file->backup,file->path);
   SAVE_REMOVE(file->temporary);return -1;
  }
- return sync_directory(file->path)<0?-1:0;
+ // After installing main, a metadata-sync error cannot promise that the old
+ // image remains on disk. Report this separately so the guest detaches.
+ return sync_directory(file->path)<0?DUCK_EEPROM_COMMIT_UNCERTAIN:0;
 }
 int duck_vita_eeprom_file(DuckEepromFile *file,const char *path,DuckEepromStorage *storage){
  if(!file||!path||!storage||!path[0]||strlen(path)>=sizeof file->path)return -1;

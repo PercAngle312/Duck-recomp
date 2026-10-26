@@ -1,8 +1,8 @@
 {
   "full_game_elf_linked": true,
-  "elf_sha256": "a857203ad6d73e5910ed9ceaa0dab0bff3c797ed97dd52e74202ed20b4704d45",
-  "vpk_sha256": "0a5954aa7264cd9ca77c4f1e32aaeacd17dfdfe4cbef4577b34a167108ec5438",
-  "vpk_bytes": 3697280,
+  "elf_sha256": "5b86fb28d8fd764e74ccea2355496c020ab233dc2a16c654b7a9daf643365f01",
+  "vpk_sha256": "348725b5ff3dda1fb267eb15636a799e706dc337322438fdcf3e6b5456a1c31e",
+  "vpk_bytes": 3698145,
   "strong_unresolved_symbols": 0,
   "translated_module_functions": 8956,
   "game_exports": 9416,
@@ -18,21 +18,31 @@
   "saves_verified_in_game": false,
   "gameplay_verified": false,
   "playable_verified": false,
-  "elf_abi": "ARM EABI5 hard-float",
-  "host_sanitizer_checks_passed": [
-    "EEPROM persistence and failures",
-    "AI FIFO and sample conversion",
-    "relocated startup lookup",
-    "SP task routing",
-    "SP/DP and audio completion events"
-  ],
-  "hardware_status": "Unverified full game; earlier graphics replay exited due to incorrect fallback return handling",
-  "known_limits": [
-    "Synchronous audio blocks guest host during playback",
-    "Audio output pads final native block to 64 frames",
-    "SI/PIF EEPROM bit timing and programming delay not cycle-accurate",
-    "Busy translated loops still need asynchronous interrupt/safepoint integration",
-    "Renderer native dimensions currently fixed to 320x240"
-  ],
-  "ai_status_uses_mips_word_sign_extension": true
+  "app_version": "00.02",
+  "date": "2026-10-26",
+  "controls": {
+    "left_stick_deadzone": 12,
+    "axis_range": [
+      -80,
+      80
+    ],
+    "button_mapping_test_passed": true,
+    "physical_controls_tested": false
+  },
+  "audio": {
+    "pending_DMA_cancelled_on_close": true,
+    "SDK_boundary_tests_passed": true,
+    "audible_output_tested": false
+  },
+  "saves": {
+    "duplicate_durable_write_elision": true,
+    "uncertain_metadata_sync_detaches_until_reload": true,
+    "native_IO_fault_tests_passed": true,
+    "EEPROM_sizes_tested": [
+      512,
+      2048
+    ],
+    "hardware_power_loss_tested": false
+  },
+  "test_limits": "Host native-input/audio SDK calls are simulated; native EEPROM API wrappers use real temporary host files. No physical input, sound, gameplay saving or power-cut validation."
 }

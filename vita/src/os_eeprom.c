@@ -4,10 +4,12 @@
  * emulated by this synchronous storage boundary. */
 #include "duck_vita_eeprom.h"
 #include <string.h>
+#include <stdio.h>
 static uint8_t image[2048];
 static unsigned capacity;
+static int durable_image;
 static DuckEepromStorage backend;
-void duck_vita_eeprom_detach(void){capacity=0;memset(&backend,0,sizeof backend);}
+void duck_vita_eeprom_detach(void){capacity=0;durable_image=0;memset(&backend,0,sizeof backend);}
 int duck_vita_eeprom_init(unsigned bytes,const DuckEepromStorage *storage){
  uint8_t initial[2048];
  duck_vita_eeprom_detach();
@@ -15,7 +17,7 @@ int duck_vita_eeprom_init(unsigned bytes,const DuckEepromStorage *storage){
  memset(initial,0xff,sizeof initial);int result=storage->load(storage->opaque,initial,bytes);
  if(result!=0&&result!=1)return -1;
  if(result==1)memset(initial,0xff,bytes);
- memcpy(image,initial,bytes);capacity=bytes;backend=*storage;return 0;
+ memcpy(image,initial,bytes);capacity=bytes;durable_image=result==0;backend=*storage;return 0;
 }
 static int span(uint64_t value,uint32_t bytes,uint32_t *physical){
  uint32_t a=(uint32_t)value,p=a&0x1fffffffu;
@@ -47,6 +49,16 @@ void osEepromLongWrite_recomp(uint8_t *ram,recomp_context *c){
  if(!bytes){c->r2=0;return;}
  memcpy(next,image,capacity);
  for(uint32_t i=0;i<bytes;i++)next[start+i]=ram[(p+i)^3u];
- if(backend.commit(backend.opaque,next,capacity)!=0)return;
- memcpy(image,next,capacity);c->r2=0;
+ /* Only skip a duplicate when the loaded/committed image is durable. An
+  * absent save still receives its first real commit, even for all-FF data. */
+ if(durable_image&&!memcmp(next,image,capacity)){c->r2=0;return;}
+ int result=backend.commit(backend.opaque,next,capacity);
+ if(result!=0){
+  if(result==DUCK_EEPROM_COMMIT_UNCERTAIN){
+   fprintf(stderr,"EEPROM save durability uncertain after filesystem sync failure; device detached until reload\n");
+   fflush(stderr);duck_vita_eeprom_detach();
+  }
+  return;
+ }
+ memcpy(image,next,capacity);durable_image=1;c->r2=0;
 }

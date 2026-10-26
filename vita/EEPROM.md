@@ -9,7 +9,15 @@ it instead of leaving a stale save image active.
 word-swapped guest byte lanes, including unaligned buffers. Invalid sizes and
 out-of-range transfers fail. Writes commit a full candidate image first; only
 a successful storage commit changes the active image and returns success.
-A failed backend commit leaves the in-memory save unchanged.
+An ordinary failed backend commit leaves the in-memory save unchanged.
+If metadata sync fails after installing the main image, the backend returns
+`DUCK_EEPROM_COMMIT_UNCERTAIN`: the service detaches until reload because disk
+and the old in-memory image may differ. Further reads/writes fail explicitly.
+No failed write is acknowledged as successful.
+
+Duplicate writes skip SD transactions only when their full image is already
+loaded or committed. A new absent save still receives its first actual commit,
+even if the data is all `0xFF`.
 
 `duck_vita_eeprom_file` uses native Vita I/O handles on Vita and POSIX I/O on
 host tests. It syncs a temporary image, rotates the old image to `.bak`, renames
@@ -27,3 +35,9 @@ Host ASan/UBSan checks cover image boundaries, persistent reload, rejected
 writes, backup recovery, malformed files and guest byte layout. Native VitaSDK
 compilation checks the actual I/O API path. Private game-address aliases belong
 outside the public repository and must use the verified original mappings.
+
+The Vita I/O branch also runs against host filesystem wrappers with distinct
+SDK-style handles and short I/O. Injected failures cover data writing, file
+sync, close, backup removal, both rename phases, and final directory sync.
+The tests verify backup recovery, the last 16-Kbit block, and rejection of a
+malformed main. This simulates I/O errors; it is not a physical power-loss test.

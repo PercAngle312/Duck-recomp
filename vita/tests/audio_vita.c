@@ -44,7 +44,10 @@ int main(void){
  assert(duck_vita_ai_vita_init(ram,48681812)==-1);
  queue(ram);assert(duck_vita_ai_service()==1);
  assert(configured==1&&outputs==1&&drains==1&&interrupts==1);
+ queue(ram);unsigned prior_outputs=outputs,prior_interrupts=interrupts;
  duck_vita_ai_vita_close();assert(released==1);
+ assert(!duck_vita_ai_service()&&outputs==prior_outputs&&interrupts==prior_interrupts);
+ recomp_context closed={0};osAiGetStatus_recomp(ram,&closed);assert(closed.r2==(gpr)-1);
  for(unsigned failure=0;failure<3;failure++){
   assert(!duck_vita_ai_vita_init(ram,48681812));queue(ram);
   unsigned previous_irq=interrupts;
@@ -54,5 +57,5 @@ int main(void){
   duck_vita_ai_vita_close();config_error=output_error=drain_error=0;
  }
  assert(released==4);duck_vita_ai_vita_close();assert(released==4);
- free(ram);puts("PASS: native audio small-enum ABI, PCM/padding, completion ordering, device errors and cleanup");return 0;
+ free(ram);puts("PASS: native audio small-enum ABI, PCM/padding, completion ordering, device errors, pending-DMA cancellation and cleanup");return 0;
 }

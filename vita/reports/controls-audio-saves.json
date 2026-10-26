@@ -1,0 +1,48 @@
+{
+  "full_game_elf_linked": true,
+  "elf_sha256": "5b86fb28d8fd764e74ccea2355496c020ab233dc2a16c654b7a9daf643365f01",
+  "vpk_sha256": "348725b5ff3dda1fb267eb15636a799e706dc337322438fdcf3e6b5456a1c31e",
+  "vpk_bytes": 3698145,
+  "strong_unresolved_symbols": 0,
+  "translated_module_functions": 8956,
+  "game_exports": 9416,
+  "runtime_sources": 29,
+  "private_catalog_initialized_by_entry": true,
+  "translated_audio_rsp_linked": true,
+  "native_audio_output_linked": true,
+  "persistent_eeprom_linked": true,
+  "ROM_in_vpk": false,
+  "executed_on_vita": false,
+  "graphics_verified": false,
+  "audio_verified": false,
+  "saves_verified_in_game": false,
+  "gameplay_verified": false,
+  "playable_verified": false,
+  "app_version": "00.02",
+  "date": "2026-10-26",
+  "controls": {
+    "left_stick_deadzone": 12,
+    "axis_range": [
+      -80,
+      80
+    ],
+    "button_mapping_test_passed": true,
+    "physical_controls_tested": false
+  },
+  "audio": {
+    "pending_DMA_cancelled_on_close": true,
+    "SDK_boundary_tests_passed": true,
+    "audible_output_tested": false
+  },
+  "saves": {
+    "duplicate_durable_write_elision": true,
+    "uncertain_metadata_sync_detaches_until_reload": true,
+    "native_IO_fault_tests_passed": true,
+    "EEPROM_sizes_tested": [
+      512,
+      2048
+    ],
+    "hardware_power_loss_tested": false
+  },
+  "test_limits": "Host native-input/audio SDK calls are simulated; native EEPROM API wrappers use real temporary host files. No physical input, sound, gameplay saving or power-cut validation."
+}

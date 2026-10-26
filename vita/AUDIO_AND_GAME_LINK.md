@@ -37,3 +37,15 @@ stereo byte lanes, resampling, and live relocated lookup. Separate SP tests
 check graphics without FullSync and audio completion without a DP interrupt.
 The native build checks real SDK APIs and final linkage. Proprietary ROMs,
 translated source/objects, private launchers and game VPKs stay out of Git.
+
+Native audio shutdown detaches the sink and discards pending guest DMA without
+emitting completion interrupts. Later service cannot use a released native port.
+Reopening audio creates a fresh queue and resampler. Host SDK-boundary tests
+exercise queued shutdown as well as configuration/output/drain failures.
+
+Native controls map Cross=A, Circle=B, L trigger=Z, R trigger=R, Select=N64 L,
+Start=N64 Start, D-pad directly and right stick to C buttons. A 12-unit left-stick
+center deadzone suppresses small drift; each half is rescaled to reach exactly
+-80/+80, with inverted Y. Sampling-mode and polling errors disconnect the current
+snapshot. Host checks cover every mapped button, axes, C directions and failures;
+physical feel and live gameplay input still need Vita testing.

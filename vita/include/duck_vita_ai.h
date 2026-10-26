@@ -7,6 +7,9 @@ extern "C" {
  * Nonzero return is a real device failure; no AI completion is then sent. */
 typedef int (*DuckAiOutput)(void*,const uint8_t*,uint32_t,unsigned,unsigned);
 int duck_vita_ai_init(uint8_t *rdram,unsigned video_clock,DuckAiOutput output,void *opaque);
+/* Detach a stopped sink and discard its pending DMAs without completion IRQs.
+ * Called on the same host thread as service, never from inside a sink call. */
+void duck_vita_ai_detach(void);
 int duck_vita_ai_service(void);
 int duck_vita_ai_error(void);
 void osAiSetFrequency_recomp(uint8_t*,recomp_context*);

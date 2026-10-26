@@ -1,13 +1,20 @@
 #include "duck_vita_input.h"
 #include <psp2/ctrl.h>
 static int8_t axis(unsigned value,int invert){
- int n=((int)value-128)*80/128;if(invert)n=-n;
+ /* Ignore small physical-stick drift, then retain the entire N64 range.
+  * Vita's positive half has 127 steps, its negative half has 128. */
+ int n=(int)value-128,negative=n<0;
+ int magnitude=negative?-n:n;
+ if(magnitude<=12)return 0;
+ n=(magnitude-12)*80/((negative?128:127)-12);
  if(n>80)n=80;
- if(n< -80)n=-80;
+ if(negative)n=-n;
+ if(invert)n=-n;
  return (int8_t)n;
 }
 int duck_vita_pad_poll(void){
- SceCtrlData pad={0};sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG);
+ SceCtrlData pad={0};
+ if(sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG)<0){duck_pad_update(0,0,0,0);return -1;}
  int result=sceCtrlPeekBufferPositive(0,&pad,1);
  if(result<0){duck_pad_update(0,0,0,0);return -1;}
  if(!result)return 0;
