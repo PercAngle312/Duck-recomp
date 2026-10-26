@@ -1,4 +1,4 @@
-# First game graphics task replay — not a playable game
+# Vita Fast3D renderer integration — live task submission in progress
 
 This native Vita application replays the **actual first graphics task** captured
 from translated game startup. It uses Daedalus's Fast3D memory bridge,
@@ -80,3 +80,17 @@ and logs the resolution fallback value, viewport, shader compiler messages,
 translation, rendering and framebuffer swap stages. The user-reported exit
 verifies that the original app ran up to this boundary; it does not verify
 rendering. The updated build still requires a new hardware graphics check.
+
+## Renderer integration entry point
+
+The adapter now exports `duck_fast3d_submit_task(uint32_t task_guest_address)`
+through `fast3d_task.h`. The legacy `duck_fast3d_replay` calls this same
+path. The diagnostic purple frame has been removed; this code path now only
+presents frames driven by submitted guest graphics tasks.
+
+**Not connected yet:** The recompiled game's SP task runner must pass each
+real OSTask address to this function with the same live 8 MiB RDRAM backing
+provided to `duck_fast3d_init`, and only signal SP/DP completion when it
+succeeds. This cannot currently be claimed as gameplay rendering: the existing
+VPK still loads a private static RAM capture, and the source change has not
+been compiled with VitaSDK or validated on hardware.
