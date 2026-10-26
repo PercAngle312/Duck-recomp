@@ -30,7 +30,8 @@ Rebuild every renderer translation unit against the prepared include tree.
 The pinned SDK compiles all five production renderer objects and the private
 full game links with no unresolved strong symbols. Host tests exercise the real
 cache helper with valid roundtrips, all truncated lengths, header/layout/length
-and payload corruption, trailing data, and failed-write preservation. Guest
+and payload corruption, trailing data, and preservation when opening the temporary write fails. Shader caches are
+derived data; Vita newlib rename and power-loss durability are not guaranteed. Guest
 span tests check physical/KSEG aliases, alignment, end-of-RAM and overflow.
 
 Actual execution results are recorded separately in `reports/rendering-audit.json`.

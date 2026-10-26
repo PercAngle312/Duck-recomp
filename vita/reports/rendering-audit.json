@@ -44,7 +44,7 @@
   "gameplay_verified": false,
   "fixes": [
     "bounded CPU vertex batches plus distinct GPU snapshots",
-    "validated app-owned shader binary envelopes and atomic temporary writes",
+    "validated app-owned shader binary envelopes and checked temporary writes",
     "full shader keys plus filtering/sRGB separation",
     "compile/link failure diagnostics and shader handle release",
     "decal depth function refresh",
