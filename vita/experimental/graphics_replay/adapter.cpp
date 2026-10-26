@@ -27,13 +27,19 @@ static bool init_attempted;
 static void shader_log(const char *message,shark_log_level level,int line){
  fprintf(stderr,"shader[%d] line %d: %s\n",int(level),line,message?message:"(no message)");
 }
+// Reject wrapped, unaligned and out-of-RDRAM task spans before Fast3D sees them.
 static bool range(u32 address,u32 bytes){return address<gRamSize&&bytes<=gRamSize-address;}
+static bool checked_address(u32 guest,u32 size,u32 alignment){
+ u32 physical=guest&0x1fffffffu;
+ return (physical&(alignment-1))==0 && range(physical,size);
+}
 UcodeInfo GBIMicrocode_DetectVersion(u32 code,u32 code_size,u32 data,u32 data_size){
- if(!range(code,code_size)||!range(data,data_size)||!data_size||data_size>4096)abort();
+ if(!range(code,code_size)||!range(data,data_size)||!data_size||data_size>4096){fprintf(stderr,"Invalid microcode span code=%08x bytes=%u data=%08x bytes=%u\\n",code,code_size,data,data_size);abort();}
  char text[4097];for(u32 i=0;i<data_size;i++)text[i]=(char)g_pu8RamBase[(data+i)^3u];text[data_size]=0;
  // Whitelist the task captured from actual game startup. Unknown microcode
  // fails explicitly; never interpret a different microcode as F3DEX2.
- for(u32 i=0;i+64<data_size;i++)if(!memcmp(text+i,"RSP Gfx ucode F3DEX.NoN   fifo 2.08",33))return {nullptr,GBI_2};
+ static const char signature[]="RSP Gfx ucode F3DEX.NoN   fifo 2.08";
+ for(u32 i=0;i+sizeof(signature)-1<=data_size;i++)if(!memcmp(text+i,signature,sizeof(signature)-1))return {nullptr,GBI_2};
  fprintf(stderr,"Unsupported graphics microcode\n");abort();
 }
 extern "C" int duck_fast3d_init(uint8_t *rdram){
@@ -56,11 +62,11 @@ extern "C" int duck_fast3d_init(uint8_t *rdram){
 }
 extern "C" int duck_fast3d_replay(uint32_t task_address){
  if(!interpreter)return -1;
- uint32_t p=task_address&0x1fffffffu;if(!range(p,64)||(p&3))return -2;
+ uint32_t p=task_address&0x1fffffffu;if(!checked_address(task_address,64,4)){fprintf(stderr,"Invalid task location: %08x\\n",task_address);return -2;}
  uint32_t task[16];memcpy(task,g_pu8RamBase+p,sizeof task);
- if(task[0]!=1)return -3;
+ if(task[0]!=1){fprintf(stderr,"Unsupported task type: %u\\n",task[0]);return -3;}
  uint32_t code=task[4]&0x1fffffffu,data=task[6]&0x1fffffffu;
- UcodeInfo ucode=GBIMicrocode_DetectVersion(code,task[5],data,task[7]);
+ if(!checked_address(task[4],task[5],8)||!checked_address(task[6],task[7],8)||!checked_address(task[12],8,8)){\n  fprintf(stderr,"Invalid microcode or display-list span: code=%08x data=%08x list=%08x\\n",task[4],task[6],task[12]);return -6;\n }\n UcodeInfo ucode=GBIMicrocode_DetectVersion(code,task[5],data,task[7]);
  // All guest writes are dirty until translated-store instrumentation is added.
  memset(g_RDRAMDirtyPages,1,sizeof g_RDRAMDirtyPages);
  static bool first=true;
