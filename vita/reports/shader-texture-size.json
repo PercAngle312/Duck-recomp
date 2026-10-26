@@ -1,0 +1,32 @@
+{
+  "version": "00.06",
+  "change": "Clean rebuild pinned vitaGL with HAVE_GLSL_TEXTURE_SIZE=1",
+  "reported_hardware_error": "shader line 211: unexpected undeclared identifier textureSize",
+  "feature_symbol_present": true,
+  "native_translator_uniform_linker_draw_objects_compile": true,
+  "strong_unresolved_symbols": 0,
+  "vpk_sha256": "da0d73571ba46bd235323ed009c6de0461f643496b6ca34362bd26028edbca46",
+  "vitagl_archive_sha256": "dc93ebfac7bd641faec6329cb51ad031486edd7ecd143b4a534dc6a1b4a1605a",
+  "emulator": "Vita3K v0.2.1 4233-2b1234fd",
+  "host_adaptation": "Only SDL optional device discovery disabled; software OpenGL, offscreen video, dummy audio",
+  "test_duration_limit_seconds": 50,
+  "test_termination": "External timeout; emulator logged game shutdown",
+  "installed_eboot_matches_vpk": true,
+  "uploaded_compiler_module_started": true,
+  "first_Fast3D_task_finished": true,
+  "first_post_task_GL_error": "0x0",
+  "first_framebuffer_swap_completed": true,
+  "last_logged_counters": {
+    "polls": 42591,
+    "PI": 7525,
+    "SP_completed": 3388,
+    "SP_failed": 0,
+    "loop_yields": 18614
+  },
+  "native_audio_DMA_completions_logged": 3,
+  "rendered_picture_visually_verified": false,
+  "audible_audio_verified": false,
+  "physical_v006_tested": false,
+  "gameplay_verified": false,
+  "notes": "Runtime shader compilation and frame submission progressed; shader compiler emitted warnings on emulator. SP tasks include audio, so SP completion count is not a frame count. Hardware v00.05 log supplied by user; v00.06 is not hardware verified."
+}

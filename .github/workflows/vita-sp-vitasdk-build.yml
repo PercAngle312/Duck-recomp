@@ -110,7 +110,7 @@ jobs:
           lock = json.loads((root / 'vita/experimental/graphics_replay/dependencies.json').read_text())
           deps = pathlib.Path('/tmp/duck-renderer-deps')
           deps.mkdir(exist_ok=True)
-          for name in ('vita-renderer-reference', 'vita-gl-reference', 'vita-shark-reference'):
+          for name in ('vita-renderer-reference', 'vita-gl-reference', 'vita-shark-reference', 'vita-math-neon-reference'):
               item = lock['repositories'][name]
               target = deps / name
               subprocess.run(['git', 'init', str(target)], check=True)
@@ -120,7 +120,12 @@ jobs:
           src = deps / 'vita-renderer-reference/Source'
           includes = [root / 'vita/include', deps / 'vita-shark-reference/source', deps / 'vita-gl-reference/source', src, src / 'SysVita/Include', src / 'Config/Dev', src / 'SysVita/HLEGraphics/Accurate/Fast3D/include']
           subprocess.run([str(sdk), '-std=c++17', '-O1', '-ffunction-sections', '-fdata-sections', '-mcpu=cortex-a9', '-mfpu=neon', '-mfloat-abi=hard', '-DDAEDALUS_VITA', '-DGBI_FLOATS', '-DENABLE_OPENGL', *['-I' + str(p) for p in includes], '-c', str(root / 'vita/experimental/graphics_replay/adapter.cpp'), '-o', '/tmp/duck-objects/renderer-adapter.arm.o'], check=True)
-          print('Compiled shared renderer only; no game assets, VPK or rendering validation.')
+          # Fast3D needs vitaGL's textureSize compatibility path. Compile its
+          # producer, uniform linker and draw consumer with matching metadata.
+          cc = sdk.with_name('arm-vita-eabi-gcc')
+          for source in ('utils/glsl_utils', 'custom_shaders', 'draw'):
+              subprocess.run([str(cc), '-std=gnu11', '-O1', '-mcpu=cortex-a9', '-mfpu=neon', '-mfloat-abi=hard', '-DHAVE_GLSL_TEXTURE_SIZE', '-DSKIP_SPLASHSCREEN', '-Wno-incompatible-pointer-types', *['-I' + str(deps / name / 'source') for name in ('vita-gl-reference', 'vita-shark-reference', 'vita-math-neon-reference')], '-c', str(deps / 'vita-gl-reference/source' / (source + '.c')), '-o', '/tmp/duck-objects/vitagl-' + source.replace('/', '-') + '.arm.o'], check=True)
+          print('Compiled shared renderer and textureSize compatibility objects; no game assets, VPK or rendering validation.')
           PYCODE
       - name: Check private final-link script syntax
         run: python3 -m py_compile vita/link_private_game.py

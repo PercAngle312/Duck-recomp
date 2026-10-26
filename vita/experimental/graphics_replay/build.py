@@ -26,7 +26,10 @@ if hashlib.sha256(tai.read_bytes()).hexdigest()!=package['sha256']:raise ValueEr
 with tarfile.open(tai) as archive:archive.extractall(out/'taihen-sdk',filter='data')
 run(['make','-j4'],'mathneon-build.log',deps/'vita-math-neon-reference')
 run(['make','-j4','CPPFLAGS=-I../vita-shacc-reference/include'],'vitashark-build.log',deps/'vita-shark-reference')
-run(['make','-j4','CPPFLAGS=-I../vita-shark-reference/source -I../vita-math-neon-reference/source','NO_SPLASHSCREEN=1'],'vitagl-build.log',deps/'vita-gl-reference')
+# Make does not track feature-variable changes in existing objects. Rebuild all
+# vitaGL objects so shader serialization and draw-time sampler metadata agree.
+run(['make','clean'],'vitagl-clean.log',deps/'vita-gl-reference')
+run(['make','-j4','CPPFLAGS=-I../vita-shark-reference/source -I../vita-math-neon-reference/source','NO_SPLASHSCREEN=1','HAVE_GLSL_TEXTURE_SIZE=1'],'vitagl-build.log',deps/'vita-gl-reference')
 bin=sdk/'bin';src=deps/'vita-renderer-reference/Source';fast=src/'SysVita/HLEGraphics/Accurate'
 flags=['-O1','-ffunction-sections','-fdata-sections','-mcpu=cortex-a9','-mfpu=neon','-mfloat-abi=hard']
 includes=[deps/'vita-shark-reference/source',deps/'vita-gl-reference/source',src,src/'SysVita/Include',src/'Config/Dev',fast/'Fast3D/include']

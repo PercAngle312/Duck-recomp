@@ -121,3 +121,24 @@ that dependency requires checking its ABI and behavior again.
 
 The pinned SDK workflow also compiles this shared renderer against its exact
 locked public dependencies. That CI artifact is an object, not a playable build.
+
+## Required texture-size translation
+
+Build vitaGL with `HAVE_GLSL_TEXTURE_SIZE=1` as well as `NO_SPLASHSCREEN=1`.
+Fast3D emits `textureSize(uTexN, 0)` and `textureSize(uTexMaskN, 0)` for
+filtering and clamping. The Vita compiler cannot compile that GLSL intrinsic
+directly. This pinned vitaGL option rewrites these calls into sampler-size
+uniforms and fills them with the currently bound texture dimensions on draws.
+Its level-zero limitation matches Fast3D's explicit level-zero queries.
+
+Run `make clean` before changing this feature: make does not invalidate object
+files when command-line feature variables change. Shader serialization and
+uniform/draw handling must all use the same feature setting. The build script
+performs this clean rebuild. Keep the generated shader cache from older builds
+separate or remove only `ux0:/data/DaedalusX64/ShaderCache_F3D` before testing
+this update; it contains derived shader binaries, not game saves.
+
+Physical v00.05 execution reached guest audio DMA completions, translated its
+first display list with FullSync, and failed compiling `textureSize` at the first
+Fast3D task. Enabling the translation addresses that reported compiler error;
+rendering and gameplay still require execution validation.
