@@ -58,7 +58,18 @@ extern "C" int duck_fast3d_init(uint8_t *rdram){
  interpreter->Init(DaedalusFast3D_GetWindowBackend(),DaedalusFast3D_GetRenderingAPI(),"Duck Vita graphics replay",false,960,544,0,0);
  interpreter->SetRdramMemory(rdram,gRamSize);interpreter->SetNativeDimensions(320,240);
  interpreter->SetDisplayConfiguration(725,544,117,0,1.0f);
- bridge.SetInterpreter(interpreter.get());fprintf(stderr,"Fast3D interpreter ready\n");return 0;
+ bridge.SetInterpreter(interpreter.get());
+ // Present a known-color frame before any guest rendering. If this never
+ // appears, the failure is in vitaGL/display rather than Fast3D translation.
+ glViewport(0,0,960,544);
+ glClearColor(0.12f,0.04f,0.28f,1.0f);
+ glClear(GL_COLOR_BUFFER_BIT);
+ GLenum smoke_error=glGetError();
+ fprintf(stderr,"Native GL presentation probe: clear_error=0x%x\n",unsigned(smoke_error));
+ vglSwapBuffers(GL_FALSE);
+ fprintf(stderr,"Native GL presentation probe swapped\n");
+ fprintf(stderr,"Fast3D interpreter ready\n");
+ return smoke_error==GL_NO_ERROR ? 0 : -7;
 }
 extern "C" int duck_fast3d_replay(uint32_t task_address){
  if(!interpreter)return -1;
@@ -78,12 +89,21 @@ extern "C" int duck_fast3d_replay(uint32_t task_address){
  if(first)fprintf(stderr,"Display list translated; full_sync=%d\n",int(bridge.SawFullSync()));
  Fast::gfx_set_target_ucode(ucode_f3dex2);
  robin_hood::unordered_map<Mtx*,MtxF> replacements;
+ // Ensure stale backbuffer pixels cannot masquerade as successful graphics.
+ glViewport(117,0,725,544);
+ glClearColor(0.015f,0.02f,0.045f,1.0f);
+ glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+ GLenum pre_error=glGetError();
+ if(pre_error!=GL_NO_ERROR)fprintf(stderr,"GL pre-task error=0x%x\n",unsigned(pre_error));
  interpreter->StartFrame();DaedalusFast3D_PrepareTask(true);
  if(first)fprintf(stderr,"Executing first Fast3D task\n");
  interpreter->Run(reinterpret_cast<Gfx*>(list),replacements);
  if(first)fprintf(stderr,"First Fast3D task finished\n");
  if(bridge.SawFullSync()&&!interpreter->SyncColorImageToRdram(g_pu8RamBase,gRamSize))return -5;
- interpreter->EndFrame();vglSwapBuffers(GL_FALSE);
+ interpreter->EndFrame();
+ GLenum render_error=glGetError();
+ if(first)fprintf(stderr,"Fast3D GL post-task error=0x%x\n",unsigned(render_error));
+ vglSwapBuffers(GL_FALSE);
  if(first)fprintf(stderr,"First framebuffer swap complete\n");
  first=false;return 0;
 }
