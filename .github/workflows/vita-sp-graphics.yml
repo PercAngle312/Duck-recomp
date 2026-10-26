@@ -1,0 +1,27 @@
+name: Vita SP graphics runtime
+on:
+  push:
+    branches: [vita/arm32-bringup]
+    paths:
+      - 'vita/include/duck_vita_sp.h'
+      - 'vita/src/sp.c'
+      - 'vita/tests/sp.c'
+      - 'vita/experimental/graphics_replay/**'
+      - '.github/workflows/vita-sp-graphics.yml'
+  pull_request:
+    paths:
+      - 'vita/include/duck_vita_sp.h'
+      - 'vita/src/sp.c'
+      - 'vita/tests/sp.c'
+      - '.github/workflows/vita-sp-graphics.yml'
+jobs:
+  sp-dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build SP task runtime
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=undefined -Ivita/include vita/src/sp.c vita/tests/sp.c -o /tmp/duck-sp
+      - name: Validate graphics task completion
+        run: /tmp/duck-sp
+      - name: Syntax check build script
+        run: python3 -m py_compile vita/experimental/graphics_replay/build.py
