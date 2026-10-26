@@ -11,7 +11,9 @@ static int output(void *opaque,const uint8_t *ram,uint32_t address,unsigned fram
   if(!n)continue;
   unsigned aligned=(n+63u)&~63u;
   memset(pcm+n*2,0,(aligned-n)*2*sizeof(int16_t));
-  int result=sceAudioOutSetConfig(port,(int)aligned,-1,(SceAudioOutMode)-1);if(result<0)return result;
+  /* VitaSDK uses small enums: casting -1 to this enum passes 255, not the
+   * signed unchanged sentinel expected by the kernel. This port is stereo. */
+  int result=sceAudioOutSetConfig(port,(int)aligned,-1,SCE_AUDIO_OUT_MODE_STEREO);if(result<0)return result;
   result=sceAudioOutOutput(port,pcm);if(result<0)return result;
  }
  // Wait for the final native buffer before releasing the guest DMA and IRQ.
