@@ -37,17 +37,17 @@ jobs:
           export VITASDK="$(dirname "$(dirname "$SDK_CC")")"
           echo "VitaSDK root: $VITASDK"
           "$SDK_CC" --version
-          for file in sp sp_events sp_runtime os_sp game_loop; do
+          for file in sp sp_events sp_runtime os_sp game_loop dispatch recomp_bridge scheduler queue os_io os_queue os_core; do
             echo "::group::Compile $file.c"
             "$SDK_CC" -std=c11 -O1 -Wall -Wextra -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/include -I/tmp/duck-abi -c "vita/src/$file.c" -o "/tmp/duck-objects/$file.o"
             echo "::endgroup::"
           done
-          test "$(find /tmp/duck-objects -name '*.o' | wc -l)" -eq 5
+          test "$(find /tmp/duck-objects -name '*.o' | wc -l)" -eq 12
       - name: Relocatable ARM link of scheduler and graphics components
         run: |
           set -eu
           SDK_BIN="$(dirname "$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-gcc -print -quit)")"
-          "$SDK_BIN/arm-vita-eabi-gcc" -r /tmp/duck-objects/sp.o /tmp/duck-objects/sp_events.o /tmp/duck-objects/sp_runtime.o /tmp/duck-objects/os_sp.o /tmp/duck-objects/game_loop.o -o /tmp/duck-objects/duck-vita-graphics-runtime-linked.o
+          "$SDK_BIN/arm-vita-eabi-gcc" -r /tmp/duck-objects/sp.o /tmp/duck-objects/sp_events.o /tmp/duck-objects/sp_runtime.o /tmp/duck-objects/os_sp.o /tmp/duck-objects/game_loop.o /tmp/duck-objects/dispatch.o /tmp/duck-objects/recomp_bridge.o /tmp/duck-objects/scheduler.o /tmp/duck-objects/queue.o /tmp/duck-objects/os_io.o /tmp/duck-objects/os_queue.o /tmp/duck-objects/os_core.o -o /tmp/duck-objects/duck-vita-graphics-runtime-linked.o
           "$SDK_BIN/arm-vita-eabi-nm" -u /tmp/duck-objects/duck-vita-graphics-runtime-linked.o | tee /tmp/duck-objects/unresolved-runtime.txt
           file /tmp/duck-objects/duck-vita-graphics-runtime-linked.o
           echo "Relocatable ARM link only: unresolved production external functions remain and this is NOT a Vita ELF/VPK."
