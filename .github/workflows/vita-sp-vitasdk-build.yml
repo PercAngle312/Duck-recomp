@@ -43,6 +43,14 @@ jobs:
             echo "::endgroup::"
           done
           test "$(find /tmp/duck-objects -name '*.o' | wc -l)" -eq 5
+      - name: Relocatable ARM link of scheduler and graphics components
+        run: |
+          set -eu
+          SDK_BIN="$(dirname "$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-gcc -print -quit)")"
+          "$SDK_BIN/arm-vita-eabi-gcc" -r /tmp/duck-objects/sp.o /tmp/duck-objects/sp_events.o /tmp/duck-objects/sp_runtime.o /tmp/duck-objects/os_sp.o /tmp/duck-objects/game_loop.o -o /tmp/duck-objects/duck-vita-graphics-runtime-linked.o
+          "$SDK_BIN/arm-vita-eabi-nm" -u /tmp/duck-objects/duck-vita-graphics-runtime-linked.o | tee /tmp/duck-objects/unresolved-runtime.txt
+          file /tmp/duck-objects/duck-vita-graphics-runtime-linked.o
+          echo "Relocatable ARM link only: unresolved production external functions remain and this is NOT a Vita ELF/VPK."
       - uses: actions/upload-artifact@v4
         with:
           name: duck-vita-sp-arm-objects
