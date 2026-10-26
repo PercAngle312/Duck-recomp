@@ -10,6 +10,9 @@ on:
       - 'vita/src/live.c'
       - 'vita/src/os_input.c'
       - 'vita/src/os_overlays.c'
+      - 'vita/src/os_eeprom.c'
+      - 'vita/src/eeprom_file.c'
+      - 'vita/include/duck_vita_eeprom.h'
       - 'vita/src/input_vita.c'
       - 'vita/src/live_registry.c'
       - 'vita/include/duck_vita_live_registry.h'
@@ -45,17 +48,17 @@ jobs:
           export VITASDK="$(dirname "$(dirname "$SDK_CC")")"
           echo "VitaSDK root: $VITASDK"
           "$SDK_CC" --version
-          for file in live live_registry sp sp_events sp_runtime os_sp game_loop dispatch recomp_bridge scheduler queue os_io os_queue os_core os_threads os_interrupt fiber_vita os_time os_vi os_vi_config os_input input_vita os_overlays; do
+          for file in live live_registry sp sp_events sp_runtime os_sp game_loop dispatch recomp_bridge scheduler queue os_io os_queue os_core os_threads os_interrupt fiber_vita os_time os_vi os_vi_config os_input input_vita os_overlays os_eeprom eeprom_file; do
             echo "::group::Compile $file.c"
             "$SDK_CC" -std=c11 -O1 -Wall -Wextra -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/include -I/tmp/duck-abi -c "vita/src/$file.c" -o "/tmp/duck-objects/$file.o"
             echo "::endgroup::"
           done
-          test "$(find /tmp/duck-objects -name '*.o' | wc -l)" -eq 23
+          test "$(find /tmp/duck-objects -name '*.o' | wc -l)" -eq 25
       - name: Relocatable ARM link of scheduler and graphics components
         run: |
           set -eu
           SDK_BIN="$(dirname "$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-gcc -print -quit)")"
-          "$SDK_BIN/arm-vita-eabi-gcc" -r /tmp/duck-objects/sp.o /tmp/duck-objects/sp_events.o /tmp/duck-objects/sp_runtime.o /tmp/duck-objects/os_sp.o /tmp/duck-objects/game_loop.o /tmp/duck-objects/live.o /tmp/duck-objects/live_registry.o /tmp/duck-objects/dispatch.o /tmp/duck-objects/recomp_bridge.o /tmp/duck-objects/scheduler.o /tmp/duck-objects/queue.o /tmp/duck-objects/os_io.o /tmp/duck-objects/os_queue.o /tmp/duck-objects/os_core.o /tmp/duck-objects/os_threads.o /tmp/duck-objects/os_interrupt.o /tmp/duck-objects/fiber_vita.o /tmp/duck-objects/os_time.o /tmp/duck-objects/os_vi.o /tmp/duck-objects/os_vi_config.o /tmp/duck-objects/os_input.o /tmp/duck-objects/input_vita.o /tmp/duck-objects/os_overlays.o -o /tmp/duck-objects/duck-vita-graphics-runtime-linked.o
+          "$SDK_BIN/arm-vita-eabi-gcc" -r /tmp/duck-objects/sp.o /tmp/duck-objects/sp_events.o /tmp/duck-objects/sp_runtime.o /tmp/duck-objects/os_sp.o /tmp/duck-objects/game_loop.o /tmp/duck-objects/live.o /tmp/duck-objects/live_registry.o /tmp/duck-objects/dispatch.o /tmp/duck-objects/recomp_bridge.o /tmp/duck-objects/scheduler.o /tmp/duck-objects/queue.o /tmp/duck-objects/os_io.o /tmp/duck-objects/os_queue.o /tmp/duck-objects/os_core.o /tmp/duck-objects/os_threads.o /tmp/duck-objects/os_interrupt.o /tmp/duck-objects/fiber_vita.o /tmp/duck-objects/os_time.o /tmp/duck-objects/os_vi.o /tmp/duck-objects/os_vi_config.o /tmp/duck-objects/os_input.o /tmp/duck-objects/input_vita.o /tmp/duck-objects/os_overlays.o /tmp/duck-objects/os_eeprom.o /tmp/duck-objects/eeprom_file.o -o /tmp/duck-objects/duck-vita-graphics-runtime-linked.o
           "$SDK_BIN/arm-vita-eabi-nm" -u /tmp/duck-objects/duck-vita-graphics-runtime-linked.o | tee /tmp/duck-objects/unresolved-runtime.txt
           file /tmp/duck-objects/duck-vita-graphics-runtime-linked.o
           "$SDK_BIN/arm-vita-eabi-nm" /tmp/duck-objects/duck-vita-graphics-runtime-linked.o | grep -q " T duck_vita_live_run"
@@ -65,7 +68,7 @@ jobs:
           set -eu
           SDK_BIN="$(dirname "$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-gcc -print -quit)")"
           "$SDK_BIN/arm-vita-eabi-nm" -g --defined-only /tmp/duck-objects/duck-vita-graphics-runtime-linked.o > /tmp/duck-objects/runtime-providers.txt
-          for symbol in osCreateViManager_recomp osSetTimer_recomp pause_self osSpTaskLoad_recomp osSpTaskYield_recomp osSpTaskYielded_recomp duck_vita_live_run duck_vita_live_registry_lookup osContInit_recomp osContStartReadData_recomp osContGetReadData_recomp osContStartQuery_recomp osContGetQuery_recomp get_function duck_register_loaded_module duck_before_free; do
+          for symbol in osCreateViManager_recomp osSetTimer_recomp pause_self osSpTaskLoad_recomp osSpTaskYield_recomp osSpTaskYielded_recomp duck_vita_live_run duck_vita_live_registry_lookup osContInit_recomp osContStartReadData_recomp osContGetReadData_recomp osContStartQuery_recomp osContGetQuery_recomp get_function duck_register_loaded_module duck_before_free osEepromProbe_recomp osEepromLongRead_recomp osEepromLongWrite_recomp; do
             if ! grep -Eq "[[:space:]]T[[:space:]]${symbol}$" /tmp/duck-objects/runtime-providers.txt; then
               echo "Missing functional runtime provider: ${symbol}"
               exit 1
@@ -82,7 +85,7 @@ jobs:
           int main(void) { return 0; }
           EOF
           "$SDK_CC" -std=c11 -c /tmp/duck-objects/runtime-entry.c -o /tmp/duck-objects/runtime-entry.o
-          "$SDK_CC" -Wl,--no-gc-sections /tmp/duck-objects/runtime-entry.o /tmp/duck-objects/duck-vita-graphics-runtime-linked.o -lSceFiber_stub -lSceSysmodule_stub -lSceCtrl_stub -lm -o /tmp/duck-objects/duck-vita-runtime-link.elf
+          "$SDK_CC" -Wl,--no-gc-sections /tmp/duck-objects/runtime-entry.o /tmp/duck-objects/duck-vita-graphics-runtime-linked.o -lSceFiber_stub -lSceSysmodule_stub -lSceCtrl_stub -lSceIofilemgr_stub -lm -o /tmp/duck-objects/duck-vita-runtime-link.elf
           "$(dirname "$SDK_CC")/arm-vita-eabi-nm" -u /tmp/duck-objects/duck-vita-runtime-link.elf | tee /tmp/duck-objects/final-undefined.txt
           if grep -Eq '^[[:space:]]*U[[:space:]]' /tmp/duck-objects/final-undefined.txt; then
             echo "Unresolved strong symbols in ELF"; exit 1

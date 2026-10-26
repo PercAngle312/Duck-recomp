@@ -159,3 +159,8 @@ vita_create_vpk(DuckDodgers-Vita-Thread-Test.vpk DUCKVIT02 duck_vita_thread_prob
   FILE "${VITA_SAMPLES_ROOT}/hello_world/sce_sys/livearea/contents/bg.png" sce_sys/livearea/contents/bg.png
   FILE "${VITA_SAMPLES_ROOT}/hello_world/sce_sys/livearea/contents/startup.png" sce_sys/livearea/contents/startup.png
   FILE "${VITA_SAMPLES_ROOT}/hello_world/sce_sys/livearea/contents/template.xml" sce_sys/livearea/contents/template.xml)
+
+# EEPROM storage is acknowledged only after a whole-image durable commit.
+add_library(duck_vita_eeprom STATIC src/os_eeprom.c src/eeprom_file.c)
+target_include_directories(duck_vita_eeprom PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(duck_vita_eeprom PUBLIC SceIofilemgr_stub)
