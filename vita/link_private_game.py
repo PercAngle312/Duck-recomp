@@ -18,13 +18,17 @@ p.add_argument("--game-dir", type=Path, required=True,
                help="Private translated game ARM objects")
 p.add_argument("--renderer-dir", type=Path, required=True,
                help="Fast3D/vitaGL ARM objects")
+p.add_argument("--extra-object", type=Path, action="append", default=[],
+               help="Additional private runtime callback ARM objects")
+p.add_argument("--library", type=Path, action="append", default=[],
+               help="Renderer/static dependency archive, repeat for all dependencies")
 p.add_argument("--output-dir", type=Path, required=True)
 a = p.parse_args()
 
 sdk=a.vitasdk.resolve()
 cc=sdk/"bin/arm-vita-eabi-g++"
 nm=sdk/"bin/arm-vita-eabi-nm"
-for f in (cc,nm,a.runtime,a.game_entry):
+for f in (cc,nm,a.runtime,a.game_entry,*a.extra_object,*a.library):
     if not f.is_file(): p.error(f"Missing required input: {f}")
 game=sorted(a.game_dir.glob("*.o"))
 renderer=sorted(a.renderer_dir.glob("*.o"))
@@ -35,8 +39,13 @@ if out == Path.cwd().resolve() or Path.cwd().resolve() in out.parents:
     p.error("Private output must be outside the checked-out public repository")
 out.mkdir(parents=True,exist_ok=True)
 elf=out/"DuckDodgers-Vita.private.elf"
+# Preserve archive dependency cycles (Fast3D/vitaGL/vitashark) while
+# retaining all explicitly required real game and renderer objects.
+# Archives are user-supplied from verified pinned source builds, not stubs.
 cmd=[str(cc),"-Wl,--no-undefined",str(a.game_entry),str(a.runtime),
-     *map(str,game),*map(str,renderer),"-lm","-lstdc++","-o",str(elf)]
+     *map(str,a.extra_object),*map(str,game),*map(str,renderer),
+     "-Wl,--start-group",*map(str,a.library),"-lm","-lstdc++",
+     "-Wl,--end-group","-o",str(elf)]
 with (out/"link-command.txt").open("w") as log: log.write(" ".join(cmd)+"\n")
 with (out/"link.log").open("w") as log:
     result=subprocess.run(cmd,stdout=log,stderr=subprocess.STDOUT)
