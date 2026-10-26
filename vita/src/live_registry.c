@@ -20,10 +20,12 @@ int duck_vita_live_start_registered(DuckVitaLive *live,
  DuckVitaTickClock clock,void *clock_opaque,uint64_t vi_period,
  DuckVitaGraphicsSubmit renderer,uint32_t entry,uint32_t stack,
  uint32_t arg,int priority){
+ /* A prior registry must never be silently reused for a new game. */
+ if(duck_vita_live_registry_bind(table)!=0)return -1;
  if(!duck_vita_live_registry_lookup(entry)){
-  if(duck_vita_live_registry_bind(table)!=0)return -1;
-  if(!duck_vita_live_registry_lookup(entry)){duck_vita_live_registry_unbind();return -2;}
- }else return -3; /* reject already active registry */
+  duck_vita_live_registry_unbind();
+  return -2;
+ }
  int rc=duck_vita_live_init(live,rdram,rom,rom_size,
    duck_vita_live_registry_lookup,clock,clock_opaque,vi_period,renderer);
  if(rc!=0){duck_vita_live_registry_unbind();return rc;}
