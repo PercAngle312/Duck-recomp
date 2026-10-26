@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-26",
+  "suite_steps_passed": 16,
+  "failures": 0,
+  "native_audio_small_enum_regression_passed": true,
+  "original_bug_negative_control_rejected": true,
+  "native_audio_driver": "Mock SDK calls test the real audio_vita.c; this does not prove audible output on hardware",
+  "checks": [
+    "Validate AI DMA completion and PCM conversion",
+    "Validate relocated startup lookup",
+    "Validate native audio calls with VitaSDK small enums",
+    "Validate persistent reload and save failure behavior",
+    "Test private registry generator",
+    "Compile and link synthetic private function registry",
+    "Compile ABI dispatch test",
+    "Verify context-backed ABI dispatch",
+    "Compile exact VRAM dispatcher contract",
+    "Test exact translated function dispatch",
+    "Test guest OS core callbacks",
+    "Test queued cartridge DMA and event messages",
+    "Test stack-preserving guest thread and queue execution",
+    "Test guest timer and VI service with blocked fiber wakeup",
+    "Test overlay lifecycle and reused guest allocations",
+    "Test serial controller completions and guest memory layout"
+  ],
+  "graphics_blocker": "Missing Sony libshacccg shader compiler; Vita3K HLE compilation is unimplemented",
+  "new_gameplay_execution": false,
+  "gameplay_verified": false,
+  "physical_vita_tested": false
+}

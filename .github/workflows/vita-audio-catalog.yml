@@ -2,9 +2,9 @@ name: Vita AI audio and live catalog
 on:
   push:
     branches: [vita/arm32-bringup]
-    paths: ['vita/src/os_ai.c', 'vita/src/audio*.c', 'vita/src/live_registry.c', 'vita/src/os_overlays.c', 'vita/include/duck_vita_ai.h', 'vita/include/duck_vita_live_registry.h', 'vita/tests/os_ai.c', 'vita/tests/live_catalog.c', '.github/workflows/vita-audio-catalog.yml']
+    paths: ['vita/src/os_ai.c', 'vita/src/audio*.c', 'vita/src/live_registry.c', 'vita/src/os_overlays.c', 'vita/include/duck_vita_ai.h', 'vita/include/duck_vita_live_registry.h', 'vita/tests/os_ai.c', 'vita/tests/audio_vita.c', 'vita/tests/fake_sdk/psp2/audioout.h', 'vita/tests/live_catalog.c', '.github/workflows/vita-audio-catalog.yml']
   pull_request:
-    paths: ['vita/src/os_ai.c', 'vita/src/audio*.c', 'vita/src/live_registry.c', 'vita/src/os_overlays.c', 'vita/include/duck_vita_ai.h', 'vita/include/duck_vita_live_registry.h', 'vita/tests/os_ai.c', 'vita/tests/live_catalog.c', '.github/workflows/vita-audio-catalog.yml']
+    paths: ['vita/src/os_ai.c', 'vita/src/audio*.c', 'vita/src/live_registry.c', 'vita/src/os_overlays.c', 'vita/include/duck_vita_ai.h', 'vita/include/duck_vita_live_registry.h', 'vita/tests/os_ai.c', 'vita/tests/audio_vita.c', 'vita/tests/fake_sdk/psp2/audioout.h', 'vita/tests/live_catalog.c', '.github/workflows/vita-audio-catalog.yml']
 jobs:
   contracts:
     runs-on: ubuntu-latest
@@ -22,3 +22,7 @@ jobs:
         run: |
           cc -std=c11 -O1 -Wall -Wextra -Werror -ffunction-sections -fdata-sections -fsanitize=address,undefined -I/tmp/duck-abi -Ivita/include vita/src/live_registry.c vita/src/os_overlays.c vita/tests/live_catalog.c -Wl,--gc-sections -o /tmp/duck-live-catalog
           /tmp/duck-live-catalog
+      - name: Validate native audio calls with VitaSDK small enums
+        run: |
+          cc -std=c11 -O1 -Wall -Wextra -Werror -fshort-enums -fsanitize=address,undefined -Ivita/tests/fake_sdk -I/tmp/duck-abi -Ivita/include vita/src/os_ai.c vita/src/audio_resample.c vita/src/audio_vita.c vita/tests/audio_vita.c -o /tmp/duck-native-audio
+          /tmp/duck-native-audio
