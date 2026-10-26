@@ -25,6 +25,15 @@ int main(void){
  sp_rc=0;dp_rc=-1;
  assert(duck_vita_sp_start_graphics(&sp,0x80000100u)==0);
  assert(state.sp_delivered==2&&state.dp_undelivered==1&&submits==4);
+ render_rc=DUCK_SP_GRAPHICS_NO_DP;sp_rc=dp_rc=0;
+ int dp_before=dp_events,sp_before=sp_events;
+ assert(!duck_vita_sp_start_graphics(&sp,0x80000100u));
+ assert(dp_events==dp_before&&sp_events==sp_before+1);
+ assert(!duck_vita_sp_set_audio(&sp,submit,duck_vita_sp_events_complete_audio));
+ render_rc=0;assert(!duck_vita_sp_start_audio(&sp,0x80000100u));
+ assert(dp_events==dp_before&&state.audio_delivered==1);
+ render_rc=-9;assert(duck_vita_sp_start_audio(&sp,0x80000100u)==-9);
+ assert(dp_events==dp_before&&state.audio_failures==1);
  puts("SP/DP completion events delivered and failures accounted");
  return 0;
 }

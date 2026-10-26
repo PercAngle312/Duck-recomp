@@ -1,6 +1,7 @@
 #pragma once
 #include "duck_vita_live.h"
 #include "duck_vita_dispatch.h"
+#include "duck_vita_overlays.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -16,6 +17,14 @@ recomp_func_t *duck_vita_live_registry_lookup(uint32_t guest_vram);
  */
 int duck_vita_live_start_registered(DuckVitaLive *live,
  const DuckVitaDispatchTable *table,
+ uint8_t *rdram,const uint8_t *rom,size_t rom_size,
+ DuckVitaTickClock clock,void *clock_opaque,uint64_t vi_period,
+ DuckVitaGraphicsSubmit renderer,uint32_t entry,uint32_t stack,
+ uint32_t arg,int priority);
+/* Production overlay startup. The caller supplies the verified private catalog
+ * and allocator-observed resident code, and binds saves/audio before this call.
+ * A failed startup is terminal for that runtime instance. */
+int duck_vita_live_start_catalog(DuckVitaLive *live,const DuckCodeCatalog *catalog,
  uint8_t *rdram,const uint8_t *rom,size_t rom_size,
  DuckVitaTickClock clock,void *clock_opaque,uint64_t vi_period,
  DuckVitaGraphicsSubmit renderer,uint32_t entry,uint32_t stack,

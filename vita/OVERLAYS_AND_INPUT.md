@@ -1,4 +1,7 @@
-# Translated startup through graphics submission
+# Historical translated startup through graphics submission
+
+This records the earlier overlay/input checkpoint. See `AUDIO_AND_GAME_LINK.md`
+and `reports/full-game-build.json` for the subsequent full-game link.
 
 The private host diagnostic executes the existing translated resident and module
 sources with the stack-preserving guest runtime. It currently loads 79 modules,

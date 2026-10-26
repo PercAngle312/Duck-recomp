@@ -94,13 +94,15 @@ extern "C" int duck_fast3d_submit_task(uint32_t task_address){
  interpreter->EndFrame();
  GLenum render_error=glGetError();
  if(first)fprintf(stderr,"Fast3D GL post-task error=0x%x\n",unsigned(render_error));
+ if(render_error!=GL_NO_ERROR)return -7;
  vglSwapBuffers(GL_FALSE);
  if(first)fprintf(stderr,"First framebuffer swap complete\n");
- first=false;return 0;
+ first=false;return bridge.SawFullSync()?0:1;
 }
 
 // Compatibility with the historical replay caller. The same renderer can now
 // accept distinct graphics task addresses supplied by a live SP task handler.
 extern "C" int duck_fast3d_replay(uint32_t task_address){
- return duck_fast3d_submit_task(task_address);
+ int result=duck_fast3d_submit_task(task_address);
+ return result==1?0:result;
 }

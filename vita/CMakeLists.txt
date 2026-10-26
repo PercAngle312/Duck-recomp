@@ -164,3 +164,9 @@ vita_create_vpk(DuckDodgers-Vita-Thread-Test.vpk DUCKVIT02 duck_vita_thread_prob
 add_library(duck_vita_eeprom STATIC src/os_eeprom.c src/eeprom_file.c)
 target_include_directories(duck_vita_eeprom PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(duck_vita_eeprom PUBLIC SceIofilemgr_stub)
+
+add_library(duck_vita_ai STATIC src/os_ai.c src/audio_resample.c src/audio_vita.c)
+target_include_directories(duck_vita_ai PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(duck_vita_ai PUBLIC duck_vita_os_io SceAudio_stub)
+
+add_library(duck_vita_guest_fault STATIC src/guest_fault.c)

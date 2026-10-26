@@ -39,14 +39,15 @@ renderer=sorted(a.renderer_dir.glob("*.o"))
 if not game: p.error("No private translated game objects; refusing probe-only link")
 if not renderer: p.error("No real renderer objects; refusing runtime-only link")
 out=a.output_dir.resolve()
-if out == Path.cwd().resolve() or Path.cwd().resolve() in out.parents:
+public_root=Path(__file__).resolve().parent.parent
+if out == public_root or public_root in out.parents:
     p.error("Private output must be outside the checked-out public repository")
 out.mkdir(parents=True,exist_ok=True)
 elf=out/"DuckDodgers-Vita.private.elf"
 # Preserve archive dependency cycles (Fast3D/vitaGL/vitashark) while
 # retaining all explicitly required real game and renderer objects.
 # Archives are user-supplied from verified pinned source builds, not stubs.
-cmd=[str(cc),"-Wl,--no-undefined",str(a.game_entry),str(a.runtime),
+cmd=[str(cc),"-Wl,--no-undefined","-Wl,-q","-Wl,--gc-sections",str(a.game_entry),str(a.runtime),
      *map(str,a.extra_object),*map(str,game),*map(str,renderer),
      "-Wl,--start-group",*map(str,a.library),
      *("-l"+s+"_stub" for s in a.vita_stub),"-lm","-lstdc++",

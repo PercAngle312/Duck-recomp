@@ -29,10 +29,16 @@ int main(void){
  assert(duck_vita_sp_os_last_result()==0);
  osSpTaskStartGo_recomp(ram,&ctx);
  assert(submitted==1&&events==1&&duck_vita_sp_os_last_result()==0);
+ ram[0x100]=2;osSpTaskLoad_recomp(ram,&ctx);
+ assert(duck_vita_sp_os_last_result()==DUCK_SP_AUDIO_UNAVAILABLE&&submitted==1);
+ assert(!duck_vita_sp_set_audio(&sp,submit,complete));
+ osSpTaskLoad_recomp(ram,&ctx);assert(!duck_vita_sp_os_last_result());
+ osSpTaskStartGo_recomp(ram,&ctx);assert(submitted==2&&events==2&&!duck_vita_sp_os_last_result());
+ ram[0x100]=1;
  ctx.r4=0x80000101u;osSpTaskStartGo_recomp(ram,&ctx);
- assert(submitted==1&&duck_vita_sp_os_last_result()==DUCK_SP_BAD_ARGUMENT);
+ assert(submitted==2&&duck_vita_sp_os_last_result()==DUCK_SP_BAD_ARGUMENT);
  ctx.r4=0x80000100u;osSpTaskStartGo_recomp(ram+4,&ctx);
- assert(submitted==1);
- duck_vita_sp_os_bind(0,0);osSpTaskStartGo_recomp(ram,&ctx);assert(submitted==1);
+ assert(submitted==2);
+ duck_vita_sp_os_bind(0,0);osSpTaskStartGo_recomp(ram,&ctx);assert(submitted==2);
  free(ram);puts("osSpTaskStartGo guest dispatch passed");return 0;
 }

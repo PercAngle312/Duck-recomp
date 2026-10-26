@@ -5,16 +5,19 @@
 #include "duck_vita_live.h"
 #include "duck_vita_os_io.h"
 #include "duck_vita_input.h"
+#include "duck_vita_ai.h"
+#include "duck_vita_sp_os.h"
 #include <string.h>
 static DuckVitaLive *active_live;
 static int service(void){
  DuckVitaLive *live=active_live;
- if(!live||!live->initialized)return -1;
+ if(!live||!live->initialized||duck_vita_sp_os_last_result()<0)return -1;
  int pi=duck_vita_os_pi_service();
  if(pi<0)return -1;
  live->pi_transfers+=(unsigned)pi;
  if(duck_vita_pad_poll()<0)return -1;
  if(duck_pad_service()<0)return -1;
+ if(duck_vita_ai_service()<0)return -1;
  if(duck_vita_time_poll()<0)return -1;
  live->scheduler_polls++;
  return 0;

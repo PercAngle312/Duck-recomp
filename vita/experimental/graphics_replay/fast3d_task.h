@@ -4,8 +4,8 @@
 extern "C" {
 #endif
 /* Production-facing Fast3D adapter entry points. Runtime owns guest RDRAM.
- * Submit exactly one OSTask whose type is graphics. Return 0 only when
- * translated/executed and presented; never acknowledge an unsupported task.
+ * Submit exactly one graphics OSTask. Return 0 after rendering with FullSync,
+ * or 1 after rendering without FullSync; negative values are failures; never acknowledge an unsupported task.
  * The guest SP/DP scheduler still needs to invoke this interface.
  */
 int duck_fast3d_init(uint8_t *rdram);

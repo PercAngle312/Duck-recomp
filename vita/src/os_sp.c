@@ -23,7 +23,7 @@ static uint32_t word(const uint8_t *ram,uint32_t p) {
         ((uint32_t)ram[p+2]<<16)|((uint32_t)ram[p+3]<<24);
 }
 void duck_vita_sp_os_bind(DuckVitaSp *sp,uint8_t *rdram) {
- active_sp=sp;active_ram=rdram;last_result=DUCK_SP_RENDERER_UNAVAILABLE;
+ active_sp=sp;active_ram=rdram;last_result=sp&&rdram?0:DUCK_SP_RENDERER_UNAVAILABLE;
  loaded_task=0;task_loaded=0;
 }
 int duck_vita_sp_os_last_result(void){return last_result;}
@@ -33,7 +33,9 @@ void osSpTaskLoad_recomp(uint8_t *rdram,recomp_context *ctx) {
  uint32_t p;
  last_result=DUCK_SP_BAD_ARGUMENT;
  if(!ctx||!active_sp||rdram!=active_ram||task_offset(ctx->r4,&p))return;
- if(word(rdram,p)!=1u)return; /* Audio requires a separate RSP backend. */
+ uint32_t type=word(rdram,p);
+ if(type!=1u&&type!=2u)return;
+ if(type==2u&&!active_sp->audio_submit){last_result=DUCK_SP_AUDIO_UNAVAILABLE;return;}
  if(active_sp->busy){last_result=DUCK_SP_BUSY;return;}
  loaded_task=(uint32_t)ctx->r4;
  task_loaded=1;
@@ -57,9 +59,10 @@ void osSpTaskStartGo_recomp(uint8_t *rdram,recomp_context *ctx) {
  last_result=DUCK_SP_BAD_ARGUMENT;
  if(!ctx||!rdram||rdram!=active_ram||!active_sp||task_offset(ctx->r4,&p))return;
  /* OSTask task.t.type == M_GFXTASK (1). No audio task may reach Fast3D. */
- if(word(rdram,p)!=1u)return;
+ uint32_t type=word(rdram,p);if(type!=1u&&type!=2u)return;
  /* Reject a different StartGo address while an explicit task is staged. */
  if(task_loaded && loaded_task!=(uint32_t)ctx->r4)return;
- last_result=duck_vita_sp_start_graphics(active_sp,(uint32_t)ctx->r4);
+ last_result=type==1u?duck_vita_sp_start_graphics(active_sp,(uint32_t)ctx->r4):
+                       duck_vita_sp_start_audio(active_sp,(uint32_t)ctx->r4);
  if(last_result!=DUCK_SP_BUSY)task_loaded=0;
 }
