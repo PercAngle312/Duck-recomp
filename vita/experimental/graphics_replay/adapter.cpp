@@ -5,6 +5,7 @@
 #include "SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.h"
 #include "SysVita/HLEGraphics/Accurate/Fast3DCompat.h"
 #include <vitaGL.h>
+#include "task_bounds.h"
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
@@ -30,8 +31,7 @@ static void shader_log(const char *message,shark_log_level level,int line){
 // Reject wrapped, unaligned and out-of-RDRAM task spans before Fast3D sees them.
 static bool range(u32 address,u32 bytes){return address<gRamSize&&bytes<=gRamSize-address;}
 static bool checked_address(u32 guest,u32 size,u32 alignment){
- u32 physical=guest&0x1fffffffu;
- return (physical&(alignment-1))==0 && range(physical,size);
+ return duck_task_span_valid(guest,size,alignment,gRamSize)!=0;
 }
 UcodeInfo GBIMicrocode_DetectVersion(u32 code,u32 code_size,u32 data,u32 data_size){
  if(!range(code,code_size)||!range(data,data_size)||!data_size||data_size>4096){fprintf(stderr,"Invalid microcode span code=%08x bytes=%u data=%08x bytes=%u\n",code,code_size,data,data_size);abort();}
