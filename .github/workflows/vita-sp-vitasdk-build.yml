@@ -67,6 +67,8 @@ jobs:
           fi
           file /tmp/duck-objects/duck-vita-runtime-link.elf
           echo "Linked runtime-only ELF, no game assets or translated gameplay."
+      - name: Check private final-link script syntax
+        run: python3 -m py_compile vita/link_private_game.py
       - uses: actions/upload-artifact@v4
         with:
           name: duck-vita-sp-arm-objects
