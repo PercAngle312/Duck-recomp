@@ -94,3 +94,14 @@ provided to `duck_fast3d_init`, and only signal SP/DP completion when it
 succeeds. This cannot currently be claimed as gameplay rendering: the existing
 VPK still loads a private static RAM capture, and the source change has not
 been compiled with VitaSDK or validated on hardware.
+
+## Private full-game linkage
+
+The production runtime is built in the pinned VitaSDK workflow; its linked
+runtime-only ELF is **not** the game. For an actual private full-game attempt,
+use `vita/link_private_game.py` outside the public checkout, providing the
+translated ARM32 game objects, a real scheduler-starting entry object, the
+Fast3D renderer object directory, additional private callback objects through
+repeatable `--extra-object` options, and the pinned renderer libraries via
+repeatable `--library` options. Missing objects and unresolved strong symbols
+are fatal. Never commit the private game link output or its derived objects.
