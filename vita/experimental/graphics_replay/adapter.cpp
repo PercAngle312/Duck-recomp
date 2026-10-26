@@ -59,19 +59,9 @@ extern "C" int duck_fast3d_init(uint8_t *rdram){
  interpreter->SetRdramMemory(rdram,gRamSize);interpreter->SetNativeDimensions(320,240);
  interpreter->SetDisplayConfiguration(725,544,117,0,1.0f);
  bridge.SetInterpreter(interpreter.get());
- // Present a known-color frame before any guest rendering. If this never
- // appears, the failure is in vitaGL/display rather than Fast3D translation.
- glViewport(0,0,960,544);
- glClearColor(0.12f,0.04f,0.28f,1.0f);
- glClear(GL_COLOR_BUFFER_BIT);
- GLenum smoke_error=glGetError();
- fprintf(stderr,"Native GL presentation probe: clear_error=0x%x\n",unsigned(smoke_error));
- vglSwapBuffers(GL_FALSE);
- fprintf(stderr,"Native GL presentation probe swapped\n");
- fprintf(stderr,"Fast3D interpreter ready\n");
- return smoke_error==GL_NO_ERROR ? 0 : -7;
+ fprintf(stderr,"Fast3D interpreter ready\n");return 0;
 }
-extern "C" int duck_fast3d_replay(uint32_t task_address){
+extern "C" int duck_fast3d_submit_task(uint32_t task_address){
  if(!interpreter)return -1;
  uint32_t p=task_address&0x1fffffffu;if(!checked_address(task_address,64,4)){fprintf(stderr,"Invalid task location: %08x\n",task_address);return -2;}
  uint32_t task[16];memcpy(task,g_pu8RamBase+p,sizeof task);
@@ -106,4 +96,10 @@ extern "C" int duck_fast3d_replay(uint32_t task_address){
  vglSwapBuffers(GL_FALSE);
  if(first)fprintf(stderr,"First framebuffer swap complete\n");
  first=false;return 0;
+}
+
+// Compatibility with the historical replay caller. The same renderer can now
+// accept distinct graphics task addresses supplied by a live SP task handler.
+extern "C" int duck_fast3d_replay(uint32_t task_address){
+ return duck_fast3d_submit_task(task_address);
 }
