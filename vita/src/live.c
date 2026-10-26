@@ -4,6 +4,7 @@
  */
 #include "duck_vita_live.h"
 #include "duck_vita_os_io.h"
+#include "duck_vita_input.h"
 #include <string.h>
 static DuckVitaLive *active_live;
 static int service(void){
@@ -12,6 +13,8 @@ static int service(void){
  int pi=duck_vita_os_pi_service();
  if(pi<0)return -1;
  live->pi_transfers+=(unsigned)pi;
+ if(duck_vita_pad_poll()<0)return -1;
+ if(duck_pad_service()<0)return -1;
  if(duck_vita_time_poll()<0)return -1;
  live->scheduler_polls++;
  return 0;
@@ -23,6 +26,7 @@ int duck_vita_live_init(DuckVitaLive *live,uint8_t *rdram,
  if(!live||!rdram||!rom||!rom_size||!lookup||!clock||!vi_period||!renderer||
     active_live)return -1;
  memset(live,0,sizeof(*live));
+ duck_pad_reset();
  if(duck_vita_os_io_reset(rdram,rom,rom_size)!=0)return -2;
  if(duck_vita_time_bind(rdram,clock,clock_opaque,vi_period)!=0)return -3;
  if(duck_vita_sp_runtime_attach(&live->sp,&live->graphics_events,rdram,renderer)!=0)return -4;
