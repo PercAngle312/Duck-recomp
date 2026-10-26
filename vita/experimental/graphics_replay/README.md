@@ -184,3 +184,14 @@ and no demonstrated arbitrary microcode support. Texture formats, blending,
 depth, framebuffer readback and effects still need in-game visual comparison.
 A code audit cannot guarantee every path is correct or that the next hardware
 run will reach gameplay.
+
+## Native resolution and material colors (v00.08)
+
+The production adapter now defaults to 320x240 scene rendering with an explicit
+blit into the existing 4:3 display viewport. Both MOVEWORD light-color updates
+and MODIFYVTX RGBA updates are implemented using material_updates.h. FullSync
+readback retains guest pixels, reads a matching game FBO directly at native
+size, and packs byte RGBA into N64 RGBA5551 explicitly. See
+../../COLOR_AND_PERFORMANCE.md for the hardware report, rationale and limits.
+All five renderer objects now use -O2 without added fast-math, and the adapter
+logs average phase timings every five seconds. No shader-cache rename is needed.

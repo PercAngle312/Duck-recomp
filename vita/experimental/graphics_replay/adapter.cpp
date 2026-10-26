@@ -12,6 +12,10 @@
 #include <cstdio>
 #include <memory>
 #include <psp2/io/stat.h>
+#include <psp2/kernel/processmgr.h>
+#ifndef DUCK_NATIVE_RESOLUTION
+#define DUCK_NATIVE_RESOLUTION 1
+#endif
 u32 gRamSize=0x800000;
 void *g_pMemoryBuffers[NUM_MEM_BUFFERS]={};
 u8 g_RDRAMDirtyPages[RDRAM_DIRTY_PAGE_COUNT]={};
@@ -76,10 +80,18 @@ extern "C" int duck_fast3d_init(uint8_t *rdram){
  interpreter->Init(DaedalusFast3D_GetWindowBackend(),DaedalusFast3D_GetRenderingAPI(),"Duck Vita graphics replay",false,960,544,0,0);
  interpreter->SetRdramMemory(rdram,gRamSize);interpreter->SetNativeDimensions(320,240);
  interpreter->SetDisplayConfiguration(725,544,117,0,1.0f);
+#if DUCK_NATIVE_RESOLUTION
+ // Render at original N64 resolution; retain the existing 4:3 destination.
+ // The interpreter renders to its game FBO when these dimensions differ.
+ interpreter->mCurDimensions.width=320;interpreter->mCurDimensions.height=240;
+#endif
+ fprintf(stderr,"Rendering resolution: %ux%u; presentation 725x544\n",
+         unsigned(interpreter->mCurDimensions.width),unsigned(interpreter->mCurDimensions.height));
  bridge.SetInterpreter(interpreter.get());
  fprintf(stderr,"Fast3D interpreter ready\n");return 0;
 }
 extern "C" int duck_fast3d_submit_task(uint32_t task_address){
+ uint64_t started=sceKernelGetProcessTimeWide();
  if(!interpreter)return -1;
  uint32_t p=task_address&0x1fffffffu;if(!checked_address(task_address,64,4)){fprintf(stderr,"Invalid task location: %08x\n",task_address);return -2;}
  uint32_t task[16];memcpy(task,g_pu8RamBase+p,sizeof task);
@@ -94,6 +106,7 @@ extern "C" int duck_fast3d_submit_task(uint32_t task_address){
  static bool first=true;
  if(first)fprintf(stderr,"Translating first display list\n");
  void *list=bridge.BuildDisplayList(task[12],ucode.version);if(!list)return -4;
+ uint64_t translated=sceKernelGetProcessTimeWide();
  if(first)fprintf(stderr,"Display list translated; full_sync=%d\n",int(bridge.SawFullSync()));
  Fast::gfx_set_target_ucode(ucode_f3dex2);
  robin_hood::unordered_map<Mtx*,MtxF> replacements;
@@ -105,13 +118,35 @@ extern "C" int duck_fast3d_submit_task(uint32_t task_address){
  interpreter->StartFrame();DaedalusFast3D_PrepareTask(true);
  if(first)fprintf(stderr,"Executing first Fast3D task\n");
  interpreter->Run(reinterpret_cast<Gfx*>(list),replacements);
+ uint64_t drawn=sceKernelGetProcessTimeWide();
  if(first)fprintf(stderr,"First Fast3D task finished\n");
  if(bridge.SawFullSync()&&!interpreter->SyncColorImageToRdram(g_pu8RamBase,gRamSize))return -5;
+ uint64_t readback=sceKernelGetProcessTimeWide();
+ if(interpreter->mRendersToFb){
+  // Run() leaves the default framebuffer clear; it doesn't present the game
+  // FBO itself. Blit it explicitly, using its actual dimensions and orientation.
+  interpreter->GetCurrentRenderingAPI()->CopyFramebuffer(0,interpreter->mGameFb,
+      0,0,interpreter->mCurDimensions.width,interpreter->mCurDimensions.height,
+      117,0,842,544);
+ }
  interpreter->EndFrame();
  GLenum render_error=glGetError();
  if(first)fprintf(stderr,"Fast3D GL post-task error=0x%x\n",unsigned(render_error));
  if(render_error!=GL_NO_ERROR)return -7;
  vglSwapBuffers(GL_FALSE);
+ uint64_t finished=sceKernelGetProcessTimeWide();
+ static uint64_t last_report,total_translate,total_draw,total_readback,total_present;
+ static unsigned measured_tasks;
+ if(!last_report)last_report=started;
+ total_translate+=translated-started;total_draw+=drawn-translated;
+ total_readback+=readback-drawn;total_present+=finished-readback;++measured_tasks;
+ if(finished-last_report>=5000000){
+  fprintf(stderr,"Graphics timing: tasks=%u avg_us translate=%llu draw=%llu readback=%llu present=%llu light_updates=%u vertex_rgba_updates=%u\n",
+      measured_tasks,(unsigned long long)(total_translate/measured_tasks),
+      (unsigned long long)(total_draw/measured_tasks),(unsigned long long)(total_readback/measured_tasks),
+      (unsigned long long)(total_present/measured_tasks),interpreter->mDuckLightColorUpdates,interpreter->mDuckVertexColorUpdates);
+  last_report=finished;total_translate=total_draw=total_readback=total_present=0;measured_tasks=0;
+ }
  if(first)fprintf(stderr,"First framebuffer swap complete\n");
  first=false;return bridge.SawFullSync()?0:1;
 }

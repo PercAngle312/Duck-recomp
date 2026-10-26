@@ -33,7 +33,7 @@ run(['make','clean'],'vitagl-clean.log',deps/'vita-gl-reference')
 run(['make','-j4','CPPFLAGS=-I../vita-shark-reference/source -I../vita-math-neon-reference/source','NO_SPLASHSCREEN=1','HAVE_GLSL_TEXTURE_SIZE=1'],'vitagl-build.log',deps/'vita-gl-reference')
 bin=sdk/'bin';original_src=deps/'vita-renderer-reference/Source'
 src=prepare(deps/'vita-renderer-reference',out/'renderer-source');fast=src/'SysVita/HLEGraphics/Accurate'
-flags=['-O1','-ffunction-sections','-fdata-sections','-mcpu=cortex-a9','-mfpu=neon','-mfloat-abi=hard']
+flags=['-O2','-fno-strict-aliasing','-ffunction-sections','-fdata-sections','-mcpu=cortex-a9','-mfpu=neon','-mfloat-abi=hard']
 includes=[here,fast/'Fast3D/include',src,deps/'vita-shark-reference/source',deps/'vita-gl-reference/source',original_src,original_src/'SysVita/Include',original_src/'Config/Dev']
 objects=[]
 for name,source in [('adapter',here/'adapter.cpp'),('sp',here.parents[1]/'src/sp.c'),('main',here/'main.cpp'),('bridge',fast/'Fast3DMemoryBridge.cpp'),('compat',fast/'Fast3DCompat.cpp'),('interpreter',fast/'Fast3D/src/interpreter.cpp'),('gfx',fast/'Fast3D/src/gfx_opengl.cpp')]:

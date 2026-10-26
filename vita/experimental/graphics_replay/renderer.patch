@@ -1,15 +1,16 @@
 --- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/gfx_opengl.cpp
 +++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/gfx_opengl.cpp
-@@ -3,6 +3,8 @@
+@@ -3,6 +3,9 @@
  #include <stdint.h>
  #include <stdbool.h>
  #include <stdio.h>
 +#include <cstring>
 +#include "shader_cache.h"
++#include "material_updates.h"
  
  #include <map>
  #include <unordered_map>
-@@ -488,62 +490,68 @@
+@@ -488,62 +491,68 @@
      const GLint  lengths[2]  = { (GLint)vs_buf.size(), (GLint)fs_buf.size() };
      GLint success;
  
@@ -129,7 +130,7 @@
      size_t cnt = 0;
  
      struct ShaderProgram* prg = &mShaderProgramPool[std::make_pair(shader_id0, shader_id1)];
-@@ -657,6 +665,8 @@
+@@ -657,6 +666,8 @@
  
  void GfxRenderingAPIOGL::DeleteTexture(uint32_t texID) {
      glDeleteTextures(1, &texID);
@@ -138,7 +139,7 @@
  }
  
  void GfxRenderingAPIOGL::SelectTexture(int tile, GLuint texture_id) {
-@@ -742,7 +752,8 @@
+@@ -742,7 +753,8 @@
  }
  
  void GfxRenderingAPIOGL::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris) {
@@ -148,7 +149,7 @@
          mLastDepthTest = mCurrentDepthTest;
          mLastDepthMask = mCurrentDepthMask;
  
-@@ -796,7 +807,18 @@
+@@ -796,7 +808,18 @@
  
      SetPerDrawUniforms();
  
@@ -168,7 +169,7 @@
      glDrawArrays(GL_TRIANGLES, 0, 3 * buf_vbo_num_tris);
  }
  
-@@ -836,13 +858,15 @@
+@@ -836,13 +859,15 @@
  }
  
  int GfxRenderingAPIOGL::CreateFramebuffer() {
@@ -177,7 +178,8 @@
      GLuint clrbuf;
      glGenTextures(1, &clrbuf);
      glBindTexture(GL_TEXTURE_2D, clrbuf);
-     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, 1, 1, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, 1, 1, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
++    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 -    glBindTexture(GL_TEXTURE_2D, 0);
@@ -185,20 +187,21 @@
  
      GLuint clrbufMsaa;
      glGenRenderbuffers(1, &clrbufMsaa);
-@@ -879,9 +903,11 @@
+@@ -879,9 +904,11 @@
  
      if (fb_id != 0) {
          if (fb.width != width || fb.height != height) {
 +            GLint previousTexture = 0;
 +            glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousTexture);
              glBindTexture(GL_TEXTURE_2D, fb.clrbuf);
-             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 -            glBindTexture(GL_TEXTURE_2D, 0);
++            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 +            glBindTexture(GL_TEXTURE_2D, previousTexture);
              glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fb.clrbuf, 0);
          }
  
-@@ -969,7 +995,7 @@
+@@ -969,7 +996,7 @@
  
      glBlitFramebuffer(0, 0, fb_src.width, fb_src.height, 0, 0, fb_dst.width, fb_dst.height, GL_COLOR_BUFFER_BIT,
                        GL_NEAREST);
@@ -207,9 +210,30 @@
  
      if (mLastScissorEnabled != 1) {
          mLastScissorEnabled = 1;
+@@ -1056,7 +1083,13 @@
+ 
+     glBindFramebuffer(GL_FRAMEBUFFER, readFbo);
+     glReadBuffer(readFbo == 0 ? GL_BACK : GL_COLOR_ATTACHMENT0);
+-    glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1, rgba16_buf);
++    if (!width || !height || width > 4096 || height > 4096) {
++        fprintf(stderr, "Invalid Fast3D readback size\n"); fflush(stderr); abort();
++    }
++    mReadbackPixels.resize((size_t)width * height * 4);
++    glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, mReadbackPixels.data());
++    for (size_t i=0; i<(size_t)width*height; ++i)
++        rgba16_buf[i] = duck_rgba8_to_rgba5551(mReadbackPixels.data() + i*4);
+ 
+     glBindFramebuffer(GL_FRAMEBUFFER, currentFbo);
+     glReadBuffer(currentFbo == 0 ? GL_BACK : GL_COLOR_ATTACHMENT0);
 --- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/interpreter.cpp
 +++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/interpreter.cpp
-@@ -117,19 +117,13 @@
+@@ -1,4 +1,5 @@
+ #define NOMINMAX
++#include "material_updates.h"
+ 
+ #include <math.h>
+ #include <stdint.h>
+@@ -117,19 +118,13 @@
  Interpreter::Interpreter() {
      mRsp = new RSP();
      mRdp = new RDP();
@@ -230,7 +254,7 @@
  }
  
  static std::weak_ptr<Interpreter> mInstance;
-@@ -146,9 +140,6 @@
+@@ -146,9 +141,6 @@
      if (mBufVboNumTris > 0) {
          //mRapi->SetCurrentPrimDepth((float)mRdp->prim_depth / N64_PRIM_DEPTH_MAX);
          mRapi->DrawTriangles(mBufVbo, mBufVboLen, mBufVboNumTris);
@@ -240,7 +264,20 @@
          mBufVboLen = 0;
          mBufVboNumTris = 0;
      }
-@@ -2288,14 +2279,7 @@
+@@ -1785,6 +1777,12 @@
+ }
+ 
+ void Interpreter::GfxSpModifyVertex(uint16_t vtx_idx, uint8_t where, uint32_t val) {
++    SUPPORT_CHECK(vtx_idx < MAX_VERTICES + 4);
++    if (where == G_MWO_POINT_RGBA) {
++        duck_update_vertex_color(mRsp->loaded_vertices[vtx_idx].color, val);
++        ++mDuckVertexColorUpdates;
++        return;
++    }
+     SUPPORT_CHECK(where == G_MWO_POINT_ST);
+ 
+     int16_t s = (int16_t)(val >> 16);
+@@ -2288,14 +2286,7 @@
      }
  	
  	mBufVboLen = buf_vbo_ptr - mBufVbo;
@@ -256,7 +293,132 @@
  }
  
  void Interpreter::GfxSpGeometryMode(uint32_t clear, uint32_t set) {
-@@ -5635,7 +5619,7 @@
+@@ -2366,6 +2357,7 @@
+             if (lightidx >= 0 && lightidx <= MAX_LIGHTS) { // skip lookat
+                 // NOTE: reads out of bounds if it is an ambient light
+                 memcpy(mRsp->current_lights + lightidx, data, sizeof(F3DLight));
++                mRsp->lights_changed = true;
+             } else if (lightidx < 0) {
+                 memcpy(mRsp->lookat + offset / 24, data, sizeof(F3DLight_t)); // TODO Light?
+             }
+@@ -2393,12 +2385,17 @@
+         case F3DEX_G_MV_L7:
+             // NOTE: reads out of bounds if it is an ambient light
+             memcpy(mRsp->current_lights + (index - F3DEX_G_MV_L0) / 2, data, sizeof(F3DLight_t));
++            mRsp->lights_changed = true;
+             break;
+     }
+ }
+ 
+ void Interpreter::GfxSpMovewordF3dex2(uint8_t index, uint16_t offset, uintptr_t data) {
+     switch (index) {
++        case G_MW_LIGHTCOL:
++            if (duck_update_light_color(mRsp->current_lights, offset, (uint32_t)data, 24))
++                ++mDuckLightColorUpdates;
++            break;
+         case G_MW_NUMLIGHT:
+             mRsp->current_num_lights = data / 24 + 1; // add ambient light
+             mRsp->lights_changed = true;
+@@ -2423,6 +2420,10 @@
+ 
+ void Interpreter::GfxSpMovewordF3d(uint8_t index, uint16_t offset, uintptr_t data) {
+     switch (index) {
++        case G_MW_LIGHTCOL:
++            if (duck_update_light_color(mRsp->current_lights, offset, (uint32_t)data, 32))
++                ++mDuckLightColorUpdates;
++            break;
+         case G_MW_NUMLIGHT:
+             // Ambient light is included
+             // The 31st bit is a flag that lights should be recalculated
+@@ -5390,44 +5391,50 @@
+         return false;
+     }
+ 
+-    if (mRdramReadbackFb < 0) {
+-        mRdramReadbackFb = CreateFrameBuffer(width, height, width, height, 0, true);
+-        mRdramReadbackWidth = width;
+-        mRdramReadbackHeight = height;
+-    } else if (mRdramReadbackWidth != width || mRdramReadbackHeight != height) {
+-        mRapi->UpdateFramebufferParameters(mRdramReadbackFb, width, height, true, true, false, false);
+-        auto fbIt = mFrameBuffers.find(mRdramReadbackFb);
+-        if (fbIt != mFrameBuffers.end()) {
+-            fbIt->second.orig_width = width;
+-            fbIt->second.orig_height = height;
+-            fbIt->second.applied_width = width;
+-            fbIt->second.applied_height = height;
+-            fbIt->second.native_width = width;
+-            fbIt->second.native_height = height;
+-        }
+-        mRdramReadbackWidth = width;
+-        mRdramReadbackHeight = height;
+-    }
+-
+-    const int srcFb = mRendersToFb ? mGameFb : 0;
+-    int srcX0 = 0;
+-    int srcY0 = 0;
+-    int srcX1 = static_cast<int>(mCurDimensions.width > 0 ? mCurDimensions.width : width);
+-    int srcY1 = static_cast<int>(mCurDimensions.height > 0 ? mCurDimensions.height : height);
+-
+-    if (srcFb == 0) {
+-        srcX0 = mGameWindowViewport.x;
+-        srcY0 = mGameWindowViewport.y;
+-        srcX1 = mGameWindowViewport.x + static_cast<int>(mGameWindowViewport.width);
+-        srcY1 = mGameWindowViewport.y + static_cast<int>(mGameWindowViewport.height);
+-    }
+-
+-    mRapi->CopyFramebuffer(mRdramReadbackFb, srcFb,
+-                           srcX0, srcY0, srcX1, srcY1,
+-                           0, 0, width, height);
+-
+     mRdramReadbackBuffer.resize((size_t)pixelCount);
+-    mRapi->ReadFramebufferToCPU(mRdramReadbackFb, width, height, mRdramReadbackBuffer.data());
++    if (mRendersToFb && mCurDimensions.width == width && mCurDimensions.height == height) {
++        // Native-resolution game FBO already has exactly the desired size and
++        // the same Y orientation as the old readback FBO. Avoid the extra blit.
++        mRapi->ReadFramebufferToCPU(mGameFb, width, height, mRdramReadbackBuffer.data());
++    } else {
++        if (mRdramReadbackFb < 0) {
++            mRdramReadbackFb = CreateFrameBuffer(width, height, width, height, 0, true);
++            mRdramReadbackWidth = width;
++            mRdramReadbackHeight = height;
++        } else if (mRdramReadbackWidth != width || mRdramReadbackHeight != height) {
++            mRapi->UpdateFramebufferParameters(mRdramReadbackFb, width, height, true, true, false, false);
++            auto fbIt = mFrameBuffers.find(mRdramReadbackFb);
++            if (fbIt != mFrameBuffers.end()) {
++                fbIt->second.orig_width = width;
++                fbIt->second.orig_height = height;
++                fbIt->second.applied_width = width;
++                fbIt->second.applied_height = height;
++                fbIt->second.native_width = width;
++                fbIt->second.native_height = height;
++            }
++            mRdramReadbackWidth = width;
++            mRdramReadbackHeight = height;
++        }
++
++        const int srcFb = mRendersToFb ? mGameFb : 0;
++        int srcX0 = 0;
++        int srcY0 = 0;
++        int srcX1 = static_cast<int>(mCurDimensions.width > 0 ? mCurDimensions.width : width);
++        int srcY1 = static_cast<int>(mCurDimensions.height > 0 ? mCurDimensions.height : height);
++
++        if (srcFb == 0) {
++            srcX0 = mGameWindowViewport.x;
++            srcY0 = mGameWindowViewport.y;
++            srcX1 = mGameWindowViewport.x + static_cast<int>(mGameWindowViewport.width);
++            srcY1 = mGameWindowViewport.y + static_cast<int>(mGameWindowViewport.height);
++        }
++
++        mRapi->CopyFramebuffer(mRdramReadbackFb, srcFb,
++                               srcX0, srcY0, srcX1, srcY1,
++                               0, 0, width, height);
++
++        mRapi->ReadFramebufferToCPU(mRdramReadbackFb, width, height, mRdramReadbackBuffer.data());
++    }
+ 
+     for (uint32_t y = 0; y < height; ++y) {
+         const uint16_t* srcRow = mRdramReadbackBuffer.data() + (size_t)y * width;
+@@ -5635,7 +5642,7 @@
      mWapi->SwapBuffersBegin();
      mRapi->FinishRender();
      mWapi->SwapBuffersEnd();
@@ -267,7 +429,15 @@
  void gfx_set_target_ucode(UcodeHandlers ucode) {
 --- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/backends/gfx_opengl.h
 +++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/backends/gfx_opengl.h
-@@ -119,7 +119,7 @@
+@@ -112,6 +112,7 @@
+     void SetPerDrawUniforms();
+ 
+     std::vector<TextureInfo> textures;
++    std::vector<uint8_t> mReadbackPixels;
+     GLuint mCurrentTextureIds[SHADER_MAX_TEXTURES] = {};
+     GLuint mLastBoundTextures[SHADER_MAX_TEXTURES] = {};
+     uint8_t mCurrentTile;
+@@ -119,7 +120,7 @@
      int8_t mLastBlendEnabled = -1;
      int8_t mLastScissorEnabled = -1;
  
@@ -335,3 +505,13 @@
  
      const u32 commandCount = CountListCommands(address, version);
      if (commandCount == 0) return nullptr;
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/interpreter.h
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/interpreter.h
+@@ -589,6 +589,7 @@
+     XYWidthHeight mGameWindowViewport{};   // gfx_current_game_window_viewport;
+     XYWidthHeight mNativeDimensions{};     // gfx_native_dimensions;
+     XYWidthHeight mPrevNativeDimensions{}; // gfx_prev_native_dimensions;
++    uint32_t mDuckLightColorUpdates = 0, mDuckVertexColorUpdates = 0;
+     uintptr_t mGfxFrameBuffer{};
+ 	float mCurAspectRatioDeltaForX = (4.f / 3.f);
+ 

@@ -8,6 +8,8 @@ on:
       - 'vita/experimental/graphics_replay/test_task_bounds.c'
       - 'vita/experimental/graphics_replay/shader_cache.h'
       - 'vita/experimental/graphics_replay/test_shader_cache.cpp'
+      - 'vita/experimental/graphics_replay/material_updates.h'
+      - 'vita/experimental/graphics_replay/test_material_updates.cpp'
       - '.github/workflows/vita-graphics-task-check.yml'
   pull_request:
     paths:
@@ -16,6 +18,8 @@ on:
       - 'vita/experimental/graphics_replay/test_task_bounds.c'
       - 'vita/experimental/graphics_replay/shader_cache.h'
       - 'vita/experimental/graphics_replay/test_shader_cache.cpp'
+      - 'vita/experimental/graphics_replay/material_updates.h'
+      - 'vita/experimental/graphics_replay/test_material_updates.cpp'
       - '.github/workflows/vita-graphics-task-check.yml'
 jobs:
   task-validation:
@@ -30,3 +34,7 @@ jobs:
         run: |
           c++ -std=c++17 -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -Ivita/experimental/graphics_replay vita/experimental/graphics_replay/test_shader_cache.cpp -o /tmp/duck-shader-cache
           /tmp/duck-shader-cache
+      - name: Validate logical N64 material and vertex colors
+        run: |
+          c++ -std=c++17 -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -Ivita/experimental/graphics_replay vita/experimental/graphics_replay/test_material_updates.cpp -o /tmp/duck-materials
+          /tmp/duck-materials
