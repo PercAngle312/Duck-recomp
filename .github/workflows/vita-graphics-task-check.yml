@@ -1,0 +1,24 @@
+name: Vita graphics replay task validation
+on:
+  push:
+    branches: [vita/arm32-bringup]
+    paths:
+      - 'vita/experimental/graphics_replay/adapter.cpp'
+      - 'vita/experimental/graphics_replay/task_bounds.h'
+      - 'vita/experimental/graphics_replay/test_task_bounds.c'
+      - '.github/workflows/vita-graphics-task-check.yml'
+  pull_request:
+    paths:
+      - 'vita/experimental/graphics_replay/adapter.cpp'
+      - 'vita/experimental/graphics_replay/task_bounds.h'
+      - 'vita/experimental/graphics_replay/test_task_bounds.c'
+      - '.github/workflows/vita-graphics-task-check.yml'
+jobs:
+  task-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile task span checks
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=undefined -fno-omit-frame-pointer -I vita/experimental/graphics_replay vita/experimental/graphics_replay/test_task_bounds.c -o /tmp/duck-task-bounds
+      - name: Exercise safe guest address ranges
+        run: /tmp/duck-task-bounds
