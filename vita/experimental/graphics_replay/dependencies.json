@@ -1,0 +1,29 @@
+{
+  "repositories": {
+    "vita-renderer-reference": {
+      "url": "https://github.com/Rinnegatamante/DaedalusX64-vitaGL.git",
+      "commit": "fb7238e2d4b3600e5e5c84986871be1396e337af"
+    },
+    "vita-gl-reference": {
+      "url": "https://github.com/Rinnegatamante/vitaGL.git",
+      "commit": "76f43e6fbe1513cee44118da7ff2c16728c4fed2"
+    },
+    "vita-shark-reference": {
+      "url": "https://github.com/Rinnegatamante/vitaShaRK.git",
+      "commit": "df24065e65098b2d1ac533760109ad4367573f28"
+    },
+    "vita-math-neon-reference": {
+      "url": "https://github.com/Rinnegatamante/math-neon.git",
+      "commit": "0faab814782c071ff4015527f1ca955ab1ccc470"
+    },
+    "vita-shacc-reference": {
+      "url": "https://github.com/bythos14/SceShaccCgExt.git",
+      "commit": "d3c83efceedeca3be863d0c1f19bb145daf1685f"
+    }
+  },
+  "taihen_package": {
+    "url": "https://github.com/yifanlu/taiHEN/releases/download/v0.11/taihen.tar.gz",
+    "sha256": "6a7d4592b983292e8b8c53c624fa800e33ff69fe06c9d267cafc33d0ded4d2a9"
+  },
+  "samples_commit": "fe8fbef570f3280586c0c20157146e3faefb2181"
+}

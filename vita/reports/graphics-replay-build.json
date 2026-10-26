@@ -1,0 +1,32 @@
+{
+  "vpk_sha256": "6dfde49f3bcc0ad13a7b15fac36236aed87dc4f5b5182087687fcc29e5b3924f",
+  "vpk_bytes": 476261,
+  "native_elf_linked": true,
+  "strong_unresolved_symbols": 0,
+  "weak_unresolved": [
+    "         w _ITM_deregisterTMCloneTable",
+    "         w _ITM_registerTMCloneTable",
+    "         w __deregister_frame_info",
+    "         w __gnu_Unwind_Find_exidx",
+    "         w __libc_fini",
+    "         w __register_frame_info",
+    "         w pthread_cancel",
+    "         w pthread_getspecific",
+    "         w pthread_key_create",
+    "         w pthread_key_delete",
+    "         w pthread_mutex_destroy",
+    "         w pthread_mutex_init",
+    "         w pthread_mutex_lock",
+    "         w pthread_mutex_unlock",
+    "         w pthread_setspecific"
+  ],
+  "executed": false,
+  "rendered_output_verified": false,
+  "gameplay_tested": false,
+  "playable_game": false,
+  "private_assets_in_vpk": false,
+  "captured_task_top_level_triangle_pair_commands": 57,
+  "captured_task_top_level_texture_rectangles": 6,
+  "captured_task_microcode": "F3DEX.NoN fifo 2.08",
+  "guest_sp_runtime_connected": false
+}
