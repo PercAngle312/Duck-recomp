@@ -31,7 +31,7 @@ bin=sdk/'bin';src=deps/'vita-renderer-reference/Source';fast=src/'SysVita/HLEGra
 flags=['-O1','-ffunction-sections','-fdata-sections','-mcpu=cortex-a9','-mfpu=neon','-mfloat-abi=hard']
 includes=[deps/'vita-shark-reference/source',deps/'vita-gl-reference/source',src,src/'SysVita/Include',src/'Config/Dev',fast/'Fast3D/include']
 objects=[]
-for name,source in [('adapter',here/'adapter.cpp'),('sp',here.parents[1]/'src/sp.c'),('sp_events',here.parents[1]/'src/sp_events.c'),('main',here/'main.cpp'),('bridge',fast/'Fast3DMemoryBridge.cpp'),('compat',fast/'Fast3DCompat.cpp'),('interpreter',fast/'Fast3D/src/interpreter.cpp'),('gfx',fast/'Fast3D/src/gfx_opengl.cpp')]:
+for name,source in [('adapter',here/'adapter.cpp'),('sp',here.parents[1]/'src/sp.c'),('main',here/'main.cpp'),('bridge',fast/'Fast3DMemoryBridge.cpp'),('compat',fast/'Fast3DCompat.cpp'),('interpreter',fast/'Fast3D/src/interpreter.cpp'),('gfx',fast/'Fast3D/src/gfx_opengl.cpp')]:
  obj=out/(name+'.arm.o');run([bin/'arm-vita-eabi-g++','-std=c++17',*flags,'-DDAEDALUS_VITA','-DGBI_FLOATS','-DENABLE_OPENGL','-I'+str(here.parents[1]/'include'),*['-I'+str(x) for x in includes],'-c',source,'-o',obj],name+'-compile.log');objects.append(obj)
 shacc=deps/'vita-shacc-reference'
 for name,compiler,standard in [('shacccg_ext','arm-vita-eabi-gcc','gnu11'),('shacccg_ext_oop','arm-vita-eabi-g++','gnu++11')]:
