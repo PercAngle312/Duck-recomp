@@ -1,16 +1,17 @@
 --- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/gfx_opengl.cpp
 +++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/gfx_opengl.cpp
-@@ -3,6 +3,9 @@
+@@ -3,6 +3,10 @@
  #include <stdint.h>
  #include <stdbool.h>
  #include <stdio.h>
 +#include <cstring>
++#include <chrono>
 +#include "shader_cache.h"
 +#include "material_updates.h"
  
  #include <map>
  #include <unordered_map>
-@@ -488,62 +491,68 @@
+@@ -488,62 +492,68 @@
      const GLint  lengths[2]  = { (GLint)vs_buf.size(), (GLint)fs_buf.size() };
      GLint success;
  
@@ -130,7 +131,7 @@
      size_t cnt = 0;
  
      struct ShaderProgram* prg = &mShaderProgramPool[std::make_pair(shader_id0, shader_id1)];
-@@ -657,6 +666,8 @@
+@@ -657,6 +667,8 @@
  
  void GfxRenderingAPIOGL::DeleteTexture(uint32_t texID) {
      glDeleteTextures(1, &texID);
@@ -139,7 +140,7 @@
  }
  
  void GfxRenderingAPIOGL::SelectTexture(int tile, GLuint texture_id) {
-@@ -742,7 +753,8 @@
+@@ -742,7 +754,8 @@
  }
  
  void GfxRenderingAPIOGL::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris) {
@@ -149,7 +150,7 @@
          mLastDepthTest = mCurrentDepthTest;
          mLastDepthMask = mCurrentDepthMask;
  
-@@ -796,7 +808,18 @@
+@@ -796,7 +809,18 @@
  
      SetPerDrawUniforms();
  
@@ -169,7 +170,7 @@
      glDrawArrays(GL_TRIANGLES, 0, 3 * buf_vbo_num_tris);
  }
  
-@@ -836,13 +859,15 @@
+@@ -836,13 +860,15 @@
  }
  
  int GfxRenderingAPIOGL::CreateFramebuffer() {
@@ -187,7 +188,7 @@
  
      GLuint clrbufMsaa;
      glGenRenderbuffers(1, &clrbufMsaa);
-@@ -879,9 +904,11 @@
+@@ -879,9 +905,11 @@
  
      if (fb_id != 0) {
          if (fb.width != width || fb.height != height) {
@@ -201,7 +202,7 @@
              glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fb.clrbuf, 0);
          }
  
-@@ -969,7 +996,7 @@
+@@ -969,7 +997,7 @@
  
      glBlitFramebuffer(0, 0, fb_src.width, fb_src.height, 0, 0, fb_dst.width, fb_dst.height, GL_COLOR_BUFFER_BIT,
                        GL_NEAREST);
@@ -210,21 +211,70 @@
  
      if (mLastScissorEnabled != 1) {
          mLastScissorEnabled = 1;
-@@ -1056,7 +1083,13 @@
+@@ -1056,8 +1084,61 @@
  
      glBindFramebuffer(GL_FRAMEBUFFER, readFbo);
      glReadBuffer(readFbo == 0 ? GL_BACK : GL_COLOR_ATTACHMENT0);
 -    glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1, rgba16_buf);
+-
 +    if (!width || !height || width > 4096 || height > 4096) {
 +        fprintf(stderr, "Invalid Fast3D readback size\n"); fflush(stderr); abort();
 +    }
-+    mReadbackPixels.resize((size_t)width * height * 4);
-+    glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, mReadbackPixels.data());
-+    for (size_t i=0; i<(size_t)width*height; ++i)
-+        rgba16_buf[i] = duck_rgba8_to_rgba5551(mReadbackPixels.data() + i*4);
- 
++    auto microseconds=[](){return (uint64_t)std::chrono::duration_cast<std::chrono::microseconds>(
++        std::chrono::steady_clock::now().time_since_epoch()).count();};
++    // Run() switches to the display FBO after drawing the game FBO. Pinned
++    // vitaGL glReadPixels waits only if the read FBO is its in-use scene.
++    // Explicitly finish all pending draws before either readback method.
++    uint64_t beforeWait=microseconds();glFinish();uint64_t afterWait=microseconds();
++    uint64_t packedStart=afterWait;
++    if(mPackedReadback>=0){
++        // Pinned vitaGL's non-fast-store path uses a GPU format transfer and
++        // explicitly reswizzles ABGR1555 to logical N64 RGBA5551. Avoid reading
++        // uncached RGBA8 on the CPU and then packing every pixel ourselves.
++        glReadPixels(0,0,width,height,GL_RGBA,GL_UNSIGNED_SHORT_5_5_5_1,rgba16_buf);
++        GLenum error=glGetError();
++        if(error!=GL_NO_ERROR){
++            fprintf(stderr,"Packed readback GL error=0x%x; using RGBA8 fallback\n",unsigned(error));
++            mPackedReadback=-1;
++        }
++    }
++    if(mPackedReadback==0)mPackedReadbackUs+=microseconds()-packedStart;
++    if(mPackedReadback<=0){
++        uint64_t referenceStart=mPackedReadback==0?microseconds():0;
++        mReadbackPixels.resize((size_t)width*height*4);
++        glReadPixels(0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,mReadbackPixels.data());
++        bool same=true;
++        for(size_t i=0;i<(size_t)width*height;i++){
++            uint16_t expected=duck_rgba8_to_rgba5551(mReadbackPixels.data()+i*4);
++            if(mPackedReadback==0 && rgba16_buf[i]!=expected)same=false;
++            rgba16_buf[i]=expected;
++        }
++        if(mPackedReadback==0){
++            mReferenceReadbackUs+=microseconds()-referenceStart;
++            ++mReadbackProbes;
++            if(!same){
++                mPackedReadback=-1;
++                fprintf(stderr,"Framebuffer readback: RGBA8 fallback (packed pixels differed)\n");
++            }else if(mReadbackProbes==6){
++                mPackedReadback=mPackedReadbackUs<mReferenceReadbackUs?1:-1;
++                fprintf(stderr,"Framebuffer readback: %s; 6 images matched, avg_us packed=%llu RGBA8=%llu (GPU wait excluded)\n",
++                    mPackedReadback==1?"GPU packed RGBA5551":"RGBA8 (faster on this device)",
++                    (unsigned long long)(mPackedReadbackUs/6),(unsigned long long)(mReferenceReadbackUs/6));
++            }
++        }
++    }
++
++    static uint64_t waitTotal=0,copyTotal=0;static unsigned readCount=0;
++    waitTotal+=afterWait-beforeWait;copyTotal+=microseconds()-afterWait;
++    if(++readCount==256){
++        fprintf(stderr,"Framebuffer timing: calls=256 avg_us GPU_wait=%llu transfer_pack=%llu path=%s\n",
++            (unsigned long long)(waitTotal/256),(unsigned long long)(copyTotal/256),
++            mPackedReadback==1?"packed":"RGBA8");
++        readCount=0;waitTotal=copyTotal=0;
++    }
      glBindFramebuffer(GL_FRAMEBUFFER, currentFbo);
      glReadBuffer(currentFbo == 0 ? GL_BACK : GL_COLOR_ATTACHMENT0);
+ }
 --- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/interpreter.cpp
 +++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/interpreter.cpp
 @@ -1,4 +1,5 @@
@@ -264,7 +314,83 @@
          mBufVboLen = 0;
          mBufVboNumTris = 0;
      }
-@@ -965,14 +957,8 @@
+@@ -476,6 +468,7 @@
+     TextureCacheNode** n = &mRenderingState.mTextures[i];
+ 
+     if (it != mTextureCache.map.end()) {
++        ++mDuckTextureHits;
+         mRapi->SelectTexture(i, it->second.texture_id);
+         *n = &*it;
+         mTextureCache.lru.splice(mTextureCache.lru.end(), mTextureCache.lru,
+@@ -495,6 +488,7 @@
+         mTextureCache.lru.pop_front();
+     }
+ 
++    ++mDuckTextureUploads;
+     uint32_t texture_id;
+     if (!mTextureCache.free_texture_ids.empty()) {
+         texture_id = mTextureCache.free_texture_ids.back();
+@@ -593,28 +587,10 @@
+ 
+     // A single line of pixels should not equal the entire image (height == 1 non-withstanding)
+     if (fullImageLineSizeBytes == sizeBytes) {
+-        fullImageLineSizeBytes = width * 2;
+-    }
+-
+-    uint32_t i = 0;
+-
+-    for (uint32_t y = 0; y < height; y++) {
+-        for (uint32_t x = 0; x < width; x++) {
+-            uint32_t clrIdx = (y * (fullImageLineSizeBytes / 2)) + (x);
+-
+-            uint16_t col16 = (addr[2 * clrIdx] << 8) | addr[2 * clrIdx + 1];
+-            uint8_t a = col16 & 1;
+-            uint8_t r = col16 >> 11;
+-            uint8_t g = (col16 >> 6) & 0x1f;
+-            uint8_t b = (col16 >> 1) & 0x1f;
+-            mTexUploadBuffer[4 * i + 0] = SCALE_5_8(r);
+-            mTexUploadBuffer[4 * i + 1] = SCALE_5_8(g);
+-            mTexUploadBuffer[4 * i + 2] = SCALE_5_8(b);
+-            mTexUploadBuffer[4 * i + 3] = a ? 255 : 0;
+-
+-            i++;
+-        }
+-    }
++        fullImageLineSizeBytes = widthBytes;
++    }
++
++    duck_decode_rgba16_rect(addr,width,height,fullImageLineSizeBytes,mTexUploadBuffer);
+ 
+     mRapi->UploadTexture(mTexUploadBuffer, width, height);
+ }
+@@ -658,22 +634,10 @@
+     }
+ 
+     if (full_image_line_size_bytes == size_bytes) {
+-        full_image_line_size_bytes = width * 4;
+-    }
+-
+-    // Copy pixel by pixel, respecting full image stride (handles sub-tile loads)
+-    uint32_t fullImageStridePixels = full_image_line_size_bytes / 4;
+-    uint32_t i = 0;
+-    for (uint32_t y = 0; y < height; y++) {
+-        for (uint32_t x = 0; x < width; x++) {
+-            uint32_t srcIdx = y * fullImageStridePixels + x;
+-            mTexUploadBuffer[4 * i + 0] = addr[4 * srcIdx + 0];
+-            mTexUploadBuffer[4 * i + 1] = addr[4 * srcIdx + 1];
+-            mTexUploadBuffer[4 * i + 2] = addr[4 * srcIdx + 2];
+-            mTexUploadBuffer[4 * i + 3] = addr[4 * srcIdx + 3];
+-            i++;
+-        }
+-    }
++        full_image_line_size_bytes = widthBytes;
++    }
++
++    duck_copy_rgba32_rect(addr,width,height,full_image_line_size_bytes,mTexUploadBuffer);
+     mRapi->UploadTexture(mTexUploadBuffer, width, height);
+ }
+ 
+@@ -965,14 +929,8 @@
              uint8_t byte = addr[srcPixelIdx / 2];
              uint8_t idx = (byte >> (4 - (srcPixelIdx % 2) * 4)) & 0xf;
              uint16_t col16 = (palette[idx * 2] << 8) | palette[idx * 2 + 1]; // Big endian load
@@ -281,7 +407,7 @@
              i++;
          }
      }
-@@ -998,22 +984,6 @@
+@@ -998,22 +956,6 @@
  
      if (mRdp->palettes[0] == nullptr || mRdp->palettes[1] == nullptr) {
          return;
@@ -304,7 +430,7 @@
      }
  
      uint32_t baseLineSizeBytes = GetEffectiveLineSize(lineSizeBytes, fullImageLineSizeBytes, sizeBytes,
-@@ -1043,6 +1013,14 @@
+@@ -1043,6 +985,14 @@
          height = tile_h;
      }
  
@@ -319,15 +445,23 @@
      mRapi->UploadTexture(mTexUploadBuffer, width, height);
  }
  
-@@ -1300,6 +1278,7 @@
+@@ -1300,6 +1250,15 @@
          key = { origAddr, {}, fmt, siz, paletteIndex, origSizeBytes };
      }
  
 +    if(fmt==G_IM_FMT_CI) key.palette_format=(uint8_t)((mRdp->other_mode_h >> G_MDSFT_TEXTLUT)&3u);
++    const auto &loaded=mRdp->loaded_texture[tmemIdex];
++    const auto &view=mRdp->texture_tile[tile];
++    // Decode results depend on source pitch and the clamped tile extent, not
++    // just address/byte count. Atlas or mip views must not alias cached pixels.
++    key.decode_view={loaded.line_size_bytes,loaded.full_image_line_size_bytes,
++        loaded.size_bytes,view.line_size_bytes,
++        (uint32_t)((view.lrs-view.uls+4)/4),(uint32_t)((view.lrt-view.ult+4)/4),
++        (uint32_t)view.cms|((uint32_t)view.cmt<<8),texFlags};
      if (TextureCacheLookup(i, key)) {
          return;
      }
-@@ -1785,6 +1764,12 @@
+@@ -1785,6 +1744,12 @@
  }
  
  void Interpreter::GfxSpModifyVertex(uint16_t vtx_idx, uint8_t where, uint32_t val) {
@@ -340,7 +474,7 @@
      SUPPORT_CHECK(where == G_MWO_POINT_ST);
  
      int16_t s = (int16_t)(val >> 16);
-@@ -2288,14 +2273,7 @@
+@@ -2288,14 +2253,7 @@
      }
  	
  	mBufVboLen = buf_vbo_ptr - mBufVbo;
@@ -356,7 +490,7 @@
  }
  
  void Interpreter::GfxSpGeometryMode(uint32_t clear, uint32_t set) {
-@@ -2366,6 +2344,7 @@
+@@ -2366,6 +2324,7 @@
              if (lightidx >= 0 && lightidx <= MAX_LIGHTS) { // skip lookat
                  // NOTE: reads out of bounds if it is an ambient light
                  memcpy(mRsp->current_lights + lightidx, data, sizeof(F3DLight));
@@ -364,7 +498,7 @@
              } else if (lightidx < 0) {
                  memcpy(mRsp->lookat + offset / 24, data, sizeof(F3DLight_t)); // TODO Light?
              }
-@@ -2393,12 +2372,17 @@
+@@ -2393,12 +2352,17 @@
          case F3DEX_G_MV_L7:
              // NOTE: reads out of bounds if it is an ambient light
              memcpy(mRsp->current_lights + (index - F3DEX_G_MV_L0) / 2, data, sizeof(F3DLight_t));
@@ -382,7 +516,7 @@
          case G_MW_NUMLIGHT:
              mRsp->current_num_lights = data / 24 + 1; // add ambient light
              mRsp->lights_changed = true;
-@@ -2423,6 +2407,10 @@
+@@ -2423,6 +2387,10 @@
  
  void Interpreter::GfxSpMovewordF3d(uint8_t index, uint16_t offset, uintptr_t data) {
      switch (index) {
@@ -393,7 +527,7 @@
          case G_MW_NUMLIGHT:
              // Ambient light is included
              // The 31st bit is a flag that lights should be recalculated
-@@ -3131,16 +3119,24 @@
+@@ -3131,16 +3099,24 @@
  }
  
  void Interpreter::GfxSpSetOtherMode(uint32_t shift, uint32_t num_bits, uint64_t mode) {
@@ -418,7 +552,7 @@
  }
  
  void Interpreter::Gfxs2dexBgCopy(F3DuObjBg* bg) {
-@@ -5390,44 +5386,50 @@
+@@ -5390,44 +5366,50 @@
          return false;
      }
  
@@ -506,7 +640,7 @@
  
      for (uint32_t y = 0; y < height; ++y) {
          const uint16_t* srcRow = mRdramReadbackBuffer.data() + (size_t)y * width;
-@@ -5635,7 +5637,7 @@
+@@ -5635,7 +5617,7 @@
      mWapi->SwapBuffersBegin();
      mRapi->FinishRender();
      mWapi->SwapBuffersEnd();
@@ -517,15 +651,18 @@
  void gfx_set_target_ucode(UcodeHandlers ucode) {
 --- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/backends/gfx_opengl.h
 +++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/backends/gfx_opengl.h
-@@ -112,6 +112,7 @@
+@@ -112,6 +112,10 @@
      void SetPerDrawUniforms();
  
      std::vector<TextureInfo> textures;
 +    std::vector<uint8_t> mReadbackPixels;
++    int mPackedReadback=0; // calibrating, verified packed (1), RGBA8 fallback (-1)
++    unsigned mReadbackProbes=0;
++    uint64_t mPackedReadbackUs=0,mReferenceReadbackUs=0;
      GLuint mCurrentTextureIds[SHADER_MAX_TEXTURES] = {};
      GLuint mLastBoundTextures[SHADER_MAX_TEXTURES] = {};
      uint8_t mCurrentTile;
-@@ -119,7 +120,7 @@
+@@ -119,7 +123,7 @@
      int8_t mLastBlendEnabled = -1;
      int8_t mLastScissorEnabled = -1;
  
@@ -595,17 +732,29 @@
      if (commandCount == 0) return nullptr;
 --- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/interpreter.h
 +++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/interpreter.h
-@@ -1,4 +1,5 @@
+@@ -1,5 +1,7 @@
  #pragma once
+-
 +#include "material_updates.h"
- 
++
++#include <array>
  #include <stdbool.h>
  #include <stdint.h>
-@@ -192,10 +193,11 @@
+ #include <unordered_map>
+@@ -27,6 +29,7 @@
+ #define SCREEN_HEIGHT 240
+ 
+ #include <stdint.h>
++#include <array>
+ #include <stdbool.h>
+ 
+ 
+@@ -192,10 +195,12 @@
      uint8_t fmt, siz;
      uint8_t palette_index;
      uint32_t size_bytes;
 +    uint8_t palette_format = 0;
++    std::array<uint32_t,8> decode_view{};
  
  #ifdef __vita__
      bool operator==(const TextureCacheKey& rhs) const {
@@ -614,10 +763,11 @@
      };
      struct Hasher {
          size_t operator()(const TextureCacheKey& key) const noexcept {
-@@ -589,6 +591,7 @@
+@@ -589,6 +594,8 @@
      XYWidthHeight mGameWindowViewport{};   // gfx_current_game_window_viewport;
      XYWidthHeight mNativeDimensions{};     // gfx_native_dimensions;
      XYWidthHeight mPrevNativeDimensions{}; // gfx_prev_native_dimensions;
++    uint32_t mDuckTextureHits=0,mDuckTextureUploads=0;
 +    uint32_t mDuckLightColorUpdates = 0, mDuckVertexColorUpdates = 0;
      uintptr_t mGfxFrameBuffer{};
  	float mCurAspectRatioDeltaForX = (4.f / 3.f);

@@ -10,6 +10,11 @@ static int32_t addresses[SECTIONS];int32_t *section_addresses=addresses;
 static struct {uint32_t base,allocation,end;int state;} loaded[SECTIONS];
 static const DuckCodeCatalog *catalog;
 static uint8_t *ram;
+/* Indirect game calls repeatedly visit the same native functions. Cache exact
+ * normalized PCs, and invalidate whenever a module mapping is removed/loaded.
+ * Freed code remains mapped for destructor calls until allocation reuse. */
+static struct {uint32_t pc;recomp_func_t *function;} dispatch_cache[1024];
+static void invalidate_dispatch(void){memset(dispatch_cache,0,sizeof dispatch_cache);}
 static int pointer(uint32_t address,uint32_t size,uint32_t *physical){
  uint32_t p=address&0x1fffffffu;
  if((address&0xe0000000u)!=0x80000000u&&(address&0xe0000000u)!=0xa0000000u)return -1;
@@ -35,13 +40,13 @@ int duck_vita_overlays_init(uint8_t *rdram,const DuckCodeCatalog *c){
     functions(m->functions,m->function_count,m->initialized))return -1;
   for(size_t j=0;j<i;j++)if(c->modules[j].id==m->id||c->modules[j].section==m->section)return -1;
  }
- catalog=c;ram=rdram;memset(loaded,0,sizeof loaded);memset(addresses,0,sizeof addresses);
+ invalidate_dispatch();catalog=c;ram=rdram;memset(loaded,0,sizeof loaded);memset(addresses,0,sizeof addresses);
  addresses[0]=(int32_t)c->resident_begin;
  for(size_t i=0;i<c->module_count;i++)addresses[c->modules[i].section]=(int32_t)c->modules[i].default_base;
  return 0;
 }
 static int overlaps(uint32_t a,uint32_t end,uint32_t b,uint32_t b_end){return a<b_end&&b<end;}
-static void remove_module(size_t i){loaded[i].state=0;addresses[catalog->modules[i].section]=(int32_t)catalog->modules[i].default_base;}
+static void remove_module(size_t i){invalidate_dispatch();loaded[i].state=0;addresses[catalog->modules[i].section]=(int32_t)catalog->modules[i].default_base;}
 int duck_vita_overlay_load(uint32_t id,uint32_t base,uint32_t allocation,uint32_t initialized,uint32_t bss){
  uint32_t p,owner;size_t index;
  if(!catalog||initialized>0x800000u||bss>0x800000u-initialized||
@@ -54,6 +59,7 @@ int duck_vita_overlay_load(uint32_t id,uint32_t base,uint32_t allocation,uint32_
  for(size_t i=0;i<catalog->module_count;i++)if(loaded[i].state==2&&
    (i==index||overlaps(p,p+initialized+bss,loaded[i].base,loaded[i].end)))remove_module(i);
  loaded[index].base=p;loaded[index].allocation=owner;loaded[index].end=p+initialized+bss;loaded[index].state=1;
+ invalidate_dispatch();
  addresses[catalog->modules[index].section]=(int32_t)(0x80000000u|p);
  return 0;
 }
@@ -77,12 +83,14 @@ static recomp_func_t *find(const DuckCodeFunction *f,size_t n,uint32_t offset){
 }
 recomp_func_t *duck_vita_overlay_find(uint32_t pc){
  uint32_t p;if(!catalog||pointer(pc,4,&p))return NULL;
- recomp_func_t *resident=find(catalog->resident,catalog->resident_count,0x80000000u|p);
- if(resident)return resident;
- for(size_t i=0;i<catalog->module_count;i++)if(loaded[i].state&&p>=loaded[i].base&&p<loaded[i].end){
-  return find(catalog->modules[i].functions,catalog->modules[i].function_count,p-loaded[i].base);
+ unsigned slot=((p>>2)^(p>>12))&1023;
+ if(dispatch_cache[slot].function&&dispatch_cache[slot].pc==p)return dispatch_cache[slot].function;
+ recomp_func_t *f=find(catalog->resident,catalog->resident_count,0x80000000u|p);
+ if(!f)for(size_t i=0;i<catalog->module_count;i++)if(loaded[i].state&&p>=loaded[i].base&&p<loaded[i].end){
+  f=find(catalog->modules[i].functions,catalog->modules[i].function_count,p-loaded[i].base);break;
  }
- return NULL;
+ if(f){dispatch_cache[slot].pc=p;dispatch_cache[slot].function=f;}
+ return f;
 }
 recomp_func_t *get_function(int32_t pc){
  recomp_func_t *f=duck_vita_overlay_find((uint32_t)pc);

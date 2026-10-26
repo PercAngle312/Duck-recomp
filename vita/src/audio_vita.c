@@ -5,87 +5,131 @@
 #include <stdio.h>
 #include <string.h>
 static int port=-1,worker=-1,work=-1,started;
-enum {IDLE,RUNNING,DONE};
-static atomic_int state,stopping;
-static atomic_uint remaining;
-static int completion;
-static unsigned job_frames,job_rate;
+static atomic_int stopping,failure;
+/* Host owns tail/head. Worker owns rendering cursor; finished publishes only
+ * samples which the device has finished playing, never merely queued data. */
+static atomic_uint head,tail,finished,padded_frames,idle_drains;
 static unsigned submitted,completed;
-static unsigned native_length;
-_Alignas(64) static uint8_t snapshot[0x40000];
+static struct {
+ unsigned frames,rate;
+ atomic_uint remaining;
+ _Alignas(64) uint8_t snapshot[0x40000];
+} jobs[2];
 static DuckAudioResampler resampler;
 _Alignas(64) static int16_t pcm[2][256*2];
-static int output(void *opaque,const uint8_t *ram,uint32_t address,unsigned frames,unsigned rate){
- (void)opaque;int done=0;unsigned buffer=0,output_frames=0,previous_consumed=0;
- uint64_t initial_phase=resampler.phase;
- while(!done){
-  if(atomic_load_explicit(&stopping,memory_order_acquire))return -1;
-  int16_t *samples=pcm[buffer];
-  unsigned n=duck_vita_audio_resample(&resampler,ram,address,frames,rate,samples,256,&done);
-  if(!n)continue;
-  unsigned aligned=(n+63u)&~63u;
-  memset(samples+n*2,0,(aligned-n)*2*sizeof(int16_t));
-  /* VitaSDK uses small enums: casting -1 to this enum passes 255, not the
-   * signed unchanged sentinel expected by the kernel. This port is stereo. */
-  int result;
-  if(aligned!=native_length){
-   // Reconfiguring an output port while its previous buffer is still queued
-   // can disrupt playback. Drain it before changing length; don't repeatedly
-   // reconfigure unchanged full blocks.
-   result=sceAudioOutOutput(port,0);if(result<0)return result;
-   unsigned played_bytes=(frames-previous_consumed)*4;
-   atomic_store_explicit(&remaining,(played_bytes+7u)&~7u,memory_order_release);
-   result=sceAudioOutSetConfig(port,(int)aligned,-1,SCE_AUDIO_OUT_MODE_STEREO);if(result<0)return result;
-   native_length=aligned;
-  }
-  result=sceAudioOutOutput(port,samples);if(result<0)return result;
-  // Output accepts this block after the previous block has finished. Publish
-  // only that previous block's progress, never newly queued audio as played.
-  unsigned bytes=(frames-previous_consumed)*4;
-  atomic_store_explicit(&remaining,(bytes+7u)&~7u,memory_order_release);
-  output_frames+=n;
-  uint64_t consumed=(initial_phase+(uint64_t)output_frames*rate)/48000;
-  previous_consumed=consumed>frames?frames:(unsigned)consumed;
-  buffer^=1; // Do not overwrite the most recently submitted native buffer.
+typedef struct {unsigned sequence,remaining;int done;} Mark;
+static void publish(const Mark *marks,unsigned count){
+ for(unsigned i=0;i<count;i++){
+  const Mark *m=&marks[i];
+  atomic_store_explicit(&jobs[m->sequence&1].remaining,m->remaining,memory_order_release);
+  if(m->done)atomic_store_explicit(&finished,m->sequence+1,memory_order_release);
  }
- // Wait for the final native buffer before releasing the guest DMA and IRQ.
- int result=sceAudioOutOutput(port,0);
- if(result>=0)atomic_store_explicit(&remaining,0,memory_order_release);
- return result;
 }
 static int playback(unsigned args,void *opaque){
  (void)args;(void)opaque;
+ unsigned cursor=0,buffer=0,previous_count=0;
+ int active=0;
+ Mark previous[2];
  for(;;){
-  int rc=sceKernelWaitSema(work,1,NULL);
-  if(rc<0){completion=rc;atomic_store_explicit(&state,DONE,memory_order_release);return rc;}
   if(atomic_load_explicit(&stopping,memory_order_acquire))return 0;
-  // Acquire job metadata and the owned copy published before semaphore wakeup.
-  if(atomic_load_explicit(&state,memory_order_acquire)!=RUNNING)continue;
-  completion=output(NULL,snapshot,0,job_frames,job_rate);
-  atomic_store_explicit(&state,DONE,memory_order_release);
+  if(atomic_load_explicit(&failure,memory_order_acquire))return -1;
+  if(!active&&cursor==atomic_load_explicit(&tail,memory_order_acquire)){
+   int rc=sceKernelWaitSema(work,1,NULL);
+   if(rc<0){atomic_store_explicit(&failure,rc,memory_order_release);return rc;}
+   /* A consumed wake token belongs to the next job. No condition-variable
+    * wakeups are assumed: each begin signals exactly one semaphore token. */
+   if(atomic_load_explicit(&stopping,memory_order_acquire))return 0;
+   if(atomic_load_explicit(&failure,memory_order_acquire))return -1;
+   if(cursor==atomic_load_explicit(&tail,memory_order_acquire))continue;
+   active=1;
+  }
+  unsigned filled=0,count=0;
+  Mark marks[2];
+  while(filled<256){
+   if(!active){
+    if(cursor==atomic_load_explicit(&tail,memory_order_acquire))break;
+    int rc=sceKernelWaitSema(work,1,NULL);
+    if(rc<0){atomic_store_explicit(&failure,rc,memory_order_release);return rc;}
+    if(atomic_load_explicit(&stopping,memory_order_acquire))return 0;
+    if(atomic_load_explicit(&failure,memory_order_acquire))return -1;
+    active=1;
+   }
+   unsigned slot=cursor&1,frames=jobs[slot].frames;int done=0;
+   unsigned n=duck_vita_audio_resample(&resampler,jobs[slot].snapshot,0,
+       frames,jobs[slot].rate,pcm[buffer]+filled*2,256-filled,&done);
+   if(!n&&!done){atomic_store_explicit(&failure,-1,memory_order_release);return -1;}
+   filled+=n;
+   unsigned consumed=(unsigned)(resampler.phase/48000);
+   unsigned bytes=done?0:(frames-(consumed>frames?frames:consumed))*4;
+   marks[count++]=(Mark){cursor,(bytes+7u)&~7u,done};
+   if(done){cursor++;active=0;}else break;
+  }
+  if(!filled){
+   // At high guest rates a short DMA can produce no new 48 kHz sample.
+   // Its time is covered by the prior sample; retire it after queued output,
+   // rather than losing its completion markers or manufacturing extra PCM.
+   if(count){
+    if(previous_count){
+     int rc=sceAudioOutOutput(port,NULL);
+     if(rc<0){atomic_store_explicit(&failure,rc,memory_order_release);return rc;}
+     publish(previous,previous_count);previous_count=0;
+    }
+    publish(marks,count);
+   }
+   continue;
+  }
+  /* Fixed-size output joins adjacent queued DMAs in the same native block.
+   * Pad only on actual producer starvation, not at every guest boundary. */
+  if(filled<256){
+   memset(pcm[buffer]+filled*2,0,(256-filled)*2*sizeof(int16_t));
+   atomic_fetch_add_explicit(&padded_frames,256-filled,memory_order_relaxed);
+  }
+  int rc=sceAudioOutOutput(port,pcm[buffer]);
+  if(rc<0){atomic_store_explicit(&failure,rc,memory_order_release);return rc;}
+  publish(previous,previous_count);
+  memcpy(previous,marks,count*sizeof(Mark));previous_count=count;buffer^=1;
+  if(!active&&cursor==atomic_load_explicit(&tail,memory_order_acquire)){
+   /* No queued guest work remains. Drain the last block so its completion
+    * can wake the guest; do not invent completion just to keep audio moving. */
+   rc=sceAudioOutOutput(port,NULL);
+   if(rc<0){atomic_store_explicit(&failure,rc,memory_order_release);return rc;}
+   atomic_fetch_add_explicit(&idle_drains,1,memory_order_relaxed);
+   publish(previous,previous_count);previous_count=0;
+  }
  }
 }
 static int begin(void *opaque,const uint8_t *ram,uint32_t address,unsigned frames,unsigned rate){
  (void)opaque;
- if(atomic_load_explicit(&state,memory_order_acquire)!=IDLE)return -1;
+ unsigned next=atomic_load_explicit(&tail,memory_order_relaxed);
+ if(next-atomic_load_explicit(&head,memory_order_acquire)>=2||
+    atomic_load_explicit(&failure,memory_order_acquire))return -1;
  if(!ram||!frames||frames>0x3fff8u/4||!rate||(address&7u)||address>0x800000u-frames*4)return -1;
- memcpy(snapshot,ram+address,frames*4);job_frames=frames;job_rate=rate;
- atomic_store_explicit(&remaining,frames*4,memory_order_release);
- atomic_store_explicit(&state,RUNNING,memory_order_release);
+ unsigned slot=next&1;
+ memcpy(jobs[slot].snapshot,ram+address,frames*4);jobs[slot].frames=frames;jobs[slot].rate=rate;
+ atomic_store_explicit(&jobs[slot].remaining,frames*4,memory_order_release);
+ atomic_store_explicit(&tail,next+1,memory_order_release);
  int rc=sceKernelSignalSema(work,1);
- if(rc<0){atomic_store_explicit(&state,IDLE,memory_order_release);return rc;}
+ if(rc<0){atomic_store_explicit(&failure,rc,memory_order_release);return rc;}
  if(++submitted<=3)fprintf(stderr,"Native AI DMA start %u: frames=%u rate=%u\n",submitted,frames,rate);
  return 0;
 }
 static int poll(void *opaque){
- (void)opaque;if(atomic_load_explicit(&state,memory_order_acquire)!=DONE)return 0;
- int rc=completion;atomic_store_explicit(&state,IDLE,memory_order_release);
+ (void)opaque;
+ unsigned first=atomic_load_explicit(&head,memory_order_relaxed);
+ if(first!=atomic_load_explicit(&finished,memory_order_acquire)){
+  atomic_store_explicit(&head,first+1,memory_order_release);
+  if(++completed<=3)fprintf(stderr,"Native AI DMA complete %u\n",completed);
+  if(!(completed%256))fprintf(stderr,"Audio stream: completed=%u padded_frames=%u idle_drains=%u queued=%u\n",
+    completed,atomic_load(&padded_frames),atomic_load(&idle_drains),atomic_load(&tail)-(first+1));
+  return 1;
+ }
+ int rc=atomic_load_explicit(&failure,memory_order_acquire);
  if(rc<0)fprintf(stderr,"Native audio playback failed: %d\n",rc);
- else if(++completed<=3)fprintf(stderr,"Native AI DMA complete %u\n",completed);
- return rc<0?rc:1;
+ return rc;
 }
 static unsigned remaining_bytes(void *opaque){
- (void)opaque;return atomic_load_explicit(&remaining,memory_order_acquire);
+ (void)opaque;unsigned first=atomic_load_explicit(&head,memory_order_relaxed);
+ return atomic_load_explicit(&jobs[first&1].remaining,memory_order_acquire);
 }
 void duck_vita_ai_vita_close(void){
  if(port>=0){
@@ -112,21 +156,20 @@ int duck_vita_ai_vita_init(uint8_t *ram,unsigned clock){
  int volumes[2]={SCE_AUDIO_OUT_MAX_VOL,SCE_AUDIO_OUT_MAX_VOL};
  int volume_result=sceAudioOutSetVolume(port,SCE_AUDIO_VOLUME_FLAG_L_CH|SCE_AUDIO_VOLUME_FLAG_R_CH,volumes);
  if(volume_result<0){duck_vita_ai_vita_close();return volume_result;}
- memset(&resampler,0,sizeof resampler);
- native_length=256;
- submitted=completed=0;
- atomic_store(&state,IDLE);atomic_store(&stopping,0);
- atomic_store(&remaining,0);
- work=sceKernelCreateSema("DuckAudioWork",0,0,1,NULL);
+ memset(&resampler,0,sizeof resampler);submitted=completed=0;
+ atomic_store(&stopping,0);atomic_store(&failure,0);
+ atomic_store(&head,0);atomic_store(&tail,0);atomic_store(&finished,0);
+ atomic_store(&padded_frames,0);atomic_store(&idle_drains,0);
+ work=sceKernelCreateSema("DuckAudioWork",0,0,2,NULL);
  if(work<0){int rc=work;duck_vita_ai_vita_close();return rc;}
  worker=sceKernelCreateThread("DuckAudio",playback,0x10000100,64*1024,0,0,NULL);
  if(worker<0){int rc=worker;duck_vita_ai_vita_close();return rc;}
  int result=sceKernelStartThread(worker,0,NULL);
  if(result<0){duck_vita_ai_vita_close();return result;}
  started=1;
- DuckAiAsyncSink sink={begin,poll,NULL,remaining_bytes};
+ DuckAiAsyncSink sink={begin,poll,NULL,remaining_bytes,2};
  result=duck_vita_ai_init_async(ram,clock,&sink);
  if(result)duck_vita_ai_vita_close();
- else fprintf(stderr,"Native audio worker ready: guest playback is asynchronous\n");
+ else fprintf(stderr,"Native audio worker ready: two-DMA stream, fixed 256-frame stereo output\n");
  return result;
 }

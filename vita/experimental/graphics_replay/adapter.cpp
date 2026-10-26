@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <memory>
 #include <psp2/io/stat.h>
+#include <psp2/power.h>
 #include <psp2/kernel/processmgr.h>
 #ifndef DUCK_NATIVE_RESOLUTION
 #define DUCK_NATIVE_RESOLUTION 1
@@ -55,6 +56,17 @@ UcodeInfo GBIMicrocode_DetectVersion(u32 code,u32 code_size,u32 data,u32 data_si
 extern "C" int duck_fast3d_init(uint8_t *rdram){
  if(!rdram||init_attempted)return -1;
  init_attempted=true;
+ // Request standard homebrew performance clocks without lowering a higher
+ // user-selected setting. Report actual values and rejected requests.
+ int cpu=scePowerGetArmClockFrequency(),bus=scePowerGetBusClockFrequency();
+ int gpu=scePowerGetGpuClockFrequency(),xbar=scePowerGetGpuXbarClockFrequency();
+ int cr=cpu<444?scePowerSetArmClockFrequency(444):0;
+ int br=bus<222?scePowerSetBusClockFrequency(222):0;
+ int gr=gpu<222?scePowerSetGpuClockFrequency(222):0;
+ int xr=xbar<166?scePowerSetGpuXbarClockFrequency(166):0;
+ fprintf(stderr,"Performance clocks: CPU=%d BUS=%d GPU=%d XBAR=%d MHz; requests=%d,%d,%d,%d\n",
+    scePowerGetArmClockFrequency(),scePowerGetBusClockFrequency(),
+    scePowerGetGpuClockFrequency(),scePowerGetGpuXbarClockFrequency(),cr,br,gr,xr);
  // At the pinned vitaGL revision, this returns resolution-fallback state,
  // not initialization success. GL_FALSE is the normal native-size result.
  GLboolean fallback=vglInitExtended(0,960,544,64*1024*1024,SCE_GXM_MULTISAMPLE_NONE);
@@ -141,10 +153,10 @@ extern "C" int duck_fast3d_submit_task(uint32_t task_address){
  total_translate+=translated-started;total_draw+=drawn-translated;
  total_readback+=readback-drawn;total_present+=finished-readback;++measured_tasks;
  if(finished-last_report>=5000000){
-  fprintf(stderr,"Graphics timing: tasks=%u avg_us translate=%llu draw=%llu readback=%llu present=%llu light_updates=%u vertex_rgba_updates=%u\n",
+  fprintf(stderr,"Graphics timing: tasks=%u avg_us translate=%llu draw=%llu readback=%llu present=%llu light_updates=%u vertex_rgba_updates=%u texture_hits=%u texture_uploads=%u\n",
       measured_tasks,(unsigned long long)(total_translate/measured_tasks),
       (unsigned long long)(total_draw/measured_tasks),(unsigned long long)(total_readback/measured_tasks),
-      (unsigned long long)(total_present/measured_tasks),interpreter->mDuckLightColorUpdates,interpreter->mDuckVertexColorUpdates);
+      (unsigned long long)(total_present/measured_tasks),interpreter->mDuckLightColorUpdates,interpreter->mDuckVertexColorUpdates,interpreter->mDuckTextureHits,interpreter->mDuckTextureUploads);
   last_report=finished;total_translate=total_draw=total_readback=total_present=0;measured_tasks=0;
  }
  if(first)fprintf(stderr,"First framebuffer swap complete\n");

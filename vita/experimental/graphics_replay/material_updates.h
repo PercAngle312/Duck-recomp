@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 // N64 light-colour MOVEWORD values are logical 0xRRGGBBxx words, independent
 // of host byte order. F3DEX2 slots stride 24 bytes; original F3D slots stride 32.
 template<class Light, size_t N>
@@ -30,7 +31,23 @@ inline void duck_decode_tlut(uint16_t word, bool ia16, uint8_t *out) {
 }
 template<class Key>
 inline bool duck_texture_keys_equal(const Key &a,const Key &b){
+    for(size_t i=0;i<8;i++)if(a.decode_view[i]!=b.decode_view[i])return false;
     return a.texture_addr==b.texture_addr&&a.palette_addrs[0]==b.palette_addrs[0]&&
         a.palette_addrs[1]==b.palette_addrs[1]&&a.fmt==b.fmt&&a.siz==b.siz&&
         a.palette_index==b.palette_index&&a.size_bytes==b.size_bytes&&a.palette_format==b.palette_format;
+}
+
+// Crop destination rows without changing the pitch of the staged source image.
+inline void duck_decode_rgba16_rect(const uint8_t *src,unsigned width,unsigned height,unsigned pitch,uint8_t *dst){
+    for(unsigned y=0;y<height;y++)for(unsigned x=0;x<width;x++){
+        const uint8_t *p=src+(size_t)y*pitch+x*2;
+        uint16_t v=((uint16_t)p[0]<<8)|p[1];
+        unsigned r=v>>11,g=(v>>6)&31,b=(v>>1)&31;
+        uint8_t *d=dst+((size_t)y*width+x)*4;
+        d[0]=(uint8_t)((r<<3)|(r>>2));d[1]=(uint8_t)((g<<3)|(g>>2));
+        d[2]=(uint8_t)((b<<3)|(b>>2));d[3]=(v&1)?255:0;
+    }
+}
+inline void duck_copy_rgba32_rect(const uint8_t *src,unsigned width,unsigned height,unsigned pitch,uint8_t *dst){
+    for(unsigned y=0;y<height;y++)std::memcpy(dst+(size_t)y*width*4,src+(size_t)y*pitch,(size_t)width*4);
 }

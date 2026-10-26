@@ -36,7 +36,7 @@ int main(void){
  for(unsigned i=0;i<8;i++)assert(pcm[i]==expected[i]);
  state.phase=0;assert(duck_vita_audio_resample(&state,ram,0x1000,4,24000,pcm,16,&done)==8&&done);
  assert(pcm[2]==-20000&&pcm[3]==20000);
- DuckAiAsyncSink sink={begin,poll,0,0};unsigned before=(unsigned)interrupts;
+ DuckAiAsyncSink sink={begin,poll,0,0,0};unsigned before=(unsigned)interrupts;
  assert(!duck_vita_ai_init_async(ram,48681812,&sink));enqueue(ram,&c);enqueue(ram,&c);
  assert(!duck_vita_ai_service()&&starts==1);
  assert(!duck_vita_ai_service()&&(unsigned)interrupts==before);
@@ -57,6 +57,16 @@ int main(void){
  remaining=8;osAiGetLength_recomp(ram,&c);assert(c.r2==8);osAiGetStatus_recomp(ram,&c);assert(c.r2==(gpr)(int32_t)0xc0000000u);
  remaining=0;osAiGetLength_recomp(ram,&c);assert(!c.r2); // still awaiting completion poll
  remaining=17;osAiGetLength_recomp(ram,&c);assert(c.r2==(gpr)-1&&duck_vita_ai_error()==-1);
+ // Queue-capable sink owns both entries before the first playback completes;
+ // the guest FIFO remains full and IRQs still retire in original order.
+ starts=0;start_failure=0;poll_result=0;sink.remaining_bytes=0;sink.capacity=2;
+ assert(!duck_vita_ai_init_async(ram,48681812,&sink));enqueue(ram,&c);enqueue(ram,&c);
+ before=(unsigned)interrupts;assert(!duck_vita_ai_service()&&starts==2);
+ osAiGetStatus_recomp(ram,&c);assert(c.r2==(gpr)(int32_t)0xc0000000u);
+ assert(!duck_vita_ai_service()&&(unsigned)interrupts==before);
+ poll_result=1;assert(duck_vita_ai_service()==1&&(unsigned)interrupts==before+1&&starts==2);
+ assert(duck_vita_ai_service()==1&&(unsigned)interrupts==before+2&&starts==2);
+ sink.capacity=3;assert(duck_vita_ai_init_async(ram,48681812,&sink)==-1);
  duck_vita_ai_detach();free(ram);
  puts("PASS: AI FIFO limits, real sink completion IRQ, device failure and stereo byte lanes/resampling");return 0;
 }

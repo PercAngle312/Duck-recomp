@@ -201,3 +201,10 @@ correct row pitch after cropping; CI TLUT intensity/alpha mode and cache palette
 identity are handled. Texture keys compare fields rather than struct padding.
 The current private core is rebuilt with O2 and dynamic-rounding semantics;
 this is independent of the generic public renderer build.
+
+For v00.11, see ../../STREAMING_AUDIO_AND_READBACK.md. Readback compares and times
+six packed/reference images, uses the faster correct device path, and explicitly
+finishes pending GPU scenes before CPU-visible FullSync output. RGBA crops retain
+source pitch; texture cache identity includes decode-view dimensions and strides.
+The adapter requests and logs standard performance clocks without lowering higher
+user settings. Add ScePower_stub when linking the adapter.

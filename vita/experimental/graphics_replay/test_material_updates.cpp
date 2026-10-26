@@ -4,7 +4,7 @@
 #include <cstdio>
 struct Light {struct {uint8_t col[3],pad,colc[3],pad2;int8_t dir[3];}l;};
 struct Color {uint8_t r,g,b,a;};
-struct Key { const uint8_t *texture_addr,*palette_addrs[2];uint8_t fmt,siz,palette_index;uint32_t size_bytes;uint8_t palette_format; };
+struct Key { const uint8_t *texture_addr,*palette_addrs[2];uint8_t fmt,siz,palette_index;uint32_t size_bytes;uint8_t palette_format;uint32_t decode_view[8]; };
 int main(){
  Light lights[8];memset(lights,0x5a,sizeof lights);
  assert(duck_update_light_color(lights,0,0xff000000,24));
@@ -31,6 +31,15 @@ int main(){
  Key a,b;memset(&a,0x11,sizeof a);memset(&b,0x22,sizeof b);
  a.texture_addr=b.texture_addr=nullptr;a.palette_addrs[0]=b.palette_addrs[0]=nullptr;a.palette_addrs[1]=b.palette_addrs[1]=nullptr;
  a.fmt=b.fmt=2;a.siz=b.siz=1;a.palette_index=b.palette_index=0;a.size_bytes=b.size_bytes=512;a.palette_format=b.palette_format=2;
+ for(unsigned i=0;i<8;i++)a.decode_view[i]=b.decode_view[i]=0;
  assert(duck_texture_keys_equal(a,b));b.palette_format=3;assert(!duck_texture_keys_equal(a,b));
+ b.palette_format=2;
+ for(unsigned i=0;i<8;i++){b.decode_view[i]=1;assert(!duck_texture_keys_equal(a,b));b.decode_view[i]=0;}
+ const uint8_t rgba16[]={0xf8,1,7,0xc1,0,0x3f,0xff,0xff,0,0x3f,0xff,0xff,0xf8,1,7,0xc1};
+ uint8_t crop[16];duck_decode_rgba16_rect(rgba16,2,2,8,crop);
+ assert(!memcmp(crop,red,4)&&!memcmp(crop+4,green,4)&&!memcmp(crop+8,blue,4)&&!memcmp(crop+12,white,4));
+ uint8_t rgba32[32];for(unsigned i=0;i<32;i++)rgba32[i]=(uint8_t)i;
+ duck_copy_rgba32_rect(rgba32,2,2,16,crop);
+ assert(!memcmp(crop,rgba32,8)&&!memcmp(crop+8,rgba32+16,8));
  puts("PASS: red-to-black material update, ambient/last slots, color copies, both GBI strides, preserved directions and RGBA channels");
 }

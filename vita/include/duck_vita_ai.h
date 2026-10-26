@@ -15,6 +15,9 @@ typedef struct {
  /* Optional active-DMA progress, in guest bytes, aligned to eight bytes.
   * Excludes the queued second DMA. Zero is valid before IRQ service. */
  unsigned (*remaining_bytes)(void*);
+ /* Zero/one keeps the single-active-DMA contract. Two allows start to own
+  * both FIFO entries; poll still retires exactly one in playback order. */
+ unsigned capacity;
 } DuckAiAsyncSink;
 int duck_vita_ai_init_async(uint8_t *rdram,unsigned video_clock,const DuckAiAsyncSink *sink);
 /* Discard pending DMAs without completion IRQs on the guest host thread,

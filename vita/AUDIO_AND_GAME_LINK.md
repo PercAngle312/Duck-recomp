@@ -91,3 +91,7 @@ This does not implement a continuous cross-DMA mixer. Final block padding,
 per-DMA drains, output gaps while translated RSP or graphics work runs, and
 clamped interpolation at DMA boundaries remain. Physical sound quality,
 latency and audio/video synchronization require gameplay validation.
+
+Current v00.11 audio output uses a two-DMA fixed-block stream; see
+[STREAMING_AUDIO_AND_READBACK.md](STREAMING_AUDIO_AND_READBACK.md) for ownership,
+playback-completion semantics, starvation counters and remaining limits.

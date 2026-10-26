@@ -34,5 +34,11 @@ int main(void){
  assert(duck_vita_overlay_free(0x80050018)==1);
  assert(!duck_vita_overlay_load(2,0x80060000,0x8005fff8,0x20,0x20));
  assert(!duck_vita_overlay_find(0x80050020)&&duck_vita_overlay_find(0x80060000)==beta);
+ // A different overlay at a previously cached PC must dispatch new code.
+ assert(duck_vita_overlay_find(0x80060000)==beta);
+ assert(duck_vita_overlay_free(0x8005fff8)==1);
+ assert(!duck_vita_overlay_load(1,0x80060000,0x8005fff8,0x40,0x20));
+ for(unsigned i=0;i<2048;i++)assert(duck_vita_overlay_find(0xa0060000)==alpha);
+ assert(!duck_vita_overlays_init(ram,&c));assert(!duck_vita_overlay_find(0x80060000));
  free(ram);puts("PASS: relocated lookup, section bases, checked module sizes, active overlap, retained cleanup and allocation-reuse invalidation");return 0;
 }

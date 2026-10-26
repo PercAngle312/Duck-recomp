@@ -15,7 +15,7 @@ int duck_vita_ai_init(uint8_t *ram,unsigned clock,DuckAiOutput output,void *opaq
  memset(&ai,0,sizeof ai);ai.ram=ram;ai.clock=clock;ai.output=output;ai.opaque=opaque;return 0;
 }
 int duck_vita_ai_init_async(uint8_t *ram,unsigned clock,const DuckAiAsyncSink *sink){
- if(!ram||!clock||!sink||!sink->start||!sink->poll)return -1;
+ if(!ram||!clock||!sink||!sink->start||!sink->poll||sink->capacity>2)return -1;
  memset(&ai,0,sizeof ai);ai.ram=ram;ai.clock=clock;ai.async=*sink;return 0;
 }
 int duck_vita_ai_error(void){return ai.fault;}
@@ -58,18 +58,24 @@ int duck_vita_ai_service(void){
  if(!bound()||!ai.count||ai.processing)return 0;
  ai.processing=1;
  if(ai.async.start){
-  if(!ai.inflight){
-   int r=ai.async.start(ai.async.opaque,ai.ram,ai.fifo[0].address,ai.fifo[0].bytes/4,ai.fifo[0].rate);
-   ai.processing=0;if(r){ai.fault=r<0?r:-1;return -1;}ai.inflight=1;return 0;
+  unsigned limit=ai.async.capacity?ai.async.capacity:1;
+  int started=0;
+  while((unsigned)ai.inflight<ai.count&&(unsigned)ai.inflight<limit){
+   unsigned i=(unsigned)ai.inflight;
+   int r=ai.async.start(ai.async.opaque,ai.ram,ai.fifo[i].address,ai.fifo[i].bytes/4,ai.fifo[i].rate);
+   if(r){ai.processing=0;ai.fault=r<0?r:-1;return -1;}
+   ai.inflight++;started=1;
   }
+  if(started){ai.processing=0;return 0;}
   int r=ai.async.poll(ai.async.opaque);
   if(!r){ai.processing=0;return 0;}
   if(r!=1){ai.processing=0;ai.fault=r<0?r:-1;return -1;}
-  ai.inflight=0;ai.fifo[0]=ai.fifo[1];ai.count--;
+  ai.inflight--;ai.fifo[0]=ai.fifo[1];ai.count--;
   // Start the already-queued next DMA before returning to guest execution.
-  if(ai.count){
-   r=ai.async.start(ai.async.opaque,ai.ram,ai.fifo[0].address,ai.fifo[0].bytes/4,ai.fifo[0].rate);
-   if(r)ai.fault=r<0?r:-1;else ai.inflight=1;
+  if((unsigned)ai.inflight<ai.count){
+   unsigned i=(unsigned)ai.inflight;
+   r=ai.async.start(ai.async.opaque,ai.ram,ai.fifo[i].address,ai.fifo[i].bytes/4,ai.fifo[i].rate);
+   if(r)ai.fault=r<0?r:-1;else ai.inflight++;
   }
   ai.processing=0;duck_vita_os_event_emit(6);
   return ai.fault?-1:1;

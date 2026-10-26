@@ -43,7 +43,7 @@ for name,compiler,standard in [('shacccg_ext','arm-vita-eabi-gcc','gnu11'),('sha
  suffix='.c' if name=='shacccg_ext' else '.cpp';obj=out/(name+'.arm.o')
  run([bin/compiler,'-std='+standard,*flags,'-I'+str(shacc/'include'),'-I'+str(out/'taihen-sdk/include'),'-c',shacc/'src'/(name+suffix),'-o',obj],name+'-compile.log');objects.append(obj)
 libs=[deps/'vita-gl-reference/libvitaGL.a',deps/'vita-shark-reference/libvitashark.a',deps/'vita-math-neon-reference/libmathneon.a']
-stubs=['taihen','SceShaccCg','SceKernelDmacMgr','SceDisplay','SceGxm','SceSysmem','SceCommonDialog','SceKernelThreadMgr','SceAppMgr','SceAppUtil','SceKernelModulemgr','SceLibKernel','SceIofilemgr','SceCtrl']
+stubs=['taihen','SceShaccCg','SceKernelDmacMgr','SceDisplay','SceGxm','SceSysmem','SceCommonDialog','SceKernelThreadMgr','SceAppMgr','SceAppUtil','SceKernelModulemgr','SceLibKernel','SceIofilemgr','SceCtrl','ScePower']
 elf=out/'duck-graphics-replay.elf'
 run([bin/'arm-vita-eabi-g++','-Wl,--gc-sections','-Wl,-q',*objects,'-Wl,--start-group',*libs,'-L'+str(out/'taihen-sdk/lib'),*['-l'+s+'_stub' for s in stubs],'-lm','-lstdc++','-Wl,--end-group','-o',elf],'executable-link.log')
 unresolved=subprocess.check_output([str(bin/'arm-vita-eabi-nm'),'-u',str(elf)],text=True)

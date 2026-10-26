@@ -1,0 +1,65 @@
+{
+  "version": "00.11",
+  "hardware_baseline_version": "00.10",
+  "hardware_baseline_readback_us": [
+    9649,
+    9973
+  ],
+  "hardware_baseline_presentation_us": [
+    197,
+    253
+  ],
+  "hardware_improvement_verified": false,
+  "two_DMA_native_stream": true,
+  "cross_DMA_zero_padding_removed_when_next_DMA_queued": true,
+  "fixed_native_block_frames": 256,
+  "real_starvation_padding_remains": true,
+  "cross_DMA_bandlimited_interpolation": false,
+  "shader_cache_folder_unchanged": "shaders-v007",
+  "all_strong_imports_resolved": true,
+  "private_game_core_unchanged_from_v009": true,
+  "game_exports": 9416,
+  "native_sources": 29,
+  "patched_renderer_units": 5,
+  "host_checks_passed": [
+    "Exact 3072-frame queued stereo sequence without DMA boundary padding or reconfiguration",
+    "Async ownership, blocked-device progress and IRQ ordering",
+    "High-rate short DMA with zero output frames completes",
+    "Output, drain, semaphore and join failures",
+    "Single-active and two-active AI FIFO contracts",
+    "Cropped RGBA16/RGBA32 source rows and distinct cache views",
+    "Overlay cached PC remap and catalog reset",
+    "64 FIFO refill completions reuse both owned snapshot slots without dropped/extra IRQs"
+  ],
+  "emulator_execution": "100-second external timeout, Vita3K software OpenGL/offscreen video/dummy audio; not hardware validation",
+  "physical_v011_tested": false,
+  "native_FPS_gain_measured": false,
+  "visual_texture_quality_verified": false,
+  "native_audio_quality_verified": false,
+  "elf_sha256": "5cfb040fed917ee1fbad0911d2fe4e09360b40babce0d43e6d712b2df48514c3",
+  "vpk_sha256": "15ab5d9c658f21ddc08c181d4a3d8bbe785934f8e83915dc940bd9773a886061",
+  "vpk_bytes": 5316612,
+  "installed_eboot_matches_final_VPK": true,
+  "first_task_finished": true,
+  "first_framebuffer_swap": true,
+  "readback_selection": [
+    "Framebuffer readback: GPU packed RGBA5551; 6 images matched, avg_us packed=1050 RGBA8=3808 (GPU wait excluded)"
+  ],
+  "last_gpu_readback_timing": [
+    "Framebuffer timing: calls=256 avg_us GPU_wait=7178 transfer_pack=530 path=packed"
+  ],
+  "last_graphics_timing": [
+    "Graphics timing: tasks=10 avg_us translate=262 draw=1298 readback=155366 present=1617 light_updates=8580 vertex_rgba_updates=0 texture_hits=23100 texture_uploads=97"
+  ],
+  "last_audio_stream_status": [
+    "Audio stream: completed=4096 padded_frames=128501 idle_drains=785 queued=0"
+  ],
+  "last_guest_status": [
+    "Guest status: polls=170158 PI=10087 SP completed=5380 failed=0 loop_yields=103600"
+  ],
+  "reported_SP_failures": 0,
+  "guest_or_native_audio_failure_logged": false,
+  "performance_test_passed": false,
+  "emulator_performance_limit": "Later software-rendered readback tasks average roughly 151-168 ms including explicit GPU completion. This is not a native performance pass or proof of an FPS improvement.",
+  "old_readback_ordering_issue": "Pinned glReadPixels conditionally waits only when read framebuffer is its in-use render scene; interpreter switches to default framebuffer before game-FBO read. Explicit glFinish now preserves FullSync GPU completion."
+}
