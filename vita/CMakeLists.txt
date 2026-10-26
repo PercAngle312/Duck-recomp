@@ -82,7 +82,7 @@ target_include_directories(duck_vita_mi PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/incl
 target_link_libraries(duck_vita_mi PUBLIC duck_vita_bus)
 # SP task callbacks and guest SP/DP events are kept in a reusable runtime
 # archive; the snapshot replay does not initialize registered guest OS events.
-add_library(duck_vita_sp_runtime STATIC src/sp.c src/os_sp.c src/sp_events.c)
+add_library(duck_vita_sp_runtime STATIC src/sp.c src/os_sp.c src/sp_events.c src/sp_runtime.c)
 target_include_directories(duck_vita_sp_runtime PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 add_library(duck_vita_os_io STATIC src/os_io.c src/os_core.c src/os_queue.c)
 target_include_directories(duck_vita_os_io PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
