@@ -13,6 +13,7 @@ on:
       - 'vita/include/duck_vita_live.h'
       - 'vita/include/duck_vita_sp*.h'
       - 'vita/include/duck_vita_game_loop.h'
+      - 'vita/link_private_game.py'
       - '.github/workflows/vita-sp-vitasdk-build.yml'
 jobs:
   compile:
