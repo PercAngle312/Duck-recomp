@@ -105,3 +105,19 @@ Fast3D renderer object directory, additional private callback objects through
 repeatable `--extra-object` options, and the pinned renderer libraries via
 repeatable `--library` options. Missing objects and unresolved strong symbols
 are fatal. Never commit the private game link output or its derived objects.
+
+## Shared renderer compiler preflight
+
+The live game and replay share `adapter.cpp`. Initialization now invokes the
+pinned vitaGL compiler initializer before constructing Fast3D or starting guest
+execution. Failure returns `-8`, logs both supported `libshacccg.suprx` paths,
+and flushes the error. The module is not distributed with this project.
+
+This checks module initialization, not successful shader compilation or rendered
+output. The pinned vitaGL's `GL_SHADER_COMPILER` query always returns true, even
+when the module is absent, so it cannot serve as a dependency check. The internal
+`start_shader_compiler` symbol is tied to the locked vitaGL revision; updating
+that dependency requires checking its ABI and behavior again.
+
+The pinned SDK workflow also compiles this shared renderer against its exact
+locked public dependencies. That CI artifact is an object, not a playable build.

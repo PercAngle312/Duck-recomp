@@ -1,5 +1,5 @@
-// Experimental task replay adapter for the pinned Daedalus Fast3D backend.
-// Not wired into the guest SP runtime; does not claim rendered/gameplay success.
+// Shared task renderer for live guest SP submission and the historical replay.
+// Compilation and task submission do not establish rendered/gameplay success.
 #include "stdafx.h"
 #include "Core/Memory.h"
 #include "SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.h"
@@ -26,6 +26,10 @@ u32 GraphicsContextVita_GetPostProcessFramebuffer(){return 0;}
 static std::shared_ptr<Fast::Interpreter> interpreter;
 static Fast3DMemoryBridge bridge;
 static bool init_attempted;
+// The pinned vitaGL exports this initializer; it sets its own compiler state
+// and tries both supported module paths. GL_SHADER_COMPILER is always true in
+// that revision, so querying the GL capability cannot detect a missing module.
+extern "C" GLboolean start_shader_compiler(void);
 static void shader_log(const char *message,shark_log_level level,int line){
  fprintf(stderr,"shader[%d] line %d: %s\n",int(level),line,message?message:"(no message)");
 }
@@ -53,6 +57,15 @@ extern "C" int duck_fast3d_init(uint8_t *rdram){
  GLint viewport[4]={};glGetIntegerv(GL_VIEWPORT,viewport);
  fprintf(stderr,"vitaGL viewport: %d %d %d %d; GL error=0x%x\n",viewport[0],viewport[1],viewport[2],viewport[3],unsigned(glGetError()));
  shark_install_log_cb(shader_log);
+ fprintf(stderr,"Initializing runtime shader compiler\n");
+ if(!start_shader_compiler()){
+  fprintf(stderr,"Graphics unavailable: could not initialize libshacccg.suprx.\n"
+                 "Checked ur0:/data/libshacccg.suprx and ur0:data/external/libshacccg.suprx.\n"
+                 "Guest startup stopped before shader submission. No game frame rendered.\n");
+  fflush(stderr);
+  return -8;
+ }
+ fprintf(stderr,"Runtime shader compiler initialized; shader compilation still requires validation\n");
  fprintf(stderr,"Initializing Fast3D interpreter\n");
  g_pMemoryBuffers[MEM_RD_RAM]=rdram;
  interpreter=std::make_shared<Fast::Interpreter>();Fast::GfxSetInstance(interpreter);

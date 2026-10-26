@@ -25,6 +25,8 @@ on:
       - 'vita/include/duck_vita_sp*.h'
       - 'vita/include/duck_vita_game_loop.h'
       - 'vita/link_private_game.py'
+      - 'vita/experimental/graphics_replay/adapter.cpp'
+      - 'vita/experimental/graphics_replay/dependencies.json'
       - '.github/workflows/vita-sp-vitasdk-build.yml'
 jobs:
   compile:
@@ -97,6 +99,27 @@ jobs:
           fi
           file /tmp/duck-objects/duck-vita-runtime-link.elf
           echo "Linked runtime-only ELF, no game assets or translated gameplay."
+      - name: Compile shared production renderer with pinned VitaSDK
+        run: |
+          python3 - <<'PYCODE'
+          import json, pathlib, subprocess
+          root = pathlib.Path.cwd()
+          sdk = next(pathlib.Path('/tmp/duck-sdk/root').rglob('arm-vita-eabi-g++'))
+          lock = json.loads((root / 'vita/experimental/graphics_replay/dependencies.json').read_text())
+          deps = pathlib.Path('/tmp/duck-renderer-deps')
+          deps.mkdir(exist_ok=True)
+          for name in ('vita-renderer-reference', 'vita-gl-reference', 'vita-shark-reference'):
+              item = lock['repositories'][name]
+              target = deps / name
+              subprocess.run(['git', 'init', str(target)], check=True)
+              subprocess.run(['git', '-C', str(target), 'fetch', '--depth=1', item['url'], item['commit']], check=True)
+              subprocess.run(['git', '-C', str(target), 'checkout', '--detach', 'FETCH_HEAD'], check=True)
+              assert subprocess.check_output(['git', '-C', str(target), 'rev-parse', 'HEAD'], text=True).strip() == item['commit']
+          src = deps / 'vita-renderer-reference/Source'
+          includes = [root / 'vita/include', deps / 'vita-shark-reference/source', deps / 'vita-gl-reference/source', src, src / 'SysVita/Include', src / 'Config/Dev', src / 'SysVita/HLEGraphics/Accurate/Fast3D/include']
+          subprocess.run([str(sdk), '-std=c++17', '-O1', '-ffunction-sections', '-fdata-sections', '-mcpu=cortex-a9', '-mfpu=neon', '-mfloat-abi=hard', '-DDAEDALUS_VITA', '-DGBI_FLOATS', '-DENABLE_OPENGL', *['-I' + str(p) for p in includes], '-c', str(root / 'vita/experimental/graphics_replay/adapter.cpp'), '-o', '/tmp/duck-objects/renderer-adapter.arm.o'], check=True)
+          print('Compiled shared renderer only; no game assets, VPK or rendering validation.')
+          PYCODE
       - name: Check private final-link script syntax
         run: python3 -m py_compile vita/link_private_game.py
       - uses: actions/upload-artifact@v4
