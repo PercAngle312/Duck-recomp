@@ -1,8 +1,8 @@
 {
   "full_game_elf_linked": true,
-  "elf_sha256": "75ed6c35e7d165700ccde5b88c0ccde6263ce6ceb63f7c904387b83c9eaa1248",
-  "vpk_sha256": "42bfb8018342f86d6a9e21469744716d02246093825b7c888cb471f4079d3ebb",
-  "vpk_bytes": 4342934,
+  "elf_sha256": "100a433f55350319a636d405f782c5c87b26765ca920a514eecc91a02f88ebb4",
+  "vpk_sha256": "e241e86536015bbf1babdf10210a4d2240e68c94e5ea387e3ed5291a63bc21ac",
+  "vpk_bytes": 4343650,
   "strong_unresolved_symbols": 0,
   "translated_module_functions": 8956,
   "game_exports": 9416,

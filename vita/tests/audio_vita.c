@@ -16,6 +16,8 @@ static DuckTestThreadEntry entry;
 static int sem_count,sema_live,thread_live,thread_started,port_live;
 static int gate,gate_waiting,open_error,config_error,output_error,drain_error;
 static int create_sema_error,create_thread_error,start_error,signal_error,join_error;
+static int volume_error;
+static const void *last_native_buffer;
 static unsigned frames,released;
 static atomic_uint configured,outputs,drains,interrupts;
 int sceKernelCreateSema(const char *name,unsigned attr,int initial,int max,void *opt){
@@ -61,8 +63,13 @@ int sceAudioOutSetConfig(int port,unsigned len,int rate,SceAudioOutMode mode){
  assert(!pthread_equal(pthread_self(),host));assert(mode==SCE_AUDIO_OUT_MODE_STEREO);
  atomic_fetch_add(&configured,1);frames=len;return config_error;
 }
+int sceAudioOutSetVolume(int port,SceAudioOutChannelFlag flags,int *volumes){
+ assert(port==7&&port_live&&flags==(SCE_AUDIO_VOLUME_FLAG_L_CH|SCE_AUDIO_VOLUME_FLAG_R_CH));
+ assert(volumes[0]==SCE_AUDIO_OUT_MAX_VOL&&volumes[1]==SCE_AUDIO_OUT_MAX_VOL);return volume_error;
+}
 int sceAudioOutOutput(int port,const void *buffer){
- assert(port==7&&port_live);if(!buffer){atomic_fetch_add(&drains,1);return drain_error;}
+ assert(port==7&&port_live);if(!buffer){last_native_buffer=NULL;atomic_fetch_add(&drains,1);return drain_error;}
+ assert(buffer!=last_native_buffer);last_native_buffer=buffer;
  assert(!pthread_equal(pthread_self(),host)&&!((uintptr_t)buffer%64));
  assert(!pthread_mutex_lock(&mutex));
  if(gate){gate_waiting=1;assert(!pthread_cond_broadcast(&changed));}
@@ -92,8 +99,8 @@ static int complete(void){
 int main(void){
  assert(sizeof(SceAudioOutMode)==1);host=pthread_self();uint8_t *ram=calloc(1,0x800000);assert(ram);
  open_error=-11;assert(duck_vita_ai_vita_init(ram,48681812)==-11);open_error=0;
- int *errors[]={&create_sema_error,&create_thread_error,&start_error};
- for(unsigned i=0;i<3;i++){
+ int *errors[]={&volume_error,&create_sema_error,&create_thread_error,&start_error};
+ for(unsigned i=0;i<4;i++){
   *errors[i]=-20-(int)i;assert(duck_vita_ai_vita_init(ram,48681812)==*errors[i]);*errors[i]=0;
   assert(!port_live&&!sema_live&&!thread_live);
  }

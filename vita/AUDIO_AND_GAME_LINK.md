@@ -21,7 +21,9 @@ microcode and failed rendering/playback stop execution explicitly.
 Production PCM output now uses a dedicated native Vita thread. The guest host
 copies the starting DMA into an owned word-swapped snapshot and signals a
 semaphore, then continues running. The worker alone resamples and calls native
-audio output; it never reads live guest RDRAM or runs translated CPU/RSP code.
+audio output using alternating aligned PCM buffers, so the latest submitted
+buffer is not overwritten. Both native channels are configured to unity gain.
+The worker never reads live guest RDRAM or runs translated CPU/RSP code.
 A nonblocking host poll consumes completion after the final native drain, then
 emits one guest AI event and starts the next queued DMA. Kernel-thread messages
 are not guest interrupts; the worker never invokes guest event delivery.

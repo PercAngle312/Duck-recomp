@@ -58,6 +58,13 @@ with (out/"link.log").open("w") as log:
 if result.returncode:
     elf.unlink(missing_ok=True)
     raise SystemExit(f"Private game link failed; see {out/'link.log'}")
+with elf.open('rb') as binary:
+    header=binary.read(52)
+if (len(header)!=52 or header[:6]!=b'\x7fELF\x01\x01' or
+    int.from_bytes(header[18:20],'little')!=40 or
+    int.from_bytes(header[36:40],'little')&0xff000400!=0x05000400):
+    elf.unlink(missing_ok=True)
+    raise SystemExit('Refusing missing/invalid ARM ELF32 EABI5 hard-float output')
 symbols=subprocess.check_output([str(nm),"-u",str(elf)],text=True)
 (out/"undefined.txt").write_text(symbols)
 strong=[line for line in symbols.splitlines() if line.split()[:1]==["U"]]
