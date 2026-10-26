@@ -1,16 +1,15 @@
-# Vita Fast3D renderer integration — live task submission in progress
+# Vita Fast3D renderer integration
 
-This native Vita application replays the **actual first graphics task** captured
-from translated game startup. It uses Daedalus's Fast3D memory bridge,
-interpreter and vitaGL backend. The captured task has F3DEX.NoN fifo 2.08
-microcode, 57 top-level triangle-pair commands and six texture rectangles.
-A successful link is not evidence that those commands rendered correctly.
+The production game and historical replay share the same adapter, pinned
+Daedalus Fast3D memory bridge/interpreter and vitaGL backend. The private full
+VPK (DUCKVIT04) executes translated guest threads and real SP graphics/audio
+submission. The standalone replay builder below still produces DUCKVIT03 and
+requires captured task data; it is not the production game package.
 
-The ELF and VPK build with the pinned VitaSDK. The ELF has **zero unresolved
-strong symbols**. It has not been executed or visually verified. It does not
-boot translated game threads, implement the four missing SP task services, or
-make the game playable. The production ARM runtime audit remains at 28 strong
-imports. This test isolates the GPU/backend work needed to continue startup.
+Hardware v00.05 reached the first display list, then failed on unsupported
+`textureSize`. v00.06 enabled vitaGL's size-uniform compatibility and completed
+its first task and framebuffer swap in Vita3K. Neither establishes physical
+Vita gameplay. Rendering, controls, audible sound and saves need gameplay checks.
 
 ## Build
 
@@ -88,12 +87,11 @@ through `fast3d_task.h`. The legacy `duck_fast3d_replay` calls this same
 path. The diagnostic purple frame has been removed; this code path now only
 presents frames driven by submitted guest graphics tasks.
 
-**Not connected yet:** The recompiled game's SP task runner must pass each
-real OSTask address to this function with the same live 8 MiB RDRAM backing
-provided to `duck_fast3d_init`, and only signal SP/DP completion when it
-succeeds. This cannot currently be claimed as gameplay rendering: the existing
-VPK still loads a private static RAM capture, and the source change has not
-been compiled with VitaSDK or validated on hardware.
+The real SP runtime passes each graphics OSTask to this adapter using the
+same live 8 MiB RDRAM. It emits SP completion only on successful submission,
+and DP completion only when a FullSync command was observed. Audio tasks use
+the translated audio RSP path and never enter Fast3D. This establishes execution
+wiring, not visible gameplay validation.
 
 ## Private full-game linkage
 
@@ -142,3 +140,47 @@ Physical v00.05 execution reached guest audio DMA completions, translated its
 first display list with FullSync, and failed compiling `textureSize` at the first
 Fast3D task. Enabling the translation addresses that reported compiler error;
 rendering and gameplay still require execution validation.
+
+## Renderer audit update (v00.07)
+
+`prepare_renderer.py` applies `renderer.patch` to a build copy of the exact
+pinned dependency. It preserves the upstream checkout and rejects an output
+inside a source repository. Both production/private builds and replay builds
+must use the prepared include tree for **all five renderer objects**; mixing
+unpatched headers and patched objects can change class layout.
+
+Changes reviewed against the actual source:
+
+* The reusable CPU triangle buffer holds at most 256 triangles, with room for
+  64 floats per vertex. Each GL draw copies exactly its populated bytes into a
+  separate mapped vitaGL scratch allocation. This removes the fixed 10 MiB
+  arena, unchecked per-task pointer advance, and allocation across buffer swaps.
+* Program binaries use an app-owned `DuckRecomp/shaders-v007` directory, keys
+  containing both full 64-bit shader IDs, filtering and sRGB mode, and a bounded
+  envelope with version, vertex layout, binary format, length and CRC. Truncated,
+  stale-layout and corrupt files recompile. Writes use a temporary file then
+  rename; cache failure is nonfatal. The cache is derived data, not a save file.
+* Compiled and cached programs must link successfully before use. Failed
+  compilation/linking prints the shader ID and compiler information and stops;
+  no placeholder shader masks the problem. Attached shader handles are released
+  after linking. A rejected cached program recompiles from source.
+* Depth comparison is refreshed when decal mode changes. Temporary framebuffer
+  texture allocations restore the binding they displaced. Deleted texture IDs
+  invalidate their binding-cache entries. MSAA restore uses the GL FBO handle,
+  rather than the renderer's vector index.
+* Matrix, vertex, viewport and light conversions check guest spans before reads;
+  display-list starts must be 8-byte aligned. Unknown microcode still fails.
+* The adapter lets the interpreter bind and clear its own framebuffer instead
+  of clearing an inherited target with stale scissor/depth-mask state.
+
+The native CI job now applies the same patch and compiles the adapter, bridge,
+compatibility layer, interpreter and GL backend. The host cache regression
+covers truncated files at every length, stale layout, malformed headers, length
+limits, checksum changes, trailing bytes and failed-write preservation.
+
+Remaining limitations: fixed native VI dimensions, synchronous graphics/RSP
+submission, per-task presentation, empty depth-query implementation in upstream,
+and no demonstrated arbitrary microcode support. Texture formats, blending,
+depth, framebuffer readback and effects still need in-game visual comparison.
+A code audit cannot guarantee every path is correct or that the next hardware
+run will reach gameplay.

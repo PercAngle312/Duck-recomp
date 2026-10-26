@@ -6,12 +6,16 @@ on:
       - 'vita/experimental/graphics_replay/adapter.cpp'
       - 'vita/experimental/graphics_replay/task_bounds.h'
       - 'vita/experimental/graphics_replay/test_task_bounds.c'
+      - 'vita/experimental/graphics_replay/shader_cache.h'
+      - 'vita/experimental/graphics_replay/test_shader_cache.cpp'
       - '.github/workflows/vita-graphics-task-check.yml'
   pull_request:
     paths:
       - 'vita/experimental/graphics_replay/adapter.cpp'
       - 'vita/experimental/graphics_replay/task_bounds.h'
       - 'vita/experimental/graphics_replay/test_task_bounds.c'
+      - 'vita/experimental/graphics_replay/shader_cache.h'
+      - 'vita/experimental/graphics_replay/test_shader_cache.cpp'
       - '.github/workflows/vita-graphics-task-check.yml'
 jobs:
   task-validation:
@@ -22,3 +26,7 @@ jobs:
         run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=undefined -fno-omit-frame-pointer -I vita/experimental/graphics_replay vita/experimental/graphics_replay/test_task_bounds.c -o /tmp/duck-task-bounds
       - name: Exercise safe guest address ranges
         run: /tmp/duck-task-bounds
+      - name: Validate shader cache corruption and interrupted writes
+        run: |
+          c++ -std=c++17 -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -Ivita/experimental/graphics_replay vita/experimental/graphics_replay/test_shader_cache.cpp -o /tmp/duck-shader-cache
+          /tmp/duck-shader-cache

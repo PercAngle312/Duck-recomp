@@ -1,0 +1,337 @@
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/gfx_opengl.cpp
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/gfx_opengl.cpp
+@@ -3,6 +3,8 @@
+ #include <stdint.h>
+ #include <stdbool.h>
+ #include <stdio.h>
++#include <cstring>
++#include "shader_cache.h"
+ 
+ #include <map>
+ #include <unordered_map>
+@@ -488,62 +490,68 @@
+     const GLint  lengths[2]  = { (GLint)vs_buf.size(), (GLint)fs_buf.size() };
+     GLint success;
+ 
++    if (num_floats > 64) {
++        fprintf(stderr, "Shader vertex layout exceeds 64 floats\n"); fflush(stderr); abort();
++    }
+     GLuint shader_program = 0;
+-    int prog_size = 0, prog_len = 0;
+-    unsigned int prog_format = 0;
+-    void* prog_bin = nullptr;
+     char fname[256];
+-    sprintf(fname, "ux0:data/DaedalusX64/ShaderCache_F3D/%016llX_%016llX_%d.bin", shader_id1, shader_id0, SHADER_MAGIC);
+-    FILE* f = fopen(fname, "rb");
+-    if (f) {
++    snprintf(fname, sizeof fname,
++        "ux0:data/DuckRecomp/shaders-v007/%016llX_%016llX_%u_%u.bin",
++        (unsigned long long)shader_id1, (unsigned long long)shader_id0,
++        (unsigned)mCurrentFilterMode, (unsigned)mSrgbMode);
++    std::vector<uint8_t> binary;
++    uint32_t binary_format = 0;
++    if (DuckShaderCache::read(fname, (uint32_t)num_floats, binary_format, binary)) {
+         shader_program = glCreateProgram();
+-        fseek(f, 0, SEEK_END);
+-        int file_size = ftell(f);
+-        fseek(f, 0, SEEK_SET);
+-        prog_bin = malloc(file_size - sizeof(size_t));
+-        fread(&num_floats, 1, sizeof(size_t), f);
+-        fread(prog_bin, 1, file_size - sizeof(size_t), f);
+-        fclose(f);
+-        glProgramBinary(shader_program, 0, prog_bin, file_size - sizeof(size_t));
+-        free(prog_bin);
+-        goto program_ready;
+-    }
+-
+-    {
+-        GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+-        glShaderSource(vertex_shader, 1, &sources[0], &lengths[0]);
+-        glCompileShader(vertex_shader);
+-        glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &success);
++        glProgramBinary(shader_program, binary_format, binary.data(), binary.size());
++        glGetProgramiv(shader_program, GL_LINK_STATUS, &success);
+         if (!success) {
+-            abort();
+-        }
+-
+-        GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+-        glShaderSource(fragment_shader, 1, &sources[1], &lengths[1]);
+-        glCompileShader(fragment_shader);
+-        glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &success);
++            fprintf(stderr, "Rejected cached shader %016llX/%016llX; recompiling\n",
++                    (unsigned long long)shader_id0, (unsigned long long)shader_id1);
++            glDeleteProgram(shader_program); shader_program = 0;
++        }
++    }
++    if (!shader_program) {
++        GLuint stages[2];
++        const GLenum types[2] = {GL_VERTEX_SHADER, GL_FRAGMENT_SHADER};
++        for (unsigned i=0; i<2; ++i) {
++            stages[i] = glCreateShader(types[i]);
++            glShaderSource(stages[i], 1, &sources[i], &lengths[i]);
++            glCompileShader(stages[i]);
++            glGetShaderiv(stages[i], GL_COMPILE_STATUS, &success);
++            if (!success) {
++                char log[2048] = {};
++                glGetShaderInfoLog(stages[i], sizeof log, nullptr, log);
++                fprintf(stderr, "Fast3D %s shader compile failed %016llX/%016llX: %s\nSource:\n%s\n",
++                        i ? "fragment" : "vertex", (unsigned long long)shader_id0,
++                        (unsigned long long)shader_id1, log, sources[i]);
++                fflush(stderr); abort();
++            }
++        }
++        shader_program = glCreateProgram();
++        glAttachShader(shader_program, stages[0]);
++        glAttachShader(shader_program, stages[1]);
++        glLinkProgram(shader_program);
++        glGetProgramiv(shader_program, GL_LINK_STATUS, &success);
+         if (!success) {
+-            abort();
+-        }
+-
+-        shader_program = glCreateProgram();
+-        glAttachShader(shader_program, vertex_shader);
+-        glAttachShader(shader_program, fragment_shader);
+-        glLinkProgram(shader_program);
+-
+-        f = fopen(fname, "wb");
+-        if (f) {
+-            glGetProgramiv(shader_program, GL_PROGRAM_BINARY_LENGTH, &prog_size);
+-            prog_bin = malloc(prog_size);
+-            glGetProgramBinary(shader_program, prog_size, &prog_len, &prog_format, prog_bin);
+-            fwrite(&num_floats, 1, sizeof(size_t), f);
+-            fwrite(prog_bin, 1, prog_len, f);
+-            fclose(f);
+-            free(prog_bin);
+-        }
+-    }
+-
+-program_ready:
++            char log[2048] = {};
++            glGetProgramInfoLog(shader_program, sizeof log, nullptr, log);
++            fprintf(stderr, "Fast3D shader link failed %016llX/%016llX: %s\n",
++                    (unsigned long long)shader_id0, (unsigned long long)shader_id1, log);
++            fflush(stderr); abort();
++        }
++        glDeleteShader(stages[0]); glDeleteShader(stages[1]);
++        GLint capacity = 0;
++        glGetProgramiv(shader_program, GL_PROGRAM_BINARY_LENGTH, &capacity);
++        if (capacity > 0 && (uint32_t)capacity <= DuckShaderCache::MaxBytes) {
++            binary.resize(capacity);
++            GLsizei length = 0; GLenum format = 0;
++            glGetProgramBinary(shader_program, capacity, &length, &format, binary.data());
++            if (length > 0 && length <= capacity)
++                DuckShaderCache::write(fname, (uint32_t)num_floats, format, binary.data(), length);
++        }
++    }
++
+     size_t cnt = 0;
+ 
+     struct ShaderProgram* prg = &mShaderProgramPool[std::make_pair(shader_id0, shader_id1)];
+@@ -657,6 +665,8 @@
+ 
+ void GfxRenderingAPIOGL::DeleteTexture(uint32_t texID) {
+     glDeleteTextures(1, &texID);
++    for (unsigned i=0; i<SHADER_MAX_TEXTURES; ++i)
++        if (mLastBoundTextures[i] == texID) mLastBoundTextures[i] = 0xFFFFFFFFu;
+ }
+ 
+ void GfxRenderingAPIOGL::SelectTexture(int tile, GLuint texture_id) {
+@@ -742,7 +752,8 @@
+ }
+ 
+ void GfxRenderingAPIOGL::DrawTriangles(float buf_vbo[], size_t buf_vbo_len, size_t buf_vbo_num_tris) {
+-    if (mCurrentDepthTest != mLastDepthTest || mCurrentDepthMask != mLastDepthMask) {
++    if (mCurrentDepthTest != mLastDepthTest || mCurrentDepthMask != mLastDepthMask ||
++        mCurrentZmodeDecal != mLastZmodeDecal) {
+         mLastDepthTest = mCurrentDepthTest;
+         mLastDepthMask = mCurrentDepthMask;
+ 
+@@ -796,7 +807,18 @@
+ 
+     SetPerDrawUniforms();
+ 
+-    vglBufferData(GL_ARRAY_BUFFER, buf_vbo);
++    // The CPU batch can be reused after this call; the GPU owns a distinct
++    // mapped snapshot until vitaGL retires it. Never reserve a fixed task arena.
++    if (!mCurrentShaderProgram || !buf_vbo_num_tris || buf_vbo_num_tris > 256 ||
++        buf_vbo_len != buf_vbo_num_tris * 3 * mCurrentShaderProgram->numFloats ||
++        buf_vbo_len > 256 * 3 * 64) {
++        fprintf(stderr, "Invalid Fast3D vertex batch: %u floats, %u triangles\n",
++                (unsigned)buf_vbo_len, (unsigned)buf_vbo_num_tris); fflush(stderr); abort();
++    }
++    void *snapshot = vglAllocFromScratch(buf_vbo_len * sizeof(float));
++    if (!snapshot) { fprintf(stderr, "Fast3D GPU vertex allocation failed\n"); fflush(stderr); abort(); }
++    memcpy(snapshot, buf_vbo, buf_vbo_len * sizeof(float));
++    vglBufferData(GL_ARRAY_BUFFER, snapshot);
+     glDrawArrays(GL_TRIANGLES, 0, 3 * buf_vbo_num_tris);
+ }
+ 
+@@ -836,13 +858,15 @@
+ }
+ 
+ int GfxRenderingAPIOGL::CreateFramebuffer() {
++    GLint previousTexture = 0;
++    glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousTexture);
+     GLuint clrbuf;
+     glGenTextures(1, &clrbuf);
+     glBindTexture(GL_TEXTURE_2D, clrbuf);
+     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, 1, 1, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+-    glBindTexture(GL_TEXTURE_2D, 0);
++    glBindTexture(GL_TEXTURE_2D, previousTexture);
+ 
+     GLuint clrbufMsaa;
+     glGenRenderbuffers(1, &clrbufMsaa);
+@@ -879,9 +903,11 @@
+ 
+     if (fb_id != 0) {
+         if (fb.width != width || fb.height != height) {
++            GLint previousTexture = 0;
++            glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousTexture);
+             glBindTexture(GL_TEXTURE_2D, fb.clrbuf);
+             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+-            glBindTexture(GL_TEXTURE_2D, 0);
++            glBindTexture(GL_TEXTURE_2D, previousTexture);
+             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fb.clrbuf, 0);
+         }
+ 
+@@ -969,7 +995,7 @@
+ 
+     glBlitFramebuffer(0, 0, fb_src.width, fb_src.height, 0, 0, fb_dst.width, fb_dst.height, GL_COLOR_BUFFER_BIT,
+                       GL_NEAREST);
+-    glBindFramebuffer(GL_FRAMEBUFFER, mCurrentFrameBuffer);
++    glBindFramebuffer(GL_FRAMEBUFFER, mFrameBuffers[mCurrentFrameBuffer].fbo);
+ 
+     if (mLastScissorEnabled != 1) {
+         mLastScissorEnabled = 1;
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/interpreter.cpp
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/interpreter.cpp
+@@ -117,19 +117,13 @@
+ Interpreter::Interpreter() {
+     mRsp = new RSP();
+     mRdp = new RDP();
+-#ifdef __vita__
+-    mBufVbo = static_cast<float*>(vglAllocFromScratch(10 * 1024 * 1024));
+-#else
+-    mBufVbo = new float[MAX_TRI_BUFFER * (32 * 3)];
+-#endif
++    mBufVbo = new float[MAX_TRI_BUFFER * (64 * 3)];
+ }
+ 
+ Interpreter::~Interpreter() {
+     delete mRsp;
+     delete mRdp;
+-#ifndef __vita__
+     delete[] mBufVbo;
+-#endif
+ }
+ 
+ static std::weak_ptr<Interpreter> mInstance;
+@@ -146,9 +140,6 @@
+     if (mBufVboNumTris > 0) {
+         //mRapi->SetCurrentPrimDepth((float)mRdp->prim_depth / N64_PRIM_DEPTH_MAX);
+         mRapi->DrawTriangles(mBufVbo, mBufVboLen, mBufVboNumTris);
+-#ifdef __vita__
+-        mBufVbo += mBufVboLen;
+-#endif
+         mBufVboLen = 0;
+         mBufVboNumTris = 0;
+     }
+@@ -2288,14 +2279,7 @@
+     }
+ 	
+ 	mBufVboLen = buf_vbo_ptr - mBufVbo;
+-#ifdef __vita__
+-	mBufVboNumTris++;
+-#else
+-    if (++mBufVboNumTris == MAX_TRI_BUFFER) {
+-        // if (++mBufVbo_num_tris == 1) {
+-        Flush();
+-    }
+-#endif
++    if (++mBufVboNumTris == MAX_TRI_BUFFER) Flush();
+ }
+ 
+ void Interpreter::GfxSpGeometryMode(uint32_t clear, uint32_t set) {
+@@ -5635,7 +5619,7 @@
+     mWapi->SwapBuffersBegin();
+     mRapi->FinishRender();
+     mWapi->SwapBuffersEnd();
+-	mBufVbo = (float*)vglAllocFromScratch(10 * 1024 * 1024);
++
+ }
+ 
+ void gfx_set_target_ucode(UcodeHandlers ucode) {
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/backends/gfx_opengl.h
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/backends/gfx_opengl.h
+@@ -119,7 +119,7 @@
+     int8_t mLastBlendEnabled = -1;
+     int8_t mLastScissorEnabled = -1;
+ 
+-    std::map<std::pair<uint64_t, uint32_t>, ShaderProgram> mShaderProgramPool;
++    std::map<std::pair<uint64_t, uint64_t>, ShaderProgram> mShaderProgramPool;
+     ShaderProgram* mCurrentShaderProgram;
+     ShaderProgram* mLastLoadedShader = nullptr;
+ 
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.cpp
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.cpp
+@@ -263,9 +263,10 @@
+ }
+ 
+ void* Fast3DMemoryBridge::ConvertMatrix(u32 address) {
++    address = Resolve(address);
++    if (address >= gRamSize || (address & 3u) || 64 > gRamSize - address) return nullptr;
+     float* m = (float*)Alloc(64);
+     if (!m) return nullptr;
+-    address = Resolve(address);
+     for (u32 i = 0; i < 4; ++i) {
+         for (u32 j = 0; j < 4; j += 2) {
+             const u32 idx = i * 2 + j / 2;
+@@ -281,9 +282,11 @@
+ }
+ 
+ void* Fast3DMemoryBridge::ConvertVertices(u32 address, u32 count) {
++    address = Resolve(address);
++    if (!count || count > 32) return nullptr;
++    if (address >= gRamSize || (address & 1u) || count * 16u > gRamSize - address) return nullptr;
+     HostVtx* out = (HostVtx*)Alloc(sizeof(HostVtx) * count);
+     if (!out) return nullptr;
+-    address = Resolve(address);
+     for (u32 i = 0; i < count; ++i) {
+         const u32 a = address + i * 16;
+         out[i].x = (float)ReadS16(a + 0);
+@@ -302,18 +305,20 @@
+ }
+ 
+ void* Fast3DMemoryBridge::ConvertViewport(u32 address) {
++    address = Resolve(address);
++    if (address >= gRamSize || (address & 1u) || 16 > gRamSize - address) return nullptr;
+     HostViewport* vp = (HostViewport*)Alloc(sizeof(HostViewport));
+     if (!vp) return nullptr;
+-    address = Resolve(address);
+     for (u32 i = 0; i < 4; ++i) vp->scale[i] = ReadS16(address + i * 2);
+     for (u32 i = 0; i < 4; ++i) vp->trans[i] = ReadS16(address + 8 + i * 2);
+     return vp;
+ }
+ 
+ void* Fast3DMemoryBridge::ConvertLight(u32 address, u32 size) {
++    address = Resolve(address);
++    if (address >= gRamSize || (address & 0u) || size > gRamSize - address) return nullptr;
+     u8* light = (u8*)Alloc(size);
+     if (!light) return nullptr;
+-    address = Resolve(address);
+     for (u32 i = 0; i < size; ++i) light[i] = ReadU8(address + i);
+     return light;
+ }
+@@ -582,7 +587,7 @@
+     if (depth > 24) return nullptr;
+ 
+     address = Resolve(address);
+-    if (address >= gRamSize) return nullptr;
++    if (address >= gRamSize || (address & 7u)) return nullptr;
+ 
+     const u32 commandCount = CountListCommands(address, version);
+     if (commandCount == 0) return nullptr;

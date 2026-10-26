@@ -11,6 +11,7 @@
 #include <cstring>
 #include <cstdio>
 #include <memory>
+#include <psp2/io/stat.h>
 u32 gRamSize=0x800000;
 void *g_pMemoryBuffers[NUM_MEM_BUFFERS]={};
 u8 g_RDRAMDirtyPages[RDRAM_DIRTY_PAGE_COUNT]={};
@@ -66,6 +67,9 @@ extern "C" int duck_fast3d_init(uint8_t *rdram){
   return -8;
  }
  fprintf(stderr,"Runtime shader compiler initialized; shader compilation still requires validation\n");
+ // App-owned, versioned derived data; never consume another application's
+ // program binaries or the older unvalidated Fast3D cache format.
+ sceIoMkdir("ux0:data/DuckRecomp/shaders-v007",0777);
  fprintf(stderr,"Initializing Fast3D interpreter\n");
  g_pMemoryBuffers[MEM_RD_RAM]=rdram;
  interpreter=std::make_shared<Fast::Interpreter>();Fast::GfxSetInstance(interpreter);
@@ -93,10 +97,9 @@ extern "C" int duck_fast3d_submit_task(uint32_t task_address){
  if(first)fprintf(stderr,"Display list translated; full_sync=%d\n",int(bridge.SawFullSync()));
  Fast::gfx_set_target_ucode(ucode_f3dex2);
  robin_hood::unordered_map<Mtx*,MtxF> replacements;
- // Ensure stale backbuffer pixels cannot masquerade as successful graphics.
- glViewport(117,0,725,544);
- glClearColor(0.015f,0.02f,0.045f,1.0f);
- glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+ // Interpreter::Run binds the draw framebuffer and performs its own clear.
+ // External clears here inherit old scissor/depth masks and can clear the
+ // previously bound readback target; avoid disturbing cached rendering state.
  GLenum pre_error=glGetError();
  if(pre_error!=GL_NO_ERROR)fprintf(stderr,"GL pre-task error=0x%x\n",unsigned(pre_error));
  interpreter->StartFrame();DaedalusFast3D_PrepareTask(true);

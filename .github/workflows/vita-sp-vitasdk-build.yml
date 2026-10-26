@@ -27,8 +27,7 @@ on:
       - 'vita/include/duck_vita_sp*.h'
       - 'vita/include/duck_vita_game_loop.h'
       - 'vita/link_private_game.py'
-      - 'vita/experimental/graphics_replay/adapter.cpp'
-      - 'vita/experimental/graphics_replay/dependencies.json'
+      - 'vita/experimental/graphics_replay/**'
       - '.github/workflows/vita-sp-vitasdk-build.yml'
 jobs:
   compile:
@@ -104,7 +103,7 @@ jobs:
       - name: Compile shared production renderer with pinned VitaSDK
         run: |
           python3 - <<'PYCODE'
-          import json, pathlib, subprocess
+          import json, pathlib, subprocess, sys
           root = pathlib.Path.cwd()
           sdk = next(pathlib.Path('/tmp/duck-sdk/root').rglob('arm-vita-eabi-g++'))
           lock = json.loads((root / 'vita/experimental/graphics_replay/dependencies.json').read_text())
@@ -117,9 +116,15 @@ jobs:
               subprocess.run(['git', '-C', str(target), 'fetch', '--depth=1', item['url'], item['commit']], check=True)
               subprocess.run(['git', '-C', str(target), 'checkout', '--detach', 'FETCH_HEAD'], check=True)
               assert subprocess.check_output(['git', '-C', str(target), 'rev-parse', 'HEAD'], text=True).strip() == item['commit']
-          src = deps / 'vita-renderer-reference/Source'
-          includes = [root / 'vita/include', deps / 'vita-shark-reference/source', deps / 'vita-gl-reference/source', src, src / 'SysVita/Include', src / 'Config/Dev', src / 'SysVita/HLEGraphics/Accurate/Fast3D/include']
-          subprocess.run([str(sdk), '-std=c++17', '-O1', '-ffunction-sections', '-fdata-sections', '-mcpu=cortex-a9', '-mfpu=neon', '-mfloat-abi=hard', '-DDAEDALUS_VITA', '-DGBI_FLOATS', '-DENABLE_OPENGL', *['-I' + str(p) for p in includes], '-c', str(root / 'vita/experimental/graphics_replay/adapter.cpp'), '-o', '/tmp/duck-objects/renderer-adapter.arm.o'], check=True)
+          here = root / 'vita/experimental/graphics_replay'
+          sys.path.insert(0, str(here))
+          from prepare_renderer import prepare
+          original_src = deps / 'vita-renderer-reference/Source'
+          src = prepare(deps / 'vita-renderer-reference', pathlib.Path('/tmp/duck-renderer-prepared'))
+          fast = src / 'SysVita/HLEGraphics/Accurate'
+          includes = [here, fast / 'Fast3D/include', src, root / 'vita/include', deps / 'vita-shark-reference/source', deps / 'vita-gl-reference/source', original_src, original_src / 'SysVita/Include', original_src / 'Config/Dev']
+          for name, source in [('adapter', here / 'adapter.cpp'), ('bridge', fast / 'Fast3DMemoryBridge.cpp'), ('compat', fast / 'Fast3DCompat.cpp'), ('interpreter', fast / 'Fast3D/src/interpreter.cpp'), ('gfx', fast / 'Fast3D/src/gfx_opengl.cpp')]:
+              subprocess.run([str(sdk), '-std=c++17', '-O1', '-ffunction-sections', '-fdata-sections', '-mcpu=cortex-a9', '-mfpu=neon', '-mfloat-abi=hard', '-DDAEDALUS_VITA', '-DGBI_FLOATS', '-DENABLE_OPENGL', *['-I' + str(p) for p in includes], '-c', str(source), '-o', '/tmp/duck-objects/renderer-' + name + '.arm.o'], check=True)
           # Fast3D needs vitaGL's textureSize compatibility path. Compile its
           # producer, uniform linker and draw consumer with matching metadata.
           cc = sdk.with_name('arm-vita-eabi-gcc')

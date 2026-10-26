@@ -5,6 +5,7 @@ Private RAM snapshots and task addresses are supplied separately at runtime.
 """
 from pathlib import Path
 import argparse,hashlib,json,os,subprocess,tarfile,zipfile
+from prepare_renderer import prepare
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('--vitasdk',type=Path,required=True)
 p.add_argument('--dependencies',type=Path,required=True)
@@ -30,9 +31,10 @@ run(['make','-j4','CPPFLAGS=-I../vita-shacc-reference/include'],'vitashark-build
 # vitaGL objects so shader serialization and draw-time sampler metadata agree.
 run(['make','clean'],'vitagl-clean.log',deps/'vita-gl-reference')
 run(['make','-j4','CPPFLAGS=-I../vita-shark-reference/source -I../vita-math-neon-reference/source','NO_SPLASHSCREEN=1','HAVE_GLSL_TEXTURE_SIZE=1'],'vitagl-build.log',deps/'vita-gl-reference')
-bin=sdk/'bin';src=deps/'vita-renderer-reference/Source';fast=src/'SysVita/HLEGraphics/Accurate'
+bin=sdk/'bin';original_src=deps/'vita-renderer-reference/Source'
+src=prepare(deps/'vita-renderer-reference',out/'renderer-source');fast=src/'SysVita/HLEGraphics/Accurate'
 flags=['-O1','-ffunction-sections','-fdata-sections','-mcpu=cortex-a9','-mfpu=neon','-mfloat-abi=hard']
-includes=[deps/'vita-shark-reference/source',deps/'vita-gl-reference/source',src,src/'SysVita/Include',src/'Config/Dev',fast/'Fast3D/include']
+includes=[here,fast/'Fast3D/include',src,deps/'vita-shark-reference/source',deps/'vita-gl-reference/source',original_src,original_src/'SysVita/Include',original_src/'Config/Dev']
 objects=[]
 for name,source in [('adapter',here/'adapter.cpp'),('sp',here.parents[1]/'src/sp.c'),('main',here/'main.cpp'),('bridge',fast/'Fast3DMemoryBridge.cpp'),('compat',fast/'Fast3DCompat.cpp'),('interpreter',fast/'Fast3D/src/interpreter.cpp'),('gfx',fast/'Fast3D/src/gfx_opengl.cpp')]:
  obj=out/(name+'.arm.o');run([bin/'arm-vita-eabi-g++','-std=c++17',*flags,'-DDAEDALUS_VITA','-DGBI_FLOATS','-DENABLE_OPENGL','-I'+str(here.parents[1]/'include'),*['-I'+str(x) for x in includes],'-c',source,'-o',obj],name+'-compile.log');objects.append(obj)
