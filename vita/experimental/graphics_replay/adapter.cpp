@@ -6,6 +6,7 @@
 #include "SysVita/HLEGraphics/Accurate/Fast3DCompat.h"
 #include <vitaGL.h>
 #include "task_bounds.h"
+#include "fast3d_task.h"
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
