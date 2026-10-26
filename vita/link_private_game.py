@@ -48,7 +48,8 @@ elf=out/"DuckDodgers-Vita.private.elf"
 # Archives are user-supplied from verified pinned source builds, not stubs.
 cmd=[str(cc),"-Wl,--no-undefined",str(a.game_entry),str(a.runtime),
      *map(str,a.extra_object),*map(str,game),*map(str,renderer),
-     "-Wl,--start-group",*map(str,a.library),\n     *("-l"+s+"_stub" for s in a.vita_stub),"-lm","-lstdc++",
+     "-Wl,--start-group",*map(str,a.library),
+     *("-l"+s+"_stub" for s in a.vita_stub),"-lm","-lstdc++",
      "-Wl,--end-group","-o",str(elf)]
 with (out/"link-command.txt").open("w") as log: log.write(" ".join(cmd)+"\n")
 with (out/"link.log").open("w") as log:
