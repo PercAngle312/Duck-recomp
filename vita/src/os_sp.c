@@ -47,8 +47,10 @@ void osSpTaskYield_recomp(uint8_t *rdram,recomp_context *ctx) {
 }
 void osSpTaskYielded_recomp(uint8_t *rdram,recomp_context *ctx) {
  if(!ctx)return;
- ctx->r2=0;
  last_result=(rdram!=active_ram||!active_sp)?DUCK_SP_BAD_ARGUMENT:0;
+ /* A synchronous renderer never yields an in-flight task. A caller must
+  * not mistake an invalid RDRAM binding for a successful guest syscall. */
+ ctx->r2=last_result==0?0:(gpr)-1;
 }
 void osSpTaskStartGo_recomp(uint8_t *rdram,recomp_context *ctx) {
  uint32_t p;
