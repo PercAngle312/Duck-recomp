@@ -4,6 +4,7 @@
 #include <cstdio>
 struct Light {struct {uint8_t col[3],pad,colc[3],pad2;int8_t dir[3];}l;};
 struct Color {uint8_t r,g,b,a;};
+struct Key { const uint8_t *texture_addr,*palette_addrs[2];uint8_t fmt,siz,palette_index;uint32_t size_bytes;uint8_t palette_format; };
 int main(){
  Light lights[8];memset(lights,0x5a,sizeof lights);
  assert(duck_update_light_color(lights,0,0xff000000,24));
@@ -25,5 +26,11 @@ int main(){
  assert(duck_rgba8_to_rgba5551(black)==0x0001);assert(duck_rgba8_to_rgba5551(red)==0xf801);
  assert(duck_rgba8_to_rgba5551(green)==0x07c1);assert(duck_rgba8_to_rgba5551(blue)==0x003f);
  assert(duck_rgba8_to_rgba5551(white)==0xffff);assert(duck_rgba8_to_rgba5551(clear)==0xf800);
+ uint8_t pixel[4];duck_decode_tlut(0x8040,true,pixel);assert(pixel[0]==128&&pixel[1]==128&&pixel[2]==128&&pixel[3]==64);
+ duck_decode_tlut(0xf801,false,pixel);assert(pixel[0]==255&&!pixel[1]&&!pixel[2]&&pixel[3]==255);
+ Key a,b;memset(&a,0x11,sizeof a);memset(&b,0x22,sizeof b);
+ a.texture_addr=b.texture_addr=nullptr;a.palette_addrs[0]=b.palette_addrs[0]=nullptr;a.palette_addrs[1]=b.palette_addrs[1]=nullptr;
+ a.fmt=b.fmt=2;a.siz=b.siz=1;a.palette_index=b.palette_index=0;a.size_bytes=b.size_bytes=512;a.palette_format=b.palette_format=2;
+ assert(duck_texture_keys_equal(a,b));b.palette_format=3;assert(!duck_texture_keys_equal(a,b));
  puts("PASS: red-to-black material update, ambient/last slots, color copies, both GBI strides, preserved directions and RGBA channels");
 }

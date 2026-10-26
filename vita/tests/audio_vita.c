@@ -15,6 +15,7 @@ static pthread_cond_t changed=PTHREAD_COND_INITIALIZER;
 static DuckTestThreadEntry entry;
 static int sem_count,sema_live,thread_live,thread_started,port_live;
 static int gate,gate_waiting,open_error,config_error,output_error,drain_error;
+static unsigned gate_after_outputs;
 static int create_sema_error,create_thread_error,start_error,signal_error,join_error;
 static int volume_error;
 static const void *last_native_buffer;
@@ -60,6 +61,7 @@ int sceAudioOutOpenPort(SceAudioOutPortType type,int len,int rate,SceAudioOutMod
 }
 int sceAudioOutSetConfig(int port,unsigned len,int rate,SceAudioOutMode mode){
  assert(port==7&&port_live&&len&&len<=256&&!(len%64)&&rate==-1);
+ assert(!last_native_buffer); // no reconfiguration of a queued device buffer
  assert(!pthread_equal(pthread_self(),host));assert(mode==SCE_AUDIO_OUT_MODE_STEREO);
  atomic_fetch_add(&configured,1);frames=len;return config_error;
 }
@@ -72,8 +74,10 @@ int sceAudioOutOutput(int port,const void *buffer){
  assert(buffer!=last_native_buffer);last_native_buffer=buffer;
  assert(!pthread_equal(pthread_self(),host)&&!((uintptr_t)buffer%64));
  assert(!pthread_mutex_lock(&mutex));
- if(gate){gate_waiting=1;assert(!pthread_cond_broadcast(&changed));}
- while(gate)assert(!pthread_cond_wait(&changed,&mutex));
+ if(gate&&atomic_load(&outputs)>=gate_after_outputs){
+  gate_waiting=1;assert(!pthread_cond_broadcast(&changed));
+  while(gate)assert(!pthread_cond_wait(&changed,&mutex));
+ }
  assert(!pthread_mutex_unlock(&mutex));const int16_t *pcm=buffer;
  assert(pcm[0]==12000||pcm[0]==6000);
  for(unsigned i=0;i<frames;i++)assert((pcm[i*2]==12000&&pcm[i*2+1]==-12000)||(pcm[i*2]==6000&&pcm[i*2+1]==-6000)||(!pcm[i*2]&&!pcm[i*2+1]));
@@ -114,12 +118,22 @@ int main(void){
  assert(!pthread_mutex_lock(&mutex));gate=0;assert(!pthread_cond_broadcast(&changed));assert(!pthread_mutex_unlock(&mutex));
  assert(complete()==1&&atomic_load(&interrupts)==1);assert(complete()==1&&atomic_load(&interrupts)==2);
  assert(atomic_load(&outputs)>2&&atomic_load(&drains)>=2);
+ // Freeze on a later device output: the preceding block has played, and the
+ // guest length must decrease without prematurely completing the DMA.
+ gate_waiting=0;gate_after_outputs=atomic_load(&outputs)+2;gate=1;
+ queue(ram,0x3000,4096);unsigned progress_irq=atomic_load(&interrupts);assert(!duck_vita_ai_service());
+ assert(!pthread_mutex_lock(&mutex));while(!gate_waiting)assert(!pthread_cond_wait(&changed,&mutex));assert(!pthread_mutex_unlock(&mutex));
+ recomp_context length={0};osAiGetLength_recomp(ram,&length);assert(length.r2>0&&length.r2<4096&&!(length.r2&7));
+ assert(atomic_load(&interrupts)==progress_irq);
+ assert(!pthread_mutex_lock(&mutex));gate=0;assert(!pthread_cond_broadcast(&changed));assert(!pthread_mutex_unlock(&mutex));
+ assert(complete()==1&&atomic_load(&interrupts)==progress_irq+1);
+ osAiGetLength_recomp(ram,&length);assert(!length.r2);
  queue(ram,0x3000,4096);assert(!duck_vita_ai_service());unsigned irq=atomic_load(&interrupts);
  duck_vita_ai_vita_close();assert(!duck_vita_ai_service()&&atomic_load(&interrupts)==irq);
  assert(!port_live&&!thread_live&&!sema_live);pattern(ram,0x1000,1024,12000);
  int *failures[]={&config_error,&output_error,&drain_error,&signal_error};
  for(unsigned i=0;i<4;i++){
-  assert(!duck_vita_ai_vita_init(ram,48681812));*failures[i]=-30-(int)i;queue(ram,0x1000,4096);irq=atomic_load(&interrupts);
+  assert(!duck_vita_ai_vita_init(ram,48681812));*failures[i]=-30-(int)i;queue(ram,0x1000,i==0?16:4096);irq=atomic_load(&interrupts);
   assert(complete()==-1&&duck_vita_ai_error()==*failures[i]&&atomic_load(&interrupts)==irq);
   *failures[i]=0;duck_vita_ai_vita_close();assert(!port_live&&!thread_live&&!sema_live);
  }

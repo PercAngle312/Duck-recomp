@@ -36,7 +36,15 @@ void osAiSetNextBuffer_recomp(uint8_t *ram,recomp_context *c){
  ai.fifo[ai.count].address=p;ai.fifo[ai.count].bytes=length;ai.fifo[ai.count].rate=ai.rate;ai.count++;c->r2=0;
 }
 void osAiGetLength_recomp(uint8_t *ram,recomp_context *c){
- if(c)c->r2=ram!=ai.ram||!bound()||ai.fault?(gpr)-1:(ai.count?ai.fifo[0].bytes:0);
+ if(!c)return;
+ if(ram!=ai.ram||!bound()||ai.fault){c->r2=(gpr)-1;return;}
+ unsigned bytes=ai.count?ai.fifo[0].bytes:0;
+ if(ai.inflight&&ai.async.remaining_bytes){
+  unsigned remaining=ai.async.remaining_bytes(ai.async.opaque);
+  if(remaining>bytes||(remaining&7u)){ai.fault=-1;c->r2=(gpr)-1;return;}
+  bytes=remaining;
+ }
+ c->r2=bytes;
 }
 void osAiGetStatus_recomp(uint8_t *ram,recomp_context *c){
  if(!c)return;

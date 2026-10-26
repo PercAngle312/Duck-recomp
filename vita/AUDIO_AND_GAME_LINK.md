@@ -34,7 +34,9 @@ and releases its port. Join failure retains resources instead of releasing a
 port still reachable by a live worker. Initialization failures unwind resources.
 
 The final native block is padded to 64 frames; interpolation is clamped at DMA
-boundaries. Reported AI length remains coarse until completion. Starting the
+boundaries. Reported AI length now decreases in eight-byte-aligned steps after previously
+submitted native blocks have played; it excludes the second queued DMA. It is
+block-granular, not sample-accurate. Starting the
 next DMA and delivering its completion still depend on host polling; a long
 native renderer call can delay those steps. Translated audio RSP tasks remain
 synchronous SP work. Sound, latency, underruns and native-thread scheduling need
@@ -61,19 +63,31 @@ Reopening audio creates a fresh queue and resampler. Host SDK-boundary tests
 exercise queued shutdown as well as configuration/output/drain failures.
 
 Native controls map Cross=A, Circle=B, L trigger=Z, R trigger=R, Select=N64 L,
-Start=N64 Start, D-pad directly and right stick to C buttons. Right-stick C input
-engages below 80 / above 176 and releases at 96 / 160, respectively (center 128).
-This hysteresis keeps small threshold fluctuations from repeatedly toggling a
-held C button. Both axes remain independent for diagonals; direction reversal
-replaces the old direction immediately. Missing samples retain the last state;
-SDK errors clear the held C state before reconnecting. A 12-unit left-stick
-center deadzone suppresses small drift; each half is rescaled to reach exactly
--80/+80, with inverted Y. Sampling-mode and polling errors disconnect the current
-snapshot. Host checks cover every mapped button, axes, C directions and failures;
-physical feel and live gameplay input still need Vita testing.
+Start=N64 Start and D-pad directly. Triangle also sends C-up (camera look toggle)
+and Square sends C-down (camera behind Daffy). The left stick remains movement.
+The original manual confirms that camera look uses the N64 Control Stick for
+view movement until C-up is pressed again. Right-stick directions still send
+C buttons, but vertical engagement now requires <48/>208, releasing at 80/176;
+horizontal engagement remains <80/>176, releasing at 96/160. This reduces
+accidental look-mode toggles during diagonal camera rotation. First C-up edges
+are logged with their source. Left-stick deadzone/range are unchanged.
 
 The native audio host test executes the production worker on a real pthread
 behind mocked Vita kernel/audio calls. It blocks playback deliberately while
 the main thread keeps polling, mutates live RDRAM to verify snapshot ownership,
 and checks two-DMA event order, cancellation, startup/device errors and join
 failure. ASan/UBSan checks are not physical Vita audio verification.
+
+
+Version 00.09 avoids repeatedly changing the native port configuration for
+unchanged block sizes. Before a length change it drains any queued block.
+The optional asynchronous sink remaining_bytes callback reports only active-DMA
+bytes, aligned to eight, after preceding output blocks have finished; invalid
+callback values fault the AI service. A completion IRQ still waits for successful
+final drain. Host checks freeze a later device output to verify live partial
+progress, FIFO-full status, no early IRQ and correct configuration ordering.
+
+This does not implement a continuous cross-DMA mixer. Final block padding,
+per-DMA drains, output gaps while translated RSP or graphics work runs, and
+clamped interpolation at DMA boundaries remain. Physical sound quality,
+latency and audio/video synchronization require gameplay validation.

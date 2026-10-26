@@ -264,7 +264,70 @@
          mBufVboLen = 0;
          mBufVboNumTris = 0;
      }
-@@ -1785,6 +1777,12 @@
+@@ -965,14 +957,8 @@
+             uint8_t byte = addr[srcPixelIdx / 2];
+             uint8_t idx = (byte >> (4 - (srcPixelIdx % 2) * 4)) & 0xf;
+             uint16_t col16 = (palette[idx * 2] << 8) | palette[idx * 2 + 1]; // Big endian load
+-            uint8_t a = col16 & 1;
+-            uint8_t r = col16 >> 11;
+-            uint8_t g = (col16 >> 6) & 0x1f;
+-            uint8_t b = (col16 >> 1) & 0x1f;
+-            mTexUploadBuffer[4 * i + 0] = SCALE_5_8(r);
+-            mTexUploadBuffer[4 * i + 1] = SCALE_5_8(g);
+-            mTexUploadBuffer[4 * i + 2] = SCALE_5_8(b);
+-            mTexUploadBuffer[4 * i + 3] = a ? 255 : 0;
++            duck_decode_tlut(col16, (mRdp->other_mode_h & G_TT_IA16)==G_TT_IA16,
++                             mTexUploadBuffer + 4*i);
+             i++;
+         }
+     }
+@@ -998,22 +984,6 @@
+ 
+     if (mRdp->palettes[0] == nullptr || mRdp->palettes[1] == nullptr) {
+         return;
+-    }
+-
+-    for (uint32_t i = 0, j = 0; i < sizeBytes; j += fullImageLineSizeBytes - lineSizeBytes) {
+-        for (uint32_t k = 0; k < lineSizeBytes; i++, k++, j++) {
+-            uint8_t idx = addr[j];
+-            uint16_t col16 = (mRdp->palettes[idx / 128][(idx % 128) * 2] << 8) |
+-                             mRdp->palettes[idx / 128][(idx % 128) * 2 + 1]; // Big endian load
+-            uint8_t a = col16 & 1;
+-            uint8_t r = col16 >> 11;
+-            uint8_t g = (col16 >> 6) & 0x1f;
+-            uint8_t b = (col16 >> 1) & 0x1f;
+-            mTexUploadBuffer[4 * i + 0] = SCALE_5_8(r);
+-            mTexUploadBuffer[4 * i + 1] = SCALE_5_8(g);
+-            mTexUploadBuffer[4 * i + 2] = SCALE_5_8(b);
+-            mTexUploadBuffer[4 * i + 3] = a ? 255 : 0;
+-        }
+     }
+ 
+     uint32_t baseLineSizeBytes = GetEffectiveLineSize(lineSizeBytes, fullImageLineSizeBytes, sizeBytes,
+@@ -1043,6 +1013,14 @@
+         height = tile_h;
+     }
+ 
++    const uint32_t pitch=fullImageLineSizeBytes==sizeBytes?resultLineSizeBytes:fullImageLineSizeBytes;
++    for (uint32_t y=0; y<height; ++y) for (uint32_t x=0; x<width; ++x) {
++        uint8_t idx=addr[(size_t)y*pitch+x];
++        const uint8_t *palette=mRdp->palettes[idx/128]+(idx%128)*2;
++        uint16_t word=((uint16_t)palette[0]<<8)|palette[1];
++        duck_decode_tlut(word, (mRdp->other_mode_h & G_TT_IA16)==G_TT_IA16,
++                         mTexUploadBuffer+((size_t)y*width+x)*4);
++    }
+     mRapi->UploadTexture(mTexUploadBuffer, width, height);
+ }
+ 
+@@ -1300,6 +1278,7 @@
+         key = { origAddr, {}, fmt, siz, paletteIndex, origSizeBytes };
+     }
+ 
++    if(fmt==G_IM_FMT_CI) key.palette_format=(uint8_t)((mRdp->other_mode_h >> G_MDSFT_TEXTLUT)&3u);
+     if (TextureCacheLookup(i, key)) {
+         return;
+     }
+@@ -1785,6 +1764,12 @@
  }
  
  void Interpreter::GfxSpModifyVertex(uint16_t vtx_idx, uint8_t where, uint32_t val) {
@@ -277,7 +340,7 @@
      SUPPORT_CHECK(where == G_MWO_POINT_ST);
  
      int16_t s = (int16_t)(val >> 16);
-@@ -2288,14 +2286,7 @@
+@@ -2288,14 +2273,7 @@
      }
  	
  	mBufVboLen = buf_vbo_ptr - mBufVbo;
@@ -293,7 +356,7 @@
  }
  
  void Interpreter::GfxSpGeometryMode(uint32_t clear, uint32_t set) {
-@@ -2366,6 +2357,7 @@
+@@ -2366,6 +2344,7 @@
              if (lightidx >= 0 && lightidx <= MAX_LIGHTS) { // skip lookat
                  // NOTE: reads out of bounds if it is an ambient light
                  memcpy(mRsp->current_lights + lightidx, data, sizeof(F3DLight));
@@ -301,7 +364,7 @@
              } else if (lightidx < 0) {
                  memcpy(mRsp->lookat + offset / 24, data, sizeof(F3DLight_t)); // TODO Light?
              }
-@@ -2393,12 +2385,17 @@
+@@ -2393,12 +2372,17 @@
          case F3DEX_G_MV_L7:
              // NOTE: reads out of bounds if it is an ambient light
              memcpy(mRsp->current_lights + (index - F3DEX_G_MV_L0) / 2, data, sizeof(F3DLight_t));
@@ -319,7 +382,7 @@
          case G_MW_NUMLIGHT:
              mRsp->current_num_lights = data / 24 + 1; // add ambient light
              mRsp->lights_changed = true;
-@@ -2423,6 +2420,10 @@
+@@ -2423,6 +2407,10 @@
  
  void Interpreter::GfxSpMovewordF3d(uint8_t index, uint16_t offset, uintptr_t data) {
      switch (index) {
@@ -330,7 +393,32 @@
          case G_MW_NUMLIGHT:
              // Ambient light is included
              // The 31st bit is a flag that lights should be recalculated
-@@ -5390,44 +5391,50 @@
+@@ -3131,16 +3119,24 @@
+ }
+ 
+ void Interpreter::GfxSpSetOtherMode(uint32_t shift, uint32_t num_bits, uint64_t mode) {
++    uint32_t previous_lut=mRdp->other_mode_h & G_TT_IA16;
+     uint64_t mask = (((uint64_t)1 << num_bits) - 1) << shift;
+     uint64_t om = mRdp->other_mode_l | ((uint64_t)mRdp->other_mode_h << 32);
+     om = (om & ~mask) | mode;
+     mRdp->other_mode_l = (uint32_t)om;
+     mRdp->other_mode_h = (uint32_t)(om >> 32);
++    if(previous_lut!=(mRdp->other_mode_h & G_TT_IA16))
++        mRdp->textures_changed[0]=mRdp->textures_changed[1]=true;
++
+ }
+ 
+ void Interpreter::GfxDpSetOtherMode(uint32_t h, uint32_t l) {
++    uint32_t previous_lut=mRdp->other_mode_h & G_TT_IA16;
+     mRdp->other_mode_h = h;
+     mRdp->other_mode_l = l;
++    if(previous_lut!=(mRdp->other_mode_h & G_TT_IA16))
++        mRdp->textures_changed[0]=mRdp->textures_changed[1]=true;
++
+ }
+ 
+ void Interpreter::Gfxs2dexBgCopy(F3DuObjBg* bg) {
+@@ -5390,44 +5386,50 @@
          return false;
      }
  
@@ -418,7 +506,7 @@
  
      for (uint32_t y = 0; y < height; ++y) {
          const uint16_t* srcRow = mRdramReadbackBuffer.data() + (size_t)y * width;
-@@ -5635,7 +5642,7 @@
+@@ -5635,7 +5637,7 @@
      mWapi->SwapBuffersBegin();
      mRapi->FinishRender();
      mWapi->SwapBuffersEnd();
@@ -507,7 +595,26 @@
      if (commandCount == 0) return nullptr;
 --- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/interpreter.h
 +++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/interpreter.h
-@@ -589,6 +589,7 @@
+@@ -1,4 +1,5 @@
+ #pragma once
++#include "material_updates.h"
+ 
+ #include <stdbool.h>
+ #include <stdint.h>
+@@ -192,10 +193,11 @@
+     uint8_t fmt, siz;
+     uint8_t palette_index;
+     uint32_t size_bytes;
++    uint8_t palette_format = 0;
+ 
+ #ifdef __vita__
+     bool operator==(const TextureCacheKey& rhs) const {
+-        return !sceClibMemcmp(&rhs, this, sizeof(TextureCacheKey));
++        return duck_texture_keys_equal(*this, rhs);
+     };
+     struct Hasher {
+         size_t operator()(const TextureCacheKey& key) const noexcept {
+@@ -589,6 +591,7 @@
      XYWidthHeight mGameWindowViewport{};   // gfx_current_game_window_viewport;
      XYWidthHeight mNativeDimensions{};     // gfx_native_dimensions;
      XYWidthHeight mPrevNativeDimensions{}; // gfx_prev_native_dimensions;

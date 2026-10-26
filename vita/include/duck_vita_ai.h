@@ -10,7 +10,12 @@ int duck_vita_ai_init(uint8_t *rdram,unsigned video_clock,DuckAiOutput output,vo
 /* start copies/owns the input before returning 0; never retains live RDRAM.
  * poll: 0=pending, 1=playback complete, negative=device failure. Callbacks run
  * only on the guest host thread; a sink may have its own native output worker. */
-typedef struct {DuckAiOutput start;int (*poll)(void*);void *opaque;} DuckAiAsyncSink;
+typedef struct {
+ DuckAiOutput start;int (*poll)(void*);void *opaque;
+ /* Optional active-DMA progress, in guest bytes, aligned to eight bytes.
+  * Excludes the queued second DMA. Zero is valid before IRQ service. */
+ unsigned (*remaining_bytes)(void*);
+} DuckAiAsyncSink;
 int duck_vita_ai_init_async(uint8_t *rdram,unsigned video_clock,const DuckAiAsyncSink *sink);
 /* Discard pending DMAs without completion IRQs on the guest host thread,
  * never from inside a sink call. The owner must separately stop/join any native

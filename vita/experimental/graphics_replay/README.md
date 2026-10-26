@@ -195,3 +195,9 @@ size, and packs byte RGBA into N64 RGBA5551 explicitly. See
 ../../COLOR_AND_PERFORMANCE.md for the hardware report, rationale and limits.
 All five renderer objects now use -O2 without added fast-math, and the adapter
 logs average phase timings every five seconds. No shader-cache rename is needed.
+
+For v00.09, see ../../PACING_AUDIO_AND_TEXTURES.md. CI8 uploads now retain the
+correct row pitch after cropping; CI TLUT intensity/alpha mode and cache palette
+identity are handled. Texture keys compare fields rather than struct padding.
+The current private core is rebuilt with O2 and dynamic-rounding semantics;
+this is independent of the generic public renderer build.
