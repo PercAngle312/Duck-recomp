@@ -61,7 +61,12 @@ Reopening audio creates a fresh queue and resampler. Host SDK-boundary tests
 exercise queued shutdown as well as configuration/output/drain failures.
 
 Native controls map Cross=A, Circle=B, L trigger=Z, R trigger=R, Select=N64 L,
-Start=N64 Start, D-pad directly and right stick to C buttons. A 12-unit left-stick
+Start=N64 Start, D-pad directly and right stick to C buttons. Right-stick C input
+engages below 80 / above 176 and releases at 96 / 160, respectively (center 128).
+This hysteresis keeps small threshold fluctuations from repeatedly toggling a
+held C button. Both axes remain independent for diagonals; direction reversal
+replaces the old direction immediately. Missing samples retain the last state;
+SDK errors clear the held C state before reconnecting. A 12-unit left-stick
 center deadzone suppresses small drift; each half is rescaled to reach exactly
 -80/+80, with inverted Y. Sampling-mode and polling errors disconnect the current
 snapshot. Host checks cover every mapped button, axes, C directions and failures;

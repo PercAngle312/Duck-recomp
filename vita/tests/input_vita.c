@@ -22,8 +22,15 @@ int main(void){
  assert(x==80&&y==-80);sample.lx=sample.ly=0;duck_vita_pad_poll();assert(x==-80&&y==80);
  sample.rx=0;sample.ry=255;duck_vita_pad_poll();assert(buttons==(2|4));
  sample.rx=255;sample.ry=0;duck_vita_pad_poll();assert(buttons==(1|8));
+ sample.rx=170;sample.ry=86;duck_vita_pad_poll();assert(buttons==(1|8));
+ sample.rx=160;sample.ry=96;duck_vita_pad_poll();assert(!buttons);
+ sample.rx=176;sample.ry=80;duck_vita_pad_poll();assert(!buttons);
+ sample.rx=177;sample.ry=79;duck_vita_pad_poll();assert(buttons==(1|8));
+ sample.rx=0;sample.ry=255;duck_vita_pad_poll();assert(buttons==(2|4));
  result=0;assert(!duck_vita_pad_poll()); // no new sample preserves last snapshot
+ assert(buttons==(2|4));
  result=-1;assert(duck_vita_pad_poll()==-1&&!connected&&!buttons&&!x&&!y);
+ result=1;sample.rx=86;sample.ry=170;duck_vita_pad_poll();assert(!buttons); // failure clears held C state
  int before=polls;configuration=-1;assert(duck_vita_pad_poll()==-1&&polls==before&&!connected);
- puts("PASS: all native button mappings, C-stick directions, neutral deadzone, full-range monotonic axes and SDK failures");return 0;
+ puts("PASS: native mappings, C-stick hysteresis/reversal/reconnect, neutral deadzone, full-range axes and SDK failures");return 0;
 }
