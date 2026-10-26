@@ -44,11 +44,15 @@ int duck_vita_pad_poll(void){
  if(pad.buttons&SCE_CTRL_RTRIGGER)b|=0x0010;
  if(pad.buttons&SCE_CTRL_TRIANGLE)b|=8;
  if(pad.buttons&SCE_CTRL_SQUARE)b|=4;
- c_buttons=c_axis(pad.ry,c_buttons,8,4,48,208,80,176)|c_axis(pad.rx,c_buttons,2,1,80,176,96,160);
+ /* Gameplay camera: horizontal stick controls the original C-left/right.
+  * C-up is a modal look toggle, not a pitch command. Never synthesize it
+  * from a stick: a diagonal sweep otherwise steals left-stick movement.
+  * Vertical free orbit requires a verified camera hook in translated code. */
+ c_buttons=c_axis(pad.rx,c_buttons,2,1,80,176,96,160);
  b|=c_buttons;
  if((b&8)&&!previous_look&&look_requests++<8)
   fprintf(stderr,"Input: C-up camera-look toggle requested (%s); left=%u,%u right=%u,%u\n",
-      pad.buttons&SCE_CTRL_TRIANGLE?"Triangle":"right stick",pad.lx,pad.ly,pad.rx,pad.ry);
+      "Triangle",pad.lx,pad.ly,pad.rx,pad.ry);
  previous_look=!!(b&8);
  duck_pad_update(1,b,axis(pad.lx,0),axis(pad.ly,1));return 1;
 }
