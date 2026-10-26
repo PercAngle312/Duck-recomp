@@ -1,8 +1,8 @@
 {
   "full_game_elf_linked": true,
-  "elf_sha256": "4cdc3a9e4c0bfa3890abd2c68601ad16119ef69bb7c1c07da3acfbebefb3e846",
-  "vpk_sha256": "24cd63b6c2d206863ac4b29d1dc046f80da111902e6e416513ed55ab66397a69",
-  "vpk_bytes": 4343806,
+  "elf_sha256": "75ed6c35e7d165700ccde5b88c0ccde6263ce6ceb63f7c904387b83c9eaa1248",
+  "vpk_sha256": "42bfb8018342f86d6a9e21469744716d02246093825b7c888cb471f4079d3ebb",
+  "vpk_bytes": 4342934,
   "strong_unresolved_symbols": 0,
   "translated_module_functions": 8956,
   "game_exports": 9416,
@@ -18,7 +18,8 @@
   "saves_verified_in_game": false,
   "gameplay_verified": false,
   "playable_verified": false,
-  "app_version": "00.03",
+  "app_version": "00.04",
+  "native_PCM_worker_async": true,
   "guest_checkpoints_enabled": true,
   "generated_CPU_functions_checkpointed": 9371,
   "backward_branch_targets": 2555

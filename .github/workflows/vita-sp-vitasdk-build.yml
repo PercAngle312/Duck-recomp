@@ -77,7 +77,7 @@ jobs:
           set -eu
           SDK_BIN="$(dirname "$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-gcc -print -quit)")"
           "$SDK_BIN/arm-vita-eabi-nm" -g --defined-only /tmp/duck-objects/duck-vita-graphics-runtime-linked.o > /tmp/duck-objects/runtime-providers.txt
-          for symbol in duck_vita_thread_checkpoint duck_vita_threads_checkpoint_yields osCreateViManager_recomp osSetTimer_recomp pause_self osSpTaskLoad_recomp osSpTaskYield_recomp osSpTaskYielded_recomp duck_vita_live_run duck_vita_live_registry_lookup osContInit_recomp osContStartReadData_recomp osContGetReadData_recomp osContStartQuery_recomp osContGetQuery_recomp get_function duck_register_loaded_module duck_before_free osEepromProbe_recomp osEepromLongRead_recomp osEepromLongWrite_recomp duck_vita_live_start_catalog osAiSetFrequency_recomp osAiSetNextBuffer_recomp osAiGetStatus_recomp osAiGetLength_recomp do_break switch_error; do
+          for symbol in duck_vita_thread_checkpoint duck_vita_threads_checkpoint_yields osCreateViManager_recomp osSetTimer_recomp pause_self osSpTaskLoad_recomp osSpTaskYield_recomp osSpTaskYielded_recomp duck_vita_live_run duck_vita_live_registry_lookup osContInit_recomp osContStartReadData_recomp osContGetReadData_recomp osContStartQuery_recomp osContGetQuery_recomp get_function duck_register_loaded_module duck_before_free osEepromProbe_recomp osEepromLongRead_recomp osEepromLongWrite_recomp duck_vita_live_start_catalog osAiSetFrequency_recomp osAiSetNextBuffer_recomp osAiGetStatus_recomp osAiGetLength_recomp duck_vita_ai_init_async do_break switch_error; do
             if ! grep -Eq "[[:space:]]T[[:space:]]${symbol}$" /tmp/duck-objects/runtime-providers.txt; then
               echo "Missing functional runtime provider: ${symbol}"
               exit 1
@@ -94,7 +94,7 @@ jobs:
           int main(void) { return 0; }
           EOF
           "$SDK_CC" -std=c11 -c /tmp/duck-objects/runtime-entry.c -o /tmp/duck-objects/runtime-entry.o
-          "$SDK_CC" -Wl,--no-gc-sections /tmp/duck-objects/runtime-entry.o /tmp/duck-objects/duck-vita-graphics-runtime-linked.o -lSceFiber_stub -lSceSysmodule_stub -lSceCtrl_stub -lSceIofilemgr_stub -lSceAudio_stub -lm -o /tmp/duck-objects/duck-vita-runtime-link.elf
+          "$SDK_CC" -Wl,--no-gc-sections /tmp/duck-objects/runtime-entry.o /tmp/duck-objects/duck-vita-graphics-runtime-linked.o -lSceFiber_stub -lSceSysmodule_stub -lSceCtrl_stub -lSceIofilemgr_stub -lSceAudio_stub -lSceKernelThreadMgr_stub -lm -o /tmp/duck-objects/duck-vita-runtime-link.elf
           "$(dirname "$SDK_CC")/arm-vita-eabi-nm" -u /tmp/duck-objects/duck-vita-runtime-link.elf | tee /tmp/duck-objects/final-undefined.txt
           if grep -Eq '^[[:space:]]*U[[:space:]]' /tmp/duck-objects/final-undefined.txt; then
             echo "Unresolved strong symbols in ELF"; exit 1

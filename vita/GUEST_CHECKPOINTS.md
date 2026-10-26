@@ -17,8 +17,9 @@ continues to rotate equal-priority threads as before.
 Checkpoints skip IRQ-disabled, EXL/ERL and fully CPU-masked regions. This is
 cooperative scheduling at generated-code boundaries, not cycle-accurate N64
 exception delivery. Per-device interrupt mask/deferred-event fidelity is still
-incomplete. Native renderer/audio calls remain synchronous and are not
-interrupted by CPU-code checkpoints. Disabled-interrupt busy loops and
+incomplete. Native renderer calls and translated audio RSP tasks remain synchronous and
+are not interrupted by CPU-code checkpoints. PCM playback uses its own native
+audio worker and is polled from the host service loop. Disabled-interrupt busy loops and
 uninstrumented native code can still hold the host. Performance and gameplay
 need hardware validation; entry/loop calls add overhead.
 

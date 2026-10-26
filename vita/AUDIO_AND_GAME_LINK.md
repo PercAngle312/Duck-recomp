@@ -18,11 +18,26 @@ runtime and checks its identity. Successful audio execution sends SP only.
 Graphics emits DP only when the renderer reports RDP FullSync. Unsupported
 microcode and failed rendering/playback stop execution explicitly.
 
-This first audio sink is synchronous and blocks the guest host during output.
-It pads the final native block to 64 frames and clamps interpolation at DMA
-boundaries. Timing, underruns and performance need hardware testing; it is not
-a cycle-accurate AI implementation. The private application must initialize its
-save backend and native audio before starting translated game threads.
+Production PCM output now uses a dedicated native Vita thread. The guest host
+copies the starting DMA into an owned word-swapped snapshot and signals a
+semaphore, then continues running. The worker alone resamples and calls native
+audio output; it never reads live guest RDRAM or runs translated CPU/RSP code.
+A nonblocking host poll consumes completion after the final native drain, then
+emits one guest AI event and starts the next queued DMA. Kernel-thread messages
+are not guest interrupts; the worker never invokes guest event delivery.
+
+C11 acquire/release atomics publish jobs and completion. Shutdown detaches AI,
+requests cancellation, wakes and joins the worker, then deletes its semaphore
+and releases its port. Join failure retains resources instead of releasing a
+port still reachable by a live worker. Initialization failures unwind resources.
+
+The final native block is padded to 64 frames; interpolation is clamped at DMA
+boundaries. Reported AI length remains coarse until completion. Starting the
+next DMA and delivering its completion still depend on host polling; a long
+native renderer call can delay those steps. Translated audio RSP tasks remain
+synchronous SP work. Sound, latency, underruns and native-thread scheduling need
+hardware validation; this is not a cycle-accurate AI implementation. The private
+application initializes its save backend and audio before guest threads.
 
 The private build links the real game entry, all translated modules, catalog,
 current runtime, Fast3D/vitaGL, translated audio RSP and SDK dependencies. ELF
@@ -49,3 +64,9 @@ center deadzone suppresses small drift; each half is rescaled to reach exactly
 -80/+80, with inverted Y. Sampling-mode and polling errors disconnect the current
 snapshot. Host checks cover every mapped button, axes, C directions and failures;
 physical feel and live gameplay input still need Vita testing.
+
+The native audio host test executes the production worker on a real pthread
+behind mocked Vita kernel/audio calls. It blocks playback deliberately while
+the main thread keeps polling, mutates live RDRAM to verify snapshot ownership,
+and checks two-DMA event order, cancellation, startup/device errors and join
+failure. ASan/UBSan checks are not physical Vita audio verification.

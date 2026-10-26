@@ -7,8 +7,14 @@ extern "C" {
  * Nonzero return is a real device failure; no AI completion is then sent. */
 typedef int (*DuckAiOutput)(void*,const uint8_t*,uint32_t,unsigned,unsigned);
 int duck_vita_ai_init(uint8_t *rdram,unsigned video_clock,DuckAiOutput output,void *opaque);
-/* Detach a stopped sink and discard its pending DMAs without completion IRQs.
- * Called on the same host thread as service, never from inside a sink call. */
+/* start copies/owns the input before returning 0; never retains live RDRAM.
+ * poll: 0=pending, 1=playback complete, negative=device failure. Callbacks run
+ * only on the guest host thread; a sink may have its own native output worker. */
+typedef struct {DuckAiOutput start;int (*poll)(void*);void *opaque;} DuckAiAsyncSink;
+int duck_vita_ai_init_async(uint8_t *rdram,unsigned video_clock,const DuckAiAsyncSink *sink);
+/* Discard pending DMAs without completion IRQs on the guest host thread,
+ * never from inside a sink call. The owner must separately stop/join any native
+ * worker before releasing that worker's buffers or device resources. */
 void duck_vita_ai_detach(void);
 int duck_vita_ai_service(void);
 int duck_vita_ai_error(void);
