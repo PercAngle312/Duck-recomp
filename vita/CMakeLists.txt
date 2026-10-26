@@ -98,6 +98,12 @@ target_link_libraries(duck_vita_os_threads PUBLIC duck_vita_os_io SceFiber_stub 
 # Linking these archives alone does not execute graphics or produce a game VPK.
 add_library(duck_vita_overlays STATIC src/os_overlays.c)
 target_include_directories(duck_vita_overlays PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+# Real game execution coordinator: guest fibers, PI DMA, VI timers and SP/DP
+# events share a single RDRAM. Requires the private translated lookup and
+# renderer at initialization; never substitutes a synthetic test dispatcher.
+add_library(duck_vita_live STATIC src/live.c)
+target_include_directories(duck_vita_live PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(duck_vita_live PUBLIC duck_vita_os_threads duck_vita_os_time duck_vita_os_io duck_vita_sp_runtime)
 add_library(duck_vita_os_input STATIC src/os_input.c src/input_vita.c)
 target_include_directories(duck_vita_os_input PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(duck_vita_os_input PUBLIC duck_vita_os_io SceCtrl_stub)
