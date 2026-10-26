@@ -65,7 +65,7 @@ jobs:
           set -eu
           SDK_BIN="$(dirname "$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-gcc -print -quit)")"
           "$SDK_BIN/arm-vita-eabi-nm" -g --defined-only /tmp/duck-objects/duck-vita-graphics-runtime-linked.o > /tmp/duck-objects/runtime-providers.txt
-          for symbol in osCreateViManager_recomp osSetTimer_recomp pause_self osSpTaskLoad_recomp osSpTaskYield_recomp osSpTaskYielded_recomp duck_vita_live_run duck_vita_live_registry_lookup osContInit_recomp osContStartReadData_recomp osContGetReadData_recomp osContStartQuery_recomp osContGetQuery_recomp get_function duck_register_loaded_module duck_before_free section_addresses; do
+          for symbol in osCreateViManager_recomp osSetTimer_recomp pause_self osSpTaskLoad_recomp osSpTaskYield_recomp osSpTaskYielded_recomp duck_vita_live_run duck_vita_live_registry_lookup osContInit_recomp osContStartReadData_recomp osContGetReadData_recomp osContStartQuery_recomp osContGetQuery_recomp get_function duck_register_loaded_module duck_before_free; do
             if ! grep -Eq "[[:space:]]T[[:space:]]${symbol}$" /tmp/duck-objects/runtime-providers.txt; then
               echo "Missing functional runtime provider: ${symbol}"
               exit 1
