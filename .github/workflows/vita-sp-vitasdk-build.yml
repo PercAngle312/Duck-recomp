@@ -57,6 +57,19 @@ jobs:
           file /tmp/duck-objects/duck-vita-graphics-runtime-linked.o
           "$SDK_BIN/arm-vita-eabi-nm" /tmp/duck-objects/duck-vita-graphics-runtime-linked.o | grep -q " T duck_vita_live_run"
           echo "Relocatable ARM link only: unresolved production external functions remain and this is NOT a Vita ELF/VPK."
+      - name: Package real ARM runtime providers for private game link
+        run: |
+          set -eu
+          SDK_BIN="$(dirname "$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-gcc -print -quit)")"
+          "$SDK_BIN/arm-vita-eabi-nm" -g --defined-only /tmp/duck-objects/duck-vita-graphics-runtime-linked.o > /tmp/duck-objects/runtime-providers.txt
+          for symbol in osCreateViManager_recomp osSetTimer_recomp pause_self osSpTaskLoad_recomp osSpTaskYield_recomp osSpTaskYielded_recomp duck_vita_live_run duck_vita_live_registry_lookup; do
+            if ! grep -Eq "[[:space:]]T[[:space:]]${symbol}$" /tmp/duck-objects/runtime-providers.txt; then
+              echo "Missing functional runtime provider: ${symbol}"
+              exit 1
+            fi
+          done
+          cp vita/toolchain-lock.json /tmp/duck-objects/pinned-toolchain.json
+          echo "Private relink provider is duck-vita-graphics-runtime-linked.o; no translated game binaries included."
       - name: Link runtime against VitaSDK libc
         run: |
           set -eu
@@ -78,4 +91,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: duck-vita-sp-arm-objects
-          path: /tmp/duck-objects/*.o
+          path: |
+            /tmp/duck-objects/*.o
+            /tmp/duck-objects/runtime-providers.txt
+            /tmp/duck-objects/pinned-toolchain.json
