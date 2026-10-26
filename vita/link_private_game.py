@@ -27,7 +27,9 @@ p.add_argument("--vita-stub", action="append", default=[],
 p.add_argument("--output-dir", type=Path, required=True)
 a = p.parse_args()
 
-sdk=a.vitasdk.resolve()\nif any(not s.replace("_","").isalnum() for s in a.vita_stub):\n    p.error("Invalid Vita import stub name")
+sdk=a.vitasdk.resolve()
+if any(not s.replace("_","").isalnum() for s in a.vita_stub):
+    p.error("Invalid Vita import stub name")
 cc=sdk/"bin/arm-vita-eabi-g++"
 nm=sdk/"bin/arm-vita-eabi-nm"
 for f in (cc,nm,a.runtime,a.game_entry,*a.extra_object,*a.library):
