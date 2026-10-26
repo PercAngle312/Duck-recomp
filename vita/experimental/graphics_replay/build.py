@@ -45,7 +45,7 @@ unresolved=subprocess.check_output([str(bin/'arm-vita-eabi-nm'),'-u',str(elf)],t
 if any(line.split()[0]=='U' for line in unresolved.splitlines() if line.split()):raise ValueError('Strong ELF imports remain')
 run([bin/'vita-elf-create',elf,out/'replay.velf'],'velf.log')
 run([bin/'vita-make-fself','-c',out/'replay.velf',out/'eboot.bin'],'self.log')
-run([bin/'vita-mksfoex','-s','TITLE_ID=DUCKVIT03','-s','APP_VER=00.01','Duck Vita Graphics Replay',out/'param.sfo'],'sfo.log')
+run([bin/'vita-mksfoex','-s','TITLE_ID=DUCKVIT03','-s','APP_VER=00.02','Duck Vita Graphics Replay',out/'param.sfo'],'sfo.log')
 assets=out/'sce_sys'
 for name in ['icon0.png','livearea/contents/bg.png','livearea/contents/startup.png','livearea/contents/template.xml']:
  target=assets/name;target.parent.mkdir(parents=True,exist_ok=True)

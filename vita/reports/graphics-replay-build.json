@@ -1,6 +1,6 @@
 {
-  "vpk_sha256": "6dfde49f3bcc0ad13a7b15fac36236aed87dc4f5b5182087687fcc29e5b3924f",
-  "vpk_bytes": 476261,
+  "vpk_sha256": "99cf248de4611857bbcb3fe62d77b3b3dff66650ad354ef4d3e8633857cc8898",
+  "vpk_bytes": 477312,
   "native_elf_linked": true,
   "strong_unresolved_symbols": 0,
   "weak_unresolved": [
@@ -25,8 +25,13 @@
   "gameplay_tested": false,
   "playable_game": false,
   "private_assets_in_vpk": false,
-  "captured_task_top_level_triangle_pair_commands": 57,
-  "captured_task_top_level_texture_rectangles": 6,
-  "captured_task_microcode": "F3DEX.NoN fifo 2.08",
-  "guest_sp_runtime_connected": false
+  "app_version": "00.02",
+  "fix": "Do not interpret vitaGL resolution_fallback as success/failure",
+  "previous_hardware_result": {
+    "app_version": "00.01",
+    "reported_log_error": -2,
+    "returned_to_livearea": true,
+    "rendering_reached": false,
+    "root_cause": "Application inverted the pinned vitaGL resolution-fallback return value"
+  }
 }

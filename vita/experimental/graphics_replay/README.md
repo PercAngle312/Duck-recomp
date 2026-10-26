@@ -65,3 +65,18 @@ Every guest memory page is marked dirty before translation until guest-store
 tracking is integrated. It renders each replay task synchronously and remains
 separate from the guest SP/DP scheduler. Audio, saves, game input and gameplay
 are outside this graphics replay.
+
+## v0.02: initialization return-value correction
+
+The first hardware run returned to LiveArea after logging initialization error
+`-2`. That was an application error: the pinned vitaGL `vglInitWithCustomSizes`
+returns `res_fallback`, initialized to `GL_FALSE` and set only when the requested
+resolution is reduced. `vglInitExtended` forwards that value. Normal native-size
+initialization therefore returns zero. The first replay incorrectly interpreted
+zero as a failure and exited before creating the Fast3D interpreter.
+
+Version 00.02 removes that inverted check, prevents repeated initialization,
+and logs the resolution fallback value, viewport, shader compiler messages,
+translation, rendering and framebuffer swap stages. The user-reported exit
+verifies that the original app ran up to this boundary; it does not verify
+rendering. The updated build still requires a new hardware graphics check.

@@ -11,7 +11,7 @@ unsigned int _newlib_heap_size_user=160*1024*1024;
 int main(){
  sceIoMkdir("ux0:data/DuckRecomp",0777);
  freopen("ux0:data/DuckRecomp/graphics-replay.log","w",stderr);setbuf(stderr,nullptr);
- fprintf(stderr,"Duck Vita graphics task replay — NOT THE GAME\n");
+ fprintf(stderr,"Duck Vita graphics task replay v0.02 — NOT THE GAME\n");
  unsigned task=0;FILE *meta=fopen("ux0:data/DuckRecomp/first-task-address.txt","r");
  if(!meta||fscanf(meta,"%x",&task)!=1){fprintf(stderr,"Missing private task address file\n");return 1;}fclose(meta);
  FILE *data=fopen("ux0:data/DuckRecomp/first-task-rdram.private.bin","rb");

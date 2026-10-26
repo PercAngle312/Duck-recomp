@@ -23,6 +23,10 @@ void RDRAM_ClearDirtyPages(){memset(g_RDRAMDirtyPages,0,sizeof g_RDRAMDirtyPages
 u32 GraphicsContextVita_GetPostProcessFramebuffer(){return 0;}
 static std::shared_ptr<Fast::Interpreter> interpreter;
 static Fast3DMemoryBridge bridge;
+static bool init_attempted;
+static void shader_log(const char *message,shark_log_level level,int line){
+ fprintf(stderr,"shader[%d] line %d: %s\n",int(level),line,message?message:"(no message)");
+}
 static bool range(u32 address,u32 bytes){return address<gRamSize&&bytes<=gRamSize-address;}
 UcodeInfo GBIMicrocode_DetectVersion(u32 code,u32 code_size,u32 data,u32 data_size){
  if(!range(code,code_size)||!range(data,data_size)||!data_size||data_size>4096)abort();
@@ -33,14 +37,22 @@ UcodeInfo GBIMicrocode_DetectVersion(u32 code,u32 code_size,u32 data,u32 data_si
  fprintf(stderr,"Unsupported graphics microcode\n");abort();
 }
 extern "C" int duck_fast3d_init(uint8_t *rdram){
- if(!rdram||interpreter)return -1;
- if(!vglInitExtended(0,960,544,64*1024*1024,SCE_GXM_MULTISAMPLE_NONE))return -2;
+ if(!rdram||init_attempted)return -1;
+ init_attempted=true;
+ // At the pinned vitaGL revision, this returns resolution-fallback state,
+ // not initialization success. GL_FALSE is the normal native-size result.
+ GLboolean fallback=vglInitExtended(0,960,544,64*1024*1024,SCE_GXM_MULTISAMPLE_NONE);
+ fprintf(stderr,"vitaGL returned resolution_fallback=%u (0 is normal)\n",unsigned(fallback));
+ GLint viewport[4]={};glGetIntegerv(GL_VIEWPORT,viewport);
+ fprintf(stderr,"vitaGL viewport: %d %d %d %d; GL error=0x%x\n",viewport[0],viewport[1],viewport[2],viewport[3],unsigned(glGetError()));
+ shark_install_log_cb(shader_log);
+ fprintf(stderr,"Initializing Fast3D interpreter\n");
  g_pMemoryBuffers[MEM_RD_RAM]=rdram;
  interpreter=std::make_shared<Fast::Interpreter>();Fast::GfxSetInstance(interpreter);
  interpreter->Init(DaedalusFast3D_GetWindowBackend(),DaedalusFast3D_GetRenderingAPI(),"Duck Vita graphics replay",false,960,544,0,0);
  interpreter->SetRdramMemory(rdram,gRamSize);interpreter->SetNativeDimensions(320,240);
  interpreter->SetDisplayConfiguration(725,544,117,0,1.0f);
- bridge.SetInterpreter(interpreter.get());return 0;
+ bridge.SetInterpreter(interpreter.get());fprintf(stderr,"Fast3D interpreter ready\n");return 0;
 }
 extern "C" int duck_fast3d_replay(uint32_t task_address){
  if(!interpreter)return -1;
@@ -51,11 +63,18 @@ extern "C" int duck_fast3d_replay(uint32_t task_address){
  UcodeInfo ucode=GBIMicrocode_DetectVersion(code,task[5],data,task[7]);
  // All guest writes are dirty until translated-store instrumentation is added.
  memset(g_RDRAMDirtyPages,1,sizeof g_RDRAMDirtyPages);
+ static bool first=true;
+ if(first)fprintf(stderr,"Translating first display list\n");
  void *list=bridge.BuildDisplayList(task[12],ucode.version);if(!list)return -4;
+ if(first)fprintf(stderr,"Display list translated; full_sync=%d\n",int(bridge.SawFullSync()));
  Fast::gfx_set_target_ucode(ucode_f3dex2);
  robin_hood::unordered_map<Mtx*,MtxF> replacements;
  interpreter->StartFrame();DaedalusFast3D_PrepareTask(true);
+ if(first)fprintf(stderr,"Executing first Fast3D task\n");
  interpreter->Run(reinterpret_cast<Gfx*>(list),replacements);
+ if(first)fprintf(stderr,"First Fast3D task finished\n");
  if(bridge.SawFullSync()&&!interpreter->SyncColorImageToRdram(g_pu8RamBase,gRamSize))return -5;
- interpreter->EndFrame();vglSwapBuffers(GL_FALSE);return 0;
+ interpreter->EndFrame();vglSwapBuffers(GL_FALSE);
+ if(first)fprintf(stderr,"First framebuffer swap complete\n");
+ first=false;return 0;
 }
