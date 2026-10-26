@@ -51,6 +51,22 @@ jobs:
           "$SDK_BIN/arm-vita-eabi-nm" -u /tmp/duck-objects/duck-vita-graphics-runtime-linked.o | tee /tmp/duck-objects/unresolved-runtime.txt
           file /tmp/duck-objects/duck-vita-graphics-runtime-linked.o
           echo "Relocatable ARM link only: unresolved production external functions remain and this is NOT a Vita ELF/VPK."
+      - name: Link runtime against VitaSDK libc
+        run: |
+          set -eu
+          SDK_CC="$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-gcc -print -quit)"
+          cat > /tmp/duck-objects/runtime-entry.c <<'EOF'
+          /* Link-only entry: never presented as a playable game. */
+          int main(void) { return 0; }
+          EOF
+          "$SDK_CC" -std=c11 -c /tmp/duck-objects/runtime-entry.c -o /tmp/duck-objects/runtime-entry.o
+          "$SDK_CC" -Wl,--no-gc-sections /tmp/duck-objects/runtime-entry.o /tmp/duck-objects/duck-vita-graphics-runtime-linked.o -o /tmp/duck-objects/duck-vita-runtime-link.elf
+          "$(dirname "$SDK_CC")/arm-vita-eabi-nm" -u /tmp/duck-objects/duck-vita-runtime-link.elf | tee /tmp/duck-objects/final-undefined.txt
+          if grep -Eq '^[[:space:]]*U[[:space:]]' /tmp/duck-objects/final-undefined.txt; then
+            echo "Unresolved strong symbols in ELF"; exit 1
+          fi
+          file /tmp/duck-objects/duck-vita-runtime-link.elf
+          echo "Linked runtime-only ELF, no game assets or translated gameplay."
       - uses: actions/upload-artifact@v4
         with:
           name: duck-vita-sp-arm-objects
