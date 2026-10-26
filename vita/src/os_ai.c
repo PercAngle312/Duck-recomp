@@ -33,8 +33,11 @@ void osAiGetLength_recomp(uint8_t *ram,recomp_context *c){
  if(c)c->r2=ram!=ai.ram||!ai.output||ai.fault?(gpr)-1:(ai.count?ai.fifo[0].bytes:0);
 }
 void osAiGetStatus_recomp(uint8_t *ram,recomp_context *c){
- if(c)c->r2=ram!=ai.ram||!ai.output||ai.fault?(gpr)-1:
-  (ai.count?0x40000000u:0)|(ai.count==2?0x80000000u:0);
+ if(!c)return;
+ if(ram!=ai.ram||!ai.output||ai.fault){c->r2=(gpr)-1;return;}
+ uint32_t status=(ai.count?0x40000000u:0)|(ai.count==2?0x80000000u:0);
+ // N64 lw sign-extends the 32-bit hardware register, including FIFO_FULL.
+ c->r2=(gpr)(int32_t)status;
 }
 int duck_vita_ai_service(void){
  if(ai.fault)return -1;

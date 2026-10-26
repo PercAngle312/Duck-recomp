@@ -11,7 +11,7 @@ int main(void){
  uint8_t *ram=calloc(1,0x800000);assert(ram);recomp_context c={0};
  assert(!duck_vita_ai_init(ram,48681812,output,0));c.r4=32000;osAiSetFrequency_recomp(ram,&c);assert(c.r2>31000&&c.r2<33000);
  c.r4=0xffffffff80001000ull;c.r5=16;osAiSetNextBuffer_recomp(ram,&c);assert(!c.r2);
- osAiSetNextBuffer_recomp(ram,&c);assert(!c.r2);osAiGetStatus_recomp(ram,&c);assert(c.r2==0xc0000000u);
+ osAiSetNextBuffer_recomp(ram,&c);assert(!c.r2);osAiGetStatus_recomp(ram,&c);assert(c.r2==(gpr)(int32_t)0xc0000000u);
  osAiSetNextBuffer_recomp(ram,&c);assert(c.r2==(gpr)-1);assert(!calls&&!interrupts);
  assert(duck_vita_ai_service()==1&&calls==1&&interrupts==1);osAiGetLength_recomp(ram,&c);assert(c.r2==16);
  assert(duck_vita_ai_service()==1&&interrupts==2);osAiGetStatus_recomp(ram,&c);assert(!c.r2);

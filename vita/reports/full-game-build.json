@@ -1,8 +1,8 @@
 {
   "full_game_elf_linked": true,
-  "elf_sha256": "774ccbd940f2652bf77aa483353af08f5d6c6a2ed08a46e79cce098ea7b9a5f6",
-  "vpk_sha256": "e5dee3c0874c005862be0af69cb8738f7138e23989d6eab20fc03242f448d383",
-  "vpk_bytes": 3697305,
+  "elf_sha256": "a857203ad6d73e5910ed9ceaa0dab0bff3c797ed97dd52e74202ed20b4704d45",
+  "vpk_sha256": "0a5954aa7264cd9ca77c4f1e32aaeacd17dfdfe4cbef4577b34a167108ec5438",
+  "vpk_bytes": 3697280,
   "strong_unresolved_symbols": 0,
   "translated_module_functions": 8956,
   "game_exports": 9416,
@@ -33,5 +33,6 @@
     "SI/PIF EEPROM bit timing and programming delay not cycle-accurate",
     "Busy translated loops still need asynchronous interrupt/safepoint integration",
     "Renderer native dimensions currently fixed to 320x240"
-  ]
+  ],
+  "ai_status_uses_mips_word_sign_extension": true
 }
