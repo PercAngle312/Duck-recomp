@@ -26,6 +26,8 @@ jobs:
         run: |
           mkdir -p /tmp/duck-abi
           curl -fL --retry 3 https://raw.githubusercontent.com/N64Recomp/N64Recomp/ffb39cdad1da5de07eaaa48bd1db4a89a7986771/include/recomp.h -o /tmp/duck-abi/recomp.h
+          cp vita/include/portable_mul.h /tmp/duck-abi/portable_mul.h
+          python3 vita/patch_arm_recomp.py --header /tmp/duck-abi/recomp.h --portable-header /tmp/duck-abi/portable_mul.h
       - name: Cross-compile production scheduler and graphics runtime
         run: |
           set -eu
