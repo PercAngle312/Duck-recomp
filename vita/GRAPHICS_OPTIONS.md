@@ -1,7 +1,8 @@
 # Vita widescreen and image options
 
 The renderer can now load `ux0:data/DuckRecomp/graphics.ini` at startup. A missing
-file preserves the v00.13 display defaults. Restart the application after
+file uses the packaged `app0:graphics.ini` preset if present; when neither file
+exists the v00.13 display defaults are preserved. Restart the application after
 changing options. The `graphics-presets` directory contains ready-made files;
 copy the chosen file to the above location and name it `graphics.ini`.
 

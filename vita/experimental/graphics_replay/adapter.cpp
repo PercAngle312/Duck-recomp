@@ -60,6 +60,8 @@ extern "C" int duck_fast3d_init(uint8_t *rdram){
  if(!rdram||init_attempted)return -1;
  init_attempted=true;
  FILE *options=fopen("ux0:data/DuckRecomp/graphics.ini","r");
+ // A packaged preset supplies release defaults; the user data file wins.
+ if(!options)options=fopen("app0:graphics.ini","r");
  graphics.load(options);if(options)fclose(options);
  // Request standard homebrew performance clocks without lowering a higher
  // user-selected setting. Report actual values and rejected requests.
