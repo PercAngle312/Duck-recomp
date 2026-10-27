@@ -1,0 +1,32 @@
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/interpreter.cpp
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/interpreter.cpp
+@@ -1,3 +1,4 @@
++#include "graphics_options.h"
+ #include "texture_layout.h"
+ #include "framebuffer_pack.h"
+ #define NOMINMAX
+@@ -5331,6 +5332,7 @@
+             srcY1 = mGameWindowViewport.y + static_cast<int>(mGameWindowViewport.height);
+         }
+ 
++        duck_graphics_readback_crop(srcX0, srcX1, mCurAspectRatioDeltaForX);
+         mRapi->CopyFramebuffer(mRdramReadbackFb, srcFb,
+                                srcX0, srcY0, srcX1, srcY1,
+                                0, 0, width, height);
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/gfx_opengl.cpp
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/gfx_opengl.cpp
+@@ -1,3 +1,4 @@
++#include "graphics_options.h"
+ #include "framebuffer_pack.h"
+ #ifdef ENABLE_OPENGL
+ 
+@@ -1058,7 +1059,8 @@
+     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, dstFbo);
+ 
+     glReadBuffer(srcFbo == 0 ? GL_BACK : GL_COLOR_ATTACHMENT0);
+-    glBlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, GL_COLOR_BUFFER_BIT, GL_NEAREST);
++    glBlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, GL_COLOR_BUFFER_BIT,
++        fb_dst_id == 0 && duck_fast3d_smooth_presentation() ? GL_LINEAR : GL_NEAREST);
+ 
+     glBindFramebuffer(GL_FRAMEBUFFER, currentFbo);
+ 

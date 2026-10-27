@@ -7,6 +7,7 @@
 #include <vitaGL.h>
 #include "task_bounds.h"
 #include "fast3d_task.h"
+#include "graphics_options.h"
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
@@ -32,6 +33,8 @@ u32 GraphicsContextVita_GetPostProcessFramebuffer(){return 0;}
 static std::shared_ptr<Fast::Interpreter> interpreter;
 static Fast3DMemoryBridge bridge;
 static bool init_attempted;
+static DuckGraphicsOptions graphics;
+extern "C" int duck_fast3d_smooth_presentation(void){return graphics.smooth;}
 // The pinned vitaGL exports this initializer; it sets its own compiler state
 // and tries both supported module paths. GL_SHADER_COMPILER is always true in
 // that revision, so querying the GL capability cannot detect a missing module.
@@ -56,6 +59,8 @@ UcodeInfo GBIMicrocode_DetectVersion(u32 code,u32 code_size,u32 data,u32 data_si
 extern "C" int duck_fast3d_init(uint8_t *rdram){
  if(!rdram||init_attempted)return -1;
  init_attempted=true;
+ FILE *options=fopen("ux0:data/DuckRecomp/graphics.ini","r");
+ graphics.load(options);if(options)fclose(options);
  // Request standard homebrew performance clocks without lowering a higher
  // user-selected setting. Report actual values and rejected requests.
  int cpu=scePowerGetArmClockFrequency(),bus=scePowerGetBusClockFrequency();
@@ -91,14 +96,18 @@ extern "C" int duck_fast3d_init(uint8_t *rdram){
  interpreter=std::make_shared<Fast::Interpreter>();Fast::GfxSetInstance(interpreter);
  interpreter->Init(DaedalusFast3D_GetWindowBackend(),DaedalusFast3D_GetRenderingAPI(),"Duck Vita graphics replay",false,960,544,0,0);
  interpreter->SetRdramMemory(rdram,gRamSize);interpreter->SetNativeDimensions(320,240);
- interpreter->SetDisplayConfiguration(725,544,117,0,1.0f);
+ interpreter->SetDisplayConfiguration(graphics.display_width,graphics.display_height,
+     graphics.display_x,0,graphics.aspect_delta);
 #if DUCK_NATIVE_RESOLUTION
- // Render at original N64 resolution; retain the existing 4:3 destination.
- // The interpreter renders to its game FBO when these dimensions differ.
- interpreter->mCurDimensions.width=320;interpreter->mCurDimensions.height=240;
+ // Internal resolution is independent of the final presentation rectangle.
+ interpreter->mCurDimensions.width=graphics.width;interpreter->mCurDimensions.height=graphics.height;
 #endif
- fprintf(stderr,"Rendering resolution: %ux%u; presentation 725x544\n",
-         unsigned(interpreter->mCurDimensions.width),unsigned(interpreter->mCurDimensions.height));
+ interpreter->GetCurrentRenderingAPI()->SetTextureFilter(graphics.filter==1?Fast::FILTER_LINEAR:
+     graphics.filter==2?Fast::FILTER_NONE:Fast::FILTER_THREE_POINT);
+ fprintf(stderr,"Rendering resolution: %ux%u; presentation %ux544; aspect=%s filter=%s\n",
+         unsigned(interpreter->mCurDimensions.width),unsigned(interpreter->mCurDimensions.height),
+         graphics.display_width,graphics.widescreen?"wide":"original",
+         graphics.filter==1?"bilinear":graphics.filter==2?"nearest":"n64");
  bridge.SetInterpreter(interpreter.get());
  fprintf(stderr,"Fast3D interpreter ready\n");return 0;
 }
@@ -139,7 +148,7 @@ extern "C" int duck_fast3d_submit_task(uint32_t task_address){
   // FBO itself. Blit it explicitly, using its actual dimensions and orientation.
   interpreter->GetCurrentRenderingAPI()->CopyFramebuffer(0,interpreter->mGameFb,
       0,0,interpreter->mCurDimensions.width,interpreter->mCurDimensions.height,
-      117,0,842,544);
+      graphics.display_x,0,graphics.display_x+graphics.display_width,graphics.display_height);
  }
  interpreter->EndFrame();
  GLenum render_error=glGetError();

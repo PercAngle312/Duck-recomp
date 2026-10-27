@@ -4,6 +4,8 @@ on:
     branches: [vita/arm32-bringup]
     paths:
       - 'vita/experimental/graphics_replay/adapter.cpp'
+      - 'vita/experimental/graphics_replay/graphics_options.h'
+      - 'vita/experimental/graphics_replay/test_graphics_options.cpp'
       - 'vita/experimental/graphics_replay/task_bounds.h'
       - 'vita/experimental/graphics_replay/test_task_bounds.c'
       - 'vita/experimental/graphics_replay/shader_cache.h'
@@ -19,6 +21,8 @@ on:
   pull_request:
     paths:
       - 'vita/experimental/graphics_replay/adapter.cpp'
+      - 'vita/experimental/graphics_replay/graphics_options.h'
+      - 'vita/experimental/graphics_replay/test_graphics_options.cpp'
       - 'vita/experimental/graphics_replay/task_bounds.h'
       - 'vita/experimental/graphics_replay/test_task_bounds.c'
       - 'vita/experimental/graphics_replay/shader_cache.h'
@@ -56,3 +60,7 @@ jobs:
         run: |
           c++ -std=c++17 -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -Ivita/experimental/graphics_replay vita/experimental/graphics_replay/test_texture_layout.cpp -o /tmp/duck-texture-layout
           /tmp/duck-texture-layout
+      - name: Validate display presets and guest framebuffer crop
+        run: |
+          c++ -std=c++17 -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -Ivita/experimental/graphics_replay vita/experimental/graphics_replay/test_graphics_options.cpp -o /tmp/duck-graphics-options
+          /tmp/duck-graphics-options
