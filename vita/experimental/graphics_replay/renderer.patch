@@ -330,10 +330,11 @@
      uint32_t texture_id;
      if (!mTextureCache.free_texture_ids.empty()) {
          texture_id = mTextureCache.free_texture_ids.back();
-@@ -593,28 +587,10 @@
+@@ -592,29 +586,11 @@
+     }
  
      // A single line of pixels should not equal the entire image (height == 1 non-withstanding)
-     if (fullImageLineSizeBytes == sizeBytes) {
+-    if (fullImageLineSizeBytes == sizeBytes) {
 -        fullImageLineSizeBytes = width * 2;
 -    }
 -
@@ -356,6 +357,7 @@
 -            i++;
 -        }
 -    }
++    if (line_size_bytes == sizeBytes && fullImageLineSizeBytes == sizeBytes) {
 +        fullImageLineSizeBytes = widthBytes;
 +    }
 +
@@ -363,10 +365,11 @@
  
      mRapi->UploadTexture(mTexUploadBuffer, width, height);
  }
-@@ -658,22 +634,10 @@
+@@ -657,23 +633,11 @@
+         height = tile_h;
      }
  
-     if (full_image_line_size_bytes == size_bytes) {
+-    if (full_image_line_size_bytes == size_bytes) {
 -        full_image_line_size_bytes = width * 4;
 -    }
 -
@@ -383,6 +386,7 @@
 -            i++;
 -        }
 -    }
++    if (line_size_bytes == size_bytes && full_image_line_size_bytes == size_bytes) {
 +        full_image_line_size_bytes = widthBytes;
 +    }
 +
@@ -390,9 +394,107 @@
      mRapi->UploadTexture(mTexUploadBuffer, width, height);
  }
  
-@@ -965,14 +929,8 @@
-             uint8_t byte = addr[srcPixelIdx / 2];
-             uint8_t idx = (byte >> (4 - (srcPixelIdx % 2) * 4)) & 0xf;
+@@ -696,18 +660,18 @@
+     uint32_t widthBytes = GetEffectiveLineSize(lineSizeBytes, fullImageLineSizeBytes, sizeBytes,
+                                                mRdp->texture_tile[tile].line_size_bytes);
+     uint32_t width = widthBytes * 2;
++    const auto &loaded=mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index];
++    if(loaded.width_pixels)width=loaded.width_pixels;
+     uint32_t height = widthBytes > 0 ? sizeBytes / widthBytes : 0;
+ 
+-    if (fullImageLineSizeBytes == sizeBytes) {
++    if (lineSizeBytes == sizeBytes && fullImageLineSizeBytes == sizeBytes) {
+         fullImageLineSizeBytes = widthBytes;
+     }
+ 
+     uint32_t i = 0;
+     for (uint32_t y = 0; y < height; y++) {
+         for (uint32_t x = 0; x < width; x++) {
+-            uint32_t srcPixelIdx = y * (fullImageLineSizeBytes * 2) + x;
+-            uint8_t byte = addr[srcPixelIdx / 2];
+-            uint8_t part = (byte >> (4 - (srcPixelIdx % 2) * 4)) & 0xf;
++            uint8_t part=duck_texture_nibble(addr,fullImageLineSizeBytes,x,y,loaded.nibble_offset);
+             uint8_t intensity = part >> 1;
+             uint8_t alpha = part & 1;
+             mTexUploadBuffer[4 * i + 0] = SCALE_3_8(intensity);
+@@ -741,7 +705,7 @@
+                                           mRdp->texture_tile[tile].line_size_bytes);
+     uint32_t height = width > 0 ? sizeBytes / width : 0;
+ 
+-    if (fullImageLineSizeBytes == sizeBytes) {
++    if (lineSizeBytes == sizeBytes && fullImageLineSizeBytes == sizeBytes) {
+         fullImageLineSizeBytes = width;
+     }
+ 
+@@ -784,7 +748,7 @@
+     uint32_t height = widthBytes > 0 ? size_bytes / widthBytes : 0;
+ 
+     // A single line of pixels should not equal the entire image (height == 1 non-withstanding)
+-    if (full_image_line_size_bytes == size_bytes) {
++    if (line_size_bytes == size_bytes && full_image_line_size_bytes == size_bytes) {
+         full_image_line_size_bytes = width * 2;
+     }
+ 
+@@ -830,10 +794,12 @@
+     uint32_t widthBytes = GetEffectiveLineSize(lineSizeBytes, fullImageLineSizeBytes, sizeBytes,
+                                                mRdp->texture_tile[tile].line_size_bytes);
+     uint32_t width = widthBytes * 2;
++    const auto &loaded=mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index];
++    if(loaded.width_pixels)width=loaded.width_pixels;
+     uint32_t height = widthBytes > 0 ? sizeBytes / widthBytes : 0;
+ 
+     // A single line of pixels should not equal the entire image (height == 1 non-withstanding)
+-    if (fullImageLineSizeBytes == sizeBytes) {
++    if (lineSizeBytes == sizeBytes && fullImageLineSizeBytes == sizeBytes) {
+         fullImageLineSizeBytes = width / 2;
+     }
+ 
+@@ -841,10 +807,7 @@
+ 
+     for (uint32_t y = 0; y < height; y++) {
+         for (uint32_t x = 0; x < width; x++) {
+-            uint32_t clrIdx = (y * (fullImageLineSizeBytes * 2)) + (x);
+-
+-            uint8_t byte = addr[clrIdx / 2];
+-            uint8_t part = (byte >> (4 - (clrIdx % 2) * 4)) & 0xf;
++            uint8_t part=duck_texture_nibble(addr,fullImageLineSizeBytes,x,y,loaded.nibble_offset);
+             uint8_t intensity = part;
+             uint8_t r = intensity;
+             uint8_t g = intensity;
+@@ -882,7 +845,7 @@
+                                           mRdp->texture_tile[tile].line_size_bytes);
+     uint32_t height = width > 0 ? sizeBytes / width : 0;
+ 
+-    if (fullImageLineSizeBytes == sizeBytes) {
++    if (lineSizeBytes == sizeBytes && fullImageLineSizeBytes == sizeBytes) {
+         fullImageLineSizeBytes = width;
+     }
+ 
+@@ -935,6 +898,8 @@
+ 
+     // CI4: 2 pixels per byte
+     uint32_t width = resultLineSizeBytes * 2;
++    const auto &loaded=mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index];
++    if(loaded.width_pixels)width=loaded.width_pixels;
+     uint32_t height = resultLineSizeBytes > 0 ? sizeBytes / resultLineSizeBytes : 0;
+ 
+     // Clamp to the rendered region only when the loaded buffer is ~1.33x of it (mipmap
+@@ -954,25 +919,17 @@
+         height = tile_h;
+     }
+ 
+-    if (fullImageLineSizeBytes == sizeBytes) {
++    if (lineSizeBytes == sizeBytes && fullImageLineSizeBytes == sizeBytes) {
+         fullImageLineSizeBytes = resultLineSizeBytes;
+     }
+ 
+     uint32_t i = 0;
+     for (uint32_t y = 0; y < height; y++) {
+         for (uint32_t x = 0; x < width; x++) {
+-            uint32_t srcPixelIdx = y * (fullImageLineSizeBytes * 2) + x;
+-            uint8_t byte = addr[srcPixelIdx / 2];
+-            uint8_t idx = (byte >> (4 - (srcPixelIdx % 2) * 4)) & 0xf;
++            uint8_t idx=duck_texture_nibble(addr,fullImageLineSizeBytes,x,y,loaded.nibble_offset);
              uint16_t col16 = (palette[idx * 2] << 8) | palette[idx * 2 + 1]; // Big endian load
 -            uint8_t a = col16 & 1;
 -            uint8_t r = col16 >> 11;
@@ -407,7 +509,7 @@
              i++;
          }
      }
-@@ -998,22 +956,6 @@
+@@ -998,22 +955,6 @@
  
      if (mRdp->palettes[0] == nullptr || mRdp->palettes[1] == nullptr) {
          return;
@@ -430,11 +532,11 @@
      }
  
      uint32_t baseLineSizeBytes = GetEffectiveLineSize(lineSizeBytes, fullImageLineSizeBytes, sizeBytes,
-@@ -1043,6 +985,14 @@
+@@ -1043,6 +984,14 @@
          height = tile_h;
      }
  
-+    const uint32_t pitch=fullImageLineSizeBytes==sizeBytes?resultLineSizeBytes:fullImageLineSizeBytes;
++    const uint32_t pitch=duck_texture_source_pitch(lineSizeBytes,fullImageLineSizeBytes,sizeBytes,resultLineSizeBytes);
 +    for (uint32_t y=0; y<height; ++y) for (uint32_t x=0; x<width; ++x) {
 +        uint8_t idx=addr[(size_t)y*pitch+x];
 +        const uint8_t *palette=mRdp->palettes[idx/128]+(idx%128)*2;
@@ -445,7 +547,7 @@
      mRapi->UploadTexture(mTexUploadBuffer, width, height);
  }
  
-@@ -1300,6 +1250,15 @@
+@@ -1300,6 +1249,21 @@
          key = { origAddr, {}, fmt, siz, paletteIndex, origSizeBytes };
      }
  
@@ -457,11 +559,17 @@
 +    key.decode_view={loaded.line_size_bytes,loaded.full_image_line_size_bytes,
 +        loaded.size_bytes,view.line_size_bytes,
 +        (uint32_t)((view.lrs-view.uls+4)/4),(uint32_t)((view.lrt-view.ult+4)/4),
-+        (uint32_t)view.cms|((uint32_t)view.cmt<<8),texFlags};
++        (uint32_t)view.cms|((uint32_t)view.cmt<<8),texFlags,
++        (uint32_t)view.masks|((uint32_t)view.maskt<<8)|((uint32_t)loaded.nibble_offset<<16),loaded.width_pixels};
++    if(fmt==G_IM_FMT_CI)key.palette_revision=siz==G_IM_SIZ_4b?
++        mRdp->palette_revisions[paletteIndex]:mDuckPaletteRevision;
++    else if((texFlags&TEX_FLAG_LOAD_AS_RAW) &&
++            (metadata->type==Fast::TextureType::Palette4bpp || metadata->type==Fast::TextureType::Palette8bpp))
++        key.palette_revision=mDuckPaletteRevision;
      if (TextureCacheLookup(i, key)) {
          return;
      }
-@@ -1785,6 +1744,12 @@
+@@ -1785,6 +1749,12 @@
  }
  
  void Interpreter::GfxSpModifyVertex(uint16_t vtx_idx, uint8_t where, uint32_t val) {
@@ -474,7 +582,53 @@
      SUPPORT_CHECK(where == G_MWO_POINT_ST);
  
      int16_t s = (int16_t)(val >> 16);
-@@ -2288,14 +2253,7 @@
+@@ -1976,12 +1946,7 @@
+     uint32_t effective_tile[2];
+ 
+     for (int i = 0; i < 2; i++) {
+-        uint32_t tile = mRdp->first_tile_index + i;
+-
+-        // No LOD support: force both slots to the base mip level.
+-        if (i == 1 && mRdp->first_tile_index >= 2) {
+-            tile = mRdp->first_tile_index;
+-        }
++        uint32_t tile=duck_texture_slot_tile(mRdp->first_tile_index,i);
+         effective_tile[i] = tile;
+ 
+         if (comb->usedTextures[i]) {
+@@ -2037,6 +2002,9 @@
+                     break;
+             }
+             tex_width[i] = line_size;
++            if(mRdp->texture_tile[tile].siz==G_IM_SIZ_4b &&
++               mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].width_pixels)
++                tex_width[i]=mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].width_pixels;
+ 
+             tex_width2[i] = (uint32_t)(int32_t)((mRdp->texture_tile[tile].lrs - mRdp->texture_tile[tile].uls + 4) / 4);
+             tex_height2[i] = (uint32_t)(int32_t)((mRdp->texture_tile[tile].lrt - mRdp->texture_tile[tile].ult + 4) / 4);
+@@ -2123,8 +2091,8 @@
+             continue;
+         }
+ 
+-        int shifts = mRdp->texture_tile[mRdp->first_tile_index + t].shifts;
+-        int shiftt = mRdp->texture_tile[mRdp->first_tile_index + t].shiftt;
++        int shifts = mRdp->texture_tile[effective_tile[t]].shifts;
++        int shiftt = mRdp->texture_tile[effective_tile[t]].shiftt;
+         
+         inv_tex_width[t] = 1.0f / (float)tex_width[t];
+         inv_tex_height[t] = 1.0f / (float)tex_height[t];
+@@ -2136,8 +2104,8 @@
+             v_scale[t] *= (shiftt <= 10) ? (1.0f / (1 << shiftt)) : (float)(1 << (16 - shiftt));
+         }
+         
+-        u_offset[t] = mRdp->texture_tile[mRdp->first_tile_index + t].uls * 0.25f;
+-        v_offset[t] = mRdp->texture_tile[mRdp->first_tile_index + t].ult * 0.25f;
++        u_offset[t] = mRdp->texture_tile[effective_tile[t]].uls * 0.25f;
++        v_offset[t] = mRdp->texture_tile[effective_tile[t]].ult * 0.25f;
+     }
+ 
+     for (int i = 0; i < 3; i++) {
+@@ -2288,14 +2256,7 @@
      }
  	
  	mBufVboLen = buf_vbo_ptr - mBufVbo;
@@ -490,7 +644,7 @@
  }
  
  void Interpreter::GfxSpGeometryMode(uint32_t clear, uint32_t set) {
-@@ -2366,6 +2324,7 @@
+@@ -2366,6 +2327,7 @@
              if (lightidx >= 0 && lightidx <= MAX_LIGHTS) { // skip lookat
                  // NOTE: reads out of bounds if it is an ambient light
                  memcpy(mRsp->current_lights + lightidx, data, sizeof(F3DLight));
@@ -498,7 +652,7 @@
              } else if (lightidx < 0) {
                  memcpy(mRsp->lookat + offset / 24, data, sizeof(F3DLight_t)); // TODO Light?
              }
-@@ -2393,12 +2352,17 @@
+@@ -2393,12 +2355,17 @@
          case F3DEX_G_MV_L7:
              // NOTE: reads out of bounds if it is an ambient light
              memcpy(mRsp->current_lights + (index - F3DEX_G_MV_L0) / 2, data, sizeof(F3DLight_t));
@@ -516,7 +670,7 @@
          case G_MW_NUMLIGHT:
              mRsp->current_num_lights = data / 24 + 1; // add ambient light
              mRsp->lights_changed = true;
-@@ -2423,6 +2387,10 @@
+@@ -2423,6 +2390,10 @@
  
  void Interpreter::GfxSpMovewordF3d(uint8_t index, uint16_t offset, uintptr_t data) {
      switch (index) {
@@ -527,7 +681,166 @@
          case G_MW_NUMLIGHT:
              // Ambient light is included
              // The 31st bit is a flag that lights should be recalculated
-@@ -3131,16 +3099,24 @@
+@@ -2491,13 +2462,8 @@
+ void Interpreter::GfxDpSetTile(uint8_t fmt, uint32_t siz, uint32_t line, uint32_t tmem, uint8_t tile, uint32_t palette,
+                                uint32_t cmt, uint32_t maskt, uint32_t shiftt, uint32_t cms, uint32_t masks,
+                                uint32_t shifts) {
+-    if (cms == G_TX_WRAP && masks == G_TX_NOMASK) {
+-        cms = G_TX_CLAMP;
+-    }
+-    if (cmt == G_TX_WRAP && maskt == G_TX_NOMASK) {
+-        cmt = G_TX_CLAMP;
+-    }
+-
++    cms=duck_texture_wrap(cms,masks);cmt=duck_texture_wrap(cmt,maskt);
++    mRdp->texture_tile[tile].masks=masks;mRdp->texture_tile[tile].maskt=maskt;
+     mRdp->texture_tile[tile].palette = palette; // palette should set upper 4 bits of color index in 4b mode
+     mRdp->texture_tile[tile].fmt = fmt;
+     mRdp->texture_tile[tile].siz = siz;
+@@ -2532,39 +2498,25 @@
+     uint16_t tmem = mRdp->texture_tile[tile].tmem;
+     const uint8_t* src = mRdp->texture_to_load.addr;
+     uint32_t entryCount = high_index + 1;
+-    uint32_t byteCount = entryCount * 2;
+-
+-    if (tmem >= 256) {
+-        // N64 TMEM palette area starts at tmem word 256. Each CI4 palette = 16 entries = 16 tmem words.
+-        uint32_t paletteByteOffset = (tmem - 256) * 2;
+-
+-        if (high_index == 255 && paletteByteOffset == 0) {
+-            // CI8: full 256-entry palette spanning both halves
+-            memcpy(mRdp->palette_staging[0], src, 256);
+-            memcpy(mRdp->palette_staging[1], src + 256, 256);
+-            mRdp->palettes[0] = mRdp->palette_staging[0];
+-            mRdp->palettes[1] = mRdp->palette_staging[1];
+-            mRdp->palette_dram_addr[0] = src;
+-            mRdp->palette_dram_addr[1] = src + 256;
+-        } else if (paletteByteOffset < 256) {
+-            // Palettes 0-7 range
+-            uint32_t copyLen = (paletteByteOffset + byteCount <= 256) ? byteCount : (256 - paletteByteOffset);
+-            memcpy(mRdp->palette_staging[0] + paletteByteOffset, src, copyLen);
+-            mRdp->palettes[0] = mRdp->palette_staging[0];
+-            mRdp->palette_dram_addr[0] = src;
+-        } else {
+-            // Palettes 8-15 range
+-            uint32_t offset = paletteByteOffset - 256;
+-            uint32_t copyLen = (offset + byteCount <= 256) ? byteCount : (256 - offset);
+-            memcpy(mRdp->palette_staging[1] + offset, src, copyLen);
+-            mRdp->palettes[1] = mRdp->palette_staging[1];
+-            mRdp->palette_dram_addr[1] = src;
+-        }
+-    } else {
+-        // tmem < 256: non-standard location, fall back to direct pointer
+-        mRdp->palettes[1] = src;
+-        mRdp->palette_dram_addr[1] = src;
+-    }
++
++    if(tmem>=256){
++        const unsigned first=tmem-256;
++        int changed=duck_write_tlut(mRdp->palette_staging,mRdp->palette_revisions,
++            mDuckPaletteRevision,first,entryCount,src);
++        if(changed<0){fprintf(stderr,"Invalid TLUT span: tmem=%u entries=%u\n",tmem,entryCount);abort();}
++        const unsigned last=first+entryCount-1;
++        for(unsigned half=first/128;half<=last/128;half++){
++            mRdp->palettes[half]=mRdp->palette_staging[half];
++            const unsigned begin=half*128;
++            mRdp->palette_dram_addr[half]=src+(begin>first?(begin-first)*2:0);
++        }
++    }else{
++        // Retain the upstream non-standard direct-palette path, but ensure
++        // a repeated source address cannot return an old converted texture.
++        mRdp->palettes[1]=src;mRdp->palette_dram_addr[1]=src;
++        for(unsigned bank=8;bank<16;bank++)mRdp->palette_revisions[bank]=++mDuckPaletteRevision;
++    }
++    mRdp->textures_changed[0]=mRdp->textures_changed[1]=true;
+ }
+ 
+ void Interpreter::GfxDpLoadBlock(uint8_t tile, uint32_t uls, uint32_t ult, uint32_t lrs, uint32_t dxt) {
+@@ -2572,23 +2524,7 @@
+     SUPPORT_CHECK(ult == 0);
+ 
+     // The lrs field rather seems to be number of pixels to load
+-    uint32_t word_size_shift = 0;
+-    switch (mRdp->texture_to_load.siz) {
+-        case G_IM_SIZ_4b:
+-            word_size_shift = -1;
+-            break;
+-        case G_IM_SIZ_8b:
+-            word_size_shift = 0;
+-            break;
+-        case G_IM_SIZ_16b:
+-            word_size_shift = 1;
+-            break;
+-        case G_IM_SIZ_32b:
+-            word_size_shift = 2;
+-            break;
+-    }
+-    uint32_t orig_size_bytes =
+-        word_size_shift > 0 ? (lrs + 1) << word_size_shift : (lrs + 1) >> (-(int64_t)word_size_shift);
++    uint32_t orig_size_bytes=duck_texture_bytes(lrs+1,mRdp->texture_to_load.siz);
+     uint32_t size_bytes = orig_size_bytes;
+     if (mRdp->texture_to_load.raw_tex_metadata.h_byte_scale != 1 ||
+         mRdp->texture_to_load.raw_tex_metadata.v_pixel_scale != 1) {
+@@ -2628,6 +2564,8 @@
+     mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].full_image_line_size_bytes = actual_line_bytes;
+     mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].tmem = mRdp->texture_tile[tile].tmem;
+     mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].derived_view = false;
++    mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].nibble_offset=0;
++    mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].width_pixels=0;
+     // assert(size_bytes <= 4096 && "bug: too big texture");
+     mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].tex_flags = mRdp->texture_to_load.tex_flags;
+     mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].raw_tex_metadata = mRdp->texture_to_load.raw_tex_metadata;
+@@ -2672,32 +2610,14 @@
+ void Interpreter::GfxDpLoadTile(uint8_t tile, uint32_t uls, uint32_t ult, uint32_t lrs, uint32_t lrt) {
+     SUPPORT_CHECK(tile == G_TX_LOADTILE);
+ 
+-    uint32_t word_size_shift = 0;
+-    switch (mRdp->texture_to_load.siz) {
+-        case G_IM_SIZ_4b:
+-            word_size_shift = 0;
+-            break;
+-        case G_IM_SIZ_8b:
+-            word_size_shift = 0;
+-            break;
+-        case G_IM_SIZ_16b:
+-            word_size_shift = 1;
+-            break;
+-        case G_IM_SIZ_32b:
+-            word_size_shift = 2;
+-            break;
+-    }
+-
+-    uint32_t offset_x = uls >> G_TEXTURE_IMAGE_FRAC;
+-    uint32_t offset_y = ult >> G_TEXTURE_IMAGE_FRAC;
+-    uint32_t tile_width = ((lrs - uls) >> G_TEXTURE_IMAGE_FRAC) + 1;
+-    uint32_t tile_height = ((lrt - ult) >> G_TEXTURE_IMAGE_FRAC) + 1;
+-    uint32_t full_image_width = mRdp->texture_to_load.width;
+-
+-    uint32_t offset_x_in_bytes = offset_x << word_size_shift;
+-    uint32_t tile_line_size_bytes = tile_width << word_size_shift;
+-    uint32_t full_image_line_size_bytes = full_image_width << word_size_shift;
+-
++    const unsigned size=mRdp->texture_to_load.siz;
++    uint32_t offset_x=uls>>G_TEXTURE_IMAGE_FRAC,offset_y=ult>>G_TEXTURE_IMAGE_FRAC;
++    uint32_t tile_width=((lrs-uls)>>G_TEXTURE_IMAGE_FRAC)+1;
++    uint32_t tile_height=((lrt-ult)>>G_TEXTURE_IMAGE_FRAC)+1;
++    uint32_t full_image_width=mRdp->texture_to_load.width;
++    uint32_t offset_x_in_bytes=(uint32_t)(((uint64_t)offset_x<<size)/2);
++    uint32_t tile_line_size_bytes=duck_texture_bytes(tile_width,size);
++    uint32_t full_image_line_size_bytes=duck_texture_bytes(full_image_width,size);
+     uint32_t orig_size_bytes = tile_line_size_bytes * tile_height;
+     uint32_t size_bytes = orig_size_bytes;
+     uint32_t start_offset_bytes = full_image_line_size_bytes * offset_y + offset_x_in_bytes;
+@@ -2718,6 +2638,8 @@
+     mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].line_size_bytes = tile_line_size_bytes;
+     mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].tmem = mRdp->texture_tile[tile].tmem;
+     mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].derived_view = false;
++    mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].nibble_offset=size==G_IM_SIZ_4b?(offset_x&1):0;
++    mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].width_pixels=size==G_IM_SIZ_4b?tile_width:0;
+ 
+     //    assert(size_bytes <= 4096 && "bug: too big texture");
+     mRdp->loaded_texture[mRdp->texture_tile[tile].tmem_index].tex_flags = mRdp->texture_to_load.tex_flags;
+@@ -3131,16 +3053,24 @@
  }
  
  void Interpreter::GfxSpSetOtherMode(uint32_t shift, uint32_t num_bits, uint64_t mode) {
@@ -552,7 +865,7 @@
  }
  
  void Interpreter::Gfxs2dexBgCopy(F3DuObjBg* bg) {
-@@ -5390,44 +5366,50 @@
+@@ -5390,44 +5320,50 @@
          return false;
      }
  
@@ -640,7 +953,7 @@
  
      for (uint32_t y = 0; y < height; ++y) {
          const uint16_t* srcRow = mRdramReadbackBuffer.data() + (size_t)y * width;
-@@ -5635,7 +5617,7 @@
+@@ -5635,7 +5571,7 @@
      mWapi->SwapBuffersBegin();
      mRapi->FinishRender();
      mWapi->SwapBuffersEnd();
@@ -673,7 +986,59 @@
  
 --- a/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.cpp
 +++ b/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.cpp
-@@ -263,9 +263,10 @@
+@@ -163,7 +163,7 @@
+     hash[3] ^= size * 0xC2B2AE3Du;
+ }
+ 
+-bool Fast3DMemoryBridge::StageTextureImage(u32 requiredBytes, bool palette, u32 sourceOffset,
++bool Fast3DMemoryBridge::StageTextureImage(u32 requiredBytes, u32 sourceOffset,
+                                                 u32 rowBytes, u8 swizzleGroup) {
+     if (!mHaveTextureImage || !mTextureImageCommand) return false;
+     if (requiredBytes == 0) requiredBytes = 1;
+@@ -178,16 +178,10 @@
+     if (source64 >= gRamSize || requiredBytes > gRamSize - (u32)source64) return false;
+     const u32 sourceAddress = (u32)source64;
+ 
+-    TextureStage* stage = nullptr;
+-    for (u32 i = 0; i < mTextureStageCount; ++i) {
+-        if (mTextureStages[i].address == sourceAddress &&
+-            mTextureStages[i].size == requiredBytes &&
+-            mTextureStages[i].rowBytes == rowBytes &&
+-            mTextureStages[i].swizzleGroup == swizzleGroup) {
+-            stage = &mTextureStages[i];
+-            break;
+-        }
+-    }
++    TextureStage* stage=nullptr;
++    const DuckTextureStageKey stageKey{sourceAddress,requiredBytes,rowBytes,swizzleGroup};
++    const auto staged=mTextureStageIndex.find(stageKey);
++    if(staged!=mTextureStageIndex.end())stage=&mTextureStages[staged->second];
+ 
+     u32 hash[4] = {};
+     bool hashComputed = false;
+@@ -226,7 +220,8 @@
+         if (!data) return false;
+         copyTexture(data);
+ 
+-        stage = &mTextureStages[mTextureStageCount++];
++        const u32 index=mTextureStageCount++;
++        stage=&mTextureStages[index];mTextureStageIndex.emplace(stageKey,index);
+         stage->address = sourceAddress;
+         stage->size = requiredBytes;
+         stage->hash[0] = hash[0];
+@@ -242,8 +237,9 @@
+                (stage->hash[0] != hash[0] || stage->hash[1] != hash[1] ||
+                 stage->hash[2] != hash[2] || stage->hash[3] != hash[3])) {
+         if (mInterpreter) {
+-            if (palette) mInterpreter->TextureCacheClear();
+-            else mInterpreter->TextureCacheDelete(stage->data);
++            // Pixel changes invalidate this source only. TLUT writes have
++            // exact per-bank revisions, so unrelated GPU textures stay valid.
++            mInterpreter->TextureCacheDelete(stage->data);
+         }
+         copyTexture(stage->data);
+         stage->hash[0] = hash[0];
+@@ -263,9 +259,10 @@
  }
  
  void* Fast3DMemoryBridge::ConvertMatrix(u32 address) {
@@ -685,7 +1050,7 @@
      for (u32 i = 0; i < 4; ++i) {
          for (u32 j = 0; j < 4; j += 2) {
              const u32 idx = i * 2 + j / 2;
-@@ -281,9 +282,11 @@
+@@ -281,9 +278,11 @@
  }
  
  void* Fast3DMemoryBridge::ConvertVertices(u32 address, u32 count) {
@@ -698,7 +1063,7 @@
      for (u32 i = 0; i < count; ++i) {
          const u32 a = address + i * 16;
          out[i].x = (float)ReadS16(a + 0);
-@@ -302,18 +305,20 @@
+@@ -302,18 +301,20 @@
  }
  
  void* Fast3DMemoryBridge::ConvertViewport(u32 address) {
@@ -721,7 +1086,7 @@
      for (u32 i = 0; i < size; ++i) light[i] = ReadU8(address + i);
      return light;
  }
-@@ -582,7 +587,7 @@
+@@ -582,7 +583,7 @@
      if (depth > 24) return nullptr;
  
      address = Resolve(address);
@@ -730,6 +1095,79 @@
  
      const u32 commandCount = CountListCommands(address, version);
      if (commandCount == 0) return nullptr;
+@@ -620,7 +621,7 @@
+             const u32 count = ((w1 >> 14) & 0x3FF) + 1;
+ 
+             if (mHaveTextureImage && (((mTextureImageW0 >> 19) & 0x3) != G_IM_SIZ_16b)) return fail();
+-            if (!StageTextureImage(count * 2, true)) return fail();
++            if (!StageTextureImage(count * 2)) return fail();
+             emitTextureSetImg = true;
+         } else if (op == G_RDP_LOADBLOCK) {
+             if (!mHaveTextureImage) return fail();
+@@ -677,7 +678,7 @@
+                 }
+             }
+ 
+-            if (!StageTextureImage(bytes, false, sourceOffset, rowBytes, swizzleGroup)) return fail();
++            if (!StageTextureImage(bytes, sourceOffset, rowBytes, swizzleGroup)) return fail();
+             emitTextureSetImg = true;
+ 
+             if (uls != 0 || ult != 0) w0 &= 0xFF000000u;
+@@ -691,19 +692,13 @@
+             const u32 lrt = w1 & 0xFFF;
+             if (lrs < uls || lrt < ult) return fail();
+ 
+-            u32 byteShift = 0;
+-            if (siz == G_IM_SIZ_16b) byteShift = 1;
+-            else if (siz == G_IM_SIZ_32b) byteShift = 2;
+-
+-            const u32 offsetX = uls >> 2;
+-            const u32 offsetY = ult >> 2;
+-            const u32 tileWidth = ((lrs - uls) >> 2) + 1;
+-            const u32 tileHeight = ((lrt - ult) >> 2) + 1;
+-            const u32 fullLineBytes = width << byteShift;
+-            const u32 tileLineBytes = tileWidth << byteShift;
+-            const u32 startOffset = fullLineBytes * offsetY + (offsetX << byteShift);
+-            const u64 required = (u64)startOffset +
+-                (tileHeight > 0 ? (u64)(tileHeight - 1) * fullLineBytes + tileLineBytes : 0);
++            const u32 offsetX = uls >> 2, offsetY = ult >> 2;
++            const u32 tileWidth = ((lrs-uls)>>2)+1, tileHeight=((lrt-ult)>>2)+1;
++            const u32 fullLineBytes=duck_texture_bytes(width,siz);
++            const u32 byteX=(u32)(((u64)offsetX<<siz)/2);
++            const u32 tileLineBytes=duck_texture_bytes(tileWidth+(siz==0?(offsetX&1):0),siz);
++            const u64 startOffset=(u64)fullLineBytes*offsetY+byteX;
++            const u64 required=startOffset+(u64)(tileHeight-1)*fullLineBytes+tileLineBytes;
+             if (required == 0 || required > 0xFFFFFFFFu || !StageTextureImage((u32)required)) return fail();
+             emitTextureSetImg = true;
+         }
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.h
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.h
+@@ -2,6 +2,8 @@
+ 
+ #include "HLEGraphics/Microcode.h"
+ #include "Utility/DaedalusTypes.h"
++#include "texture_stage_index.h"
++#include <unordered_map>
+ 
+ namespace Fast { class Interpreter; }
+ 
+@@ -37,7 +39,7 @@
+     void* TranslateList(u32 address, GBIVersion& version, u32 depth);
+     void CopyRdramBytes(u8* dst, u32 address, u32 size) const;
+     void HashRdramBytes(u32 address, u32 size, u32 hash[4]) const;
+-    bool StageTextureImage(u32 requiredBytes, bool palette = false, u32 sourceOffset = 0,
++    bool StageTextureImage(u32 requiredBytes, u32 sourceOffset = 0,
+                            u32 rowBytes = 0, u8 swizzleGroup = 0);
+ 
+     struct ArenaChunk {
+@@ -65,6 +67,7 @@
+     TextureStage* mTextureStages;
+     u32 mTextureStageCount;
+     u32 mTextureStageCapacity;
++    std::unordered_map<DuckTextureStageKey,u32,DuckTextureStageKey::Hasher> mTextureStageIndex;
+     u32 mBuildSerial;
+     bool mTranslationFailed;
+     bool mSawFullSync;
 --- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/interpreter.h
 +++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/interpreter.h
 @@ -1,5 +1,7 @@
@@ -749,12 +1187,13 @@
  #include <stdbool.h>
  
  
-@@ -192,10 +195,12 @@
+@@ -192,10 +195,13 @@
      uint8_t fmt, siz;
      uint8_t palette_index;
      uint32_t size_bytes;
 +    uint8_t palette_format = 0;
-+    std::array<uint32_t,8> decode_view{};
++    std::array<uint32_t,10> decode_view{};
++    uint64_t palette_revision=0;
  
  #ifdef __vita__
      bool operator==(const TextureCacheKey& rhs) const {
@@ -763,10 +1202,28 @@
      };
      struct Hasher {
          size_t operator()(const TextureCacheKey& key) const noexcept {
-@@ -589,6 +594,8 @@
+@@ -305,6 +311,7 @@
+     // palette). palettes[0] covers indices 0-7 (256 bytes), palettes[1] covers 8-15 (256 bytes). GfxDpLoadTlut copies
+     // TLUT data here at the correct offset so multi-palette CI4 models work.
+     uint8_t palette_staging[2][256];
++    uint64_t palette_revisions[16]{};
+     struct {
+         const uint8_t* addr;
+         uint8_t siz;
+@@ -320,6 +327,8 @@
+         uint32_t line_size_bytes;
+         uint16_t tmem;
+         bool derived_view;
++        uint8_t nibble_offset=0;
++        uint32_t width_pixels=0;
+         uint32_t tex_flags;
+         struct RawTexMetadata raw_tex_metadata;
+         bool masked;
+@@ -589,6 +598,9 @@
      XYWidthHeight mGameWindowViewport{};   // gfx_current_game_window_viewport;
      XYWidthHeight mNativeDimensions{};     // gfx_native_dimensions;
      XYWidthHeight mPrevNativeDimensions{}; // gfx_prev_native_dimensions;
++    uint64_t mDuckPaletteRevision=0;
 +    uint32_t mDuckTextureHits=0,mDuckTextureUploads=0;
 +    uint32_t mDuckLightColorUpdates = 0, mDuckVertexColorUpdates = 0;
      uintptr_t mGfxFrameBuffer{};

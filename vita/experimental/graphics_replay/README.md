@@ -208,3 +208,9 @@ finishes pending GPU scenes before CPU-visible FullSync output. RGBA crops retai
 source pitch; texture cache identity includes decode-view dimensions and strides.
 The adapter requests and logs standard performance clocks without lowering higher
 user settings. Add ScePower_stub when linking the adapter.
+
+For v00.12, see ../../TEXTURES_AND_PACING.md. Palette bank revisions and tile-mask,
+UV-slot, nibble and source-pitch fixes address texture state. A staging index and
+scoped source/palette invalidation avoid repeated scans and global GPU cache
+flushes. The prepared patch now also updates Fast3DMemoryBridge.h; compile all
+five units against the same prepared headers.

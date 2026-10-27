@@ -18,6 +18,9 @@ on:
       - 'vita/src/audio_vita.c'
       - 'vita/src/guest_fault.c'
       - 'vita/include/duck_vita_ai.h'
+      - 'vita/include/duck_vita_sse2neon.h'
+      - 'vita/rebuild_audio_rsp.py'
+      - 'vita/tests/neon_bridge.cpp'
       - 'vita/src/eeprom_file.c'
       - 'vita/include/duck_vita_eeprom.h'
       - 'vita/src/input_vita.c'
@@ -132,8 +135,15 @@ jobs:
               subprocess.run([str(cc), '-std=gnu11', '-O1', '-mcpu=cortex-a9', '-mfpu=neon', '-mfloat-abi=hard', '-DHAVE_GLSL_TEXTURE_SIZE', '-DSKIP_SPLASHSCREEN', '-Wno-incompatible-pointer-types', *['-I' + str(deps / name / 'source') for name in ('vita-gl-reference', 'vita-shark-reference', 'vita-math-neon-reference')], '-c', str(deps / 'vita-gl-reference/source' / (source + '.c')), '-o', '/tmp/duck-objects/vitagl-' + source.replace('/', '-') + '.arm.o'], check=True)
           print('Compiled shared renderer and textureSize compatibility objects; no game assets, VPK or rendering validation.')
           PYCODE
+      - name: Compile ARM32 NEON audio bridge against pinned SSE2NEON
+        run: |
+          SDK_CXX="$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-g++ -print -quit)"
+          mkdir -p /tmp/duck-neon
+          curl -fLsS --retry 3 https://raw.githubusercontent.com/N64Recomp/N64ModernRuntime/cdf5abbd5026fef5c364c676e4667c45e42b6863/thirdparty/sse2neon/sse2neon.h -o /tmp/duck-neon/sse2neon.h
+          echo "b260c32b66d4bd7b28766204253c0bde9d7f7aeaa71d99390628387763a2dccd  /tmp/duck-neon/sse2neon.h" | sha256sum -c -
+          "$SDK_CXX" -std=c++20 -O2 -fwrapv -fno-strict-aliasing -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/include -I/tmp/duck-neon -c vita/tests/neon_bridge.cpp -o /tmp/duck-objects/neon-bridge.arm.o
       - name: Check private final-link script syntax
-        run: python3 -m py_compile vita/link_private_game.py
+        run: python3 -m py_compile vita/link_private_game.py vita/rebuild_audio_rsp.py
       - uses: actions/upload-artifact@v4
         with:
           name: duck-vita-sp-arm-objects
