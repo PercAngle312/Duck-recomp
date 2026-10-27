@@ -21,6 +21,8 @@ on:
       - 'vita/include/duck_vita_sse2neon.h'
       - 'vita/rebuild_audio_rsp.py'
       - 'vita/tests/neon_bridge.cpp'
+      - 'vita/tests/framebuffer_neon.cpp'
+      - 'vita/tests/run_framebuffer_neon.py'
       - 'vita/src/eeprom_file.c'
       - 'vita/include/duck_vita_eeprom.h'
       - 'vita/src/input_vita.c'
@@ -142,6 +144,13 @@ jobs:
           curl -fLsS --retry 3 https://raw.githubusercontent.com/N64Recomp/N64ModernRuntime/cdf5abbd5026fef5c364c676e4667c45e42b6863/thirdparty/sse2neon/sse2neon.h -o /tmp/duck-neon/sse2neon.h
           echo "b260c32b66d4bd7b28766204253c0bde9d7f7aeaa71d99390628387763a2dccd  /tmp/duck-neon/sse2neon.h" | sha256sum -c -
           "$SDK_CXX" -std=c++20 -O2 -fwrapv -fno-strict-aliasing -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/include -I/tmp/duck-neon -c vita/tests/neon_bridge.cpp -o /tmp/duck-objects/neon-bridge.arm.o
+      - name: Execute ARM32 framebuffer conversion fixture
+        run: |
+          SDK_CXX="$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-g++ -print -quit)"
+          "$SDK_CXX" -std=c++17 -O2 -fno-builtin -fno-exceptions -fno-rtti -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/experimental/graphics_replay -nostdlib -Wl,-e,duck_framebuffer_neon_test -Wl,-Ttext=0x10000 -Wl,-Tdata=0x200000 vita/tests/framebuffer_neon.cpp -lgcc -o /tmp/duck-objects/framebuffer-neon.elf
+          python3 -m venv /tmp/duck-fb-test
+          /tmp/duck-fb-test/bin/pip install unicorn==2.1.4
+          /tmp/duck-fb-test/bin/python vita/tests/run_framebuffer_neon.py /tmp/duck-objects/framebuffer-neon.elf --report /tmp/duck-objects/framebuffer-neon.json
       - name: Check private final-link script syntax
         run: python3 -m py_compile vita/link_private_game.py vita/rebuild_audio_rsp.py
       - uses: actions/upload-artifact@v4

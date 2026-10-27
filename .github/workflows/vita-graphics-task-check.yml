@@ -10,6 +10,9 @@ on:
       - 'vita/experimental/graphics_replay/test_shader_cache.cpp'
       - 'vita/experimental/graphics_replay/texture_stage_index.h'
       - 'vita/experimental/graphics_replay/test_texture_stage_index.cpp'
+      - 'vita/experimental/graphics_replay/texture_layout.h'
+      - 'vita/experimental/graphics_replay/framebuffer_pack.h'
+      - 'vita/experimental/graphics_replay/test_texture_layout.cpp'
       - 'vita/experimental/graphics_replay/material_updates.h'
       - 'vita/experimental/graphics_replay/test_material_updates.cpp'
       - '.github/workflows/vita-graphics-task-check.yml'
@@ -22,6 +25,9 @@ on:
       - 'vita/experimental/graphics_replay/test_shader_cache.cpp'
       - 'vita/experimental/graphics_replay/texture_stage_index.h'
       - 'vita/experimental/graphics_replay/test_texture_stage_index.cpp'
+      - 'vita/experimental/graphics_replay/texture_layout.h'
+      - 'vita/experimental/graphics_replay/framebuffer_pack.h'
+      - 'vita/experimental/graphics_replay/test_texture_layout.cpp'
       - 'vita/experimental/graphics_replay/material_updates.h'
       - 'vita/experimental/graphics_replay/test_material_updates.cpp'
       - '.github/workflows/vita-graphics-task-check.yml'
@@ -46,3 +52,7 @@ jobs:
         run: |
           c++ -std=c++17 -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -Ivita/experimental/graphics_replay vita/experimental/graphics_replay/test_texture_stage_index.cpp -o /tmp/duck-texture-index
           /tmp/duck-texture-index
+      - name: Validate pre-swapped texture rows and packed framebuffer stores
+        run: |
+          c++ -std=c++17 -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -Ivita/experimental/graphics_replay vita/experimental/graphics_replay/test_texture_layout.cpp -o /tmp/duck-texture-layout
+          /tmp/duck-texture-layout
