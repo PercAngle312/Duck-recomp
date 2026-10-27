@@ -1,0 +1,127 @@
+{
+  "version": "00.13",
+  "source_commit": "a46fb3d0f3822096967e9c134308e606ada1af1b",
+  "hardware_baseline": "User 00.12 video/log: corrupt character texture detail, uneven animation, later draw/readback and audio synthesis stalls; zero reported SP failures",
+  "changes": [
+    "Decode guest DXT=0 pre-swapped texture rows at selected view pitch; retain immutable raw staging",
+    "Preserve linear interpreter-generated S2DEX background snapshots",
+    "Ordered staged-source registry replaces second per-load linear scan",
+    "ARM32 NEON ABGR1555 conversion with existing image-comparison fallback",
+    "Contiguous vector/pair RDRAM halfword-twiddled framebuffer stores"
+  ],
+  "game_core_byte_identical_to_v012": true,
+  "native_runtime_byte_identical_to_v012": true,
+  "audio_DSP_archive_byte_identical_to_v012": true,
+  "controls_changed": false,
+  "save_paths_changed": false,
+  "cover_art_retained": true,
+  "host_ASan_UBSan_layout_passed": true,
+  "host_material_regression_passed": true,
+  "leak_detection": "Disabled locally because the sandbox cannot enumerate process tasks; ASan bounds and UBSan remain active",
+  "ARM32_framebuffer_fixture": {
+    "ARM32_NEON_executed": true,
+    "conversion_values": 65536,
+    "odd_tail_tested": true,
+    "both_halfword_alignments_tested": true,
+    "out_of_span_bytes_preserved": true,
+    "runner": "Unicorn 2.1.4 Cortex-A9",
+    "fixture_elf_sha256": "45a1cca67a4c32f963784f0201f04ce05f99471ead01ffb5f5aabe0009ab8cdd",
+    "result": 0,
+    "hardware_performance_measured": false
+  },
+  "clean_patch_source_matches_compiled_source": true,
+  "renderer_translation_units_compiled": 5,
+  "link": {
+    "full_game_elf_linked": true,
+    "elf_sha256": "1e5705b0aae7c7352c2d86c002db59d4c075828b05c5229168305df888b9e4ce",
+    "vpk_sha256": "58d0dba49e6a98d7c862bccbbdf3bfcc7442b8379c57ddd50fde427e09b1639a",
+    "vpk_bytes": 5323089,
+    "strong_unresolved_symbols": 0,
+    "translated_module_functions": 8956,
+    "game_exports": 9416,
+    "runtime_sources": 29,
+    "private_catalog_initialized_by_entry": true,
+    "translated_audio_rsp_linked": true,
+    "native_audio_output_linked": true,
+    "persistent_eeprom_linked": true,
+    "ROM_in_vpk": false,
+    "executed_on_vita": false,
+    "graphics_verified": false,
+    "audio_verified": false,
+    "saves_verified_in_game": false,
+    "gameplay_verified": false,
+    "playable_verified": false
+  },
+  "artwork_only_changes": {
+    "game_executable_unchanged": true,
+    "eboot_sha256": "84992f02c833e0a61f8a61e791c6ead539b8c5889519a59eaac62510cd059f20",
+    "changed_entries": [
+      "sce_sys/icon0.png",
+      "sce_sys/livearea/contents/bg.png",
+      "sce_sys/livearea/contents/startup.png",
+      "sce_sys/livearea/contents/template.xml",
+      "sce_sys/param.sfo"
+    ],
+    "vpk_sha256": "4711477ef174e1c18199998851b3dfc4c9febc4a7737f3645a9207b8f1b4913f"
+  },
+  "emulator_host": {
+    "version": "Vita3K 4236-17a8b340",
+    "AppImage_sha256": "a2b76221b8238947576e7992cd414d492fa6ae0bacc0d321ad628668ce5716f8",
+    "original_binary_sha256": "a8e52aac9f511ac2b9e3d7794299ab05b7603be519d0aa89064eb6b02d0c387c",
+    "adapted_binary_sha256": "e05b018c7f0eca1cd595b5192158d4fd46a42196be141ac7a4d2127062bfaa43",
+    "adaptation": "SDL_Init flags 0x1b030 to 0x30 at file offset 0x10403d6; video/audio retained, optional input discovery disabled",
+    "guest_modified": false,
+    "rendering": "Mesa software offscreen OpenGL; unsuitable for native FPS or visual-fidelity pass"
+  },
+  "physical_v013_tested": false,
+  "textures_visually_verified": false,
+  "audible_quality_verified": false,
+  "native_FPS_gain_verified": false,
+  "playable_release_verified": false,
+  "known_remaining": [
+    "Two-source TMEM approximation and base-mip fallback",
+    "Synchronous GPU waits and full framebuffer readback",
+    "Synchronous audio synthesis and possible playback starvation",
+    "Physical rendering, pacing, audio and sustained playability require verification"
+  ],
+  "execution": {
+    "seconds_limit": 180,
+    "elapsed_seconds": 180.4169231620001,
+    "exit_code": 0,
+    "external_timeout": true,
+    "VPK_sha256": "4711477ef174e1c18199998851b3dfc4c9febc4a7737f3645a9207b8f1b4913f",
+    "installed_eboot_matches_VPK": true,
+    "physical_hardware": false
+  },
+  "reported_SP_failures": 0,
+  "last_guest_status": [
+    "Guest status: polls=81103 PI=5104 SP completed=1866 failed=0 loop_yields=47623"
+  ],
+  "last_audio_timing": [
+    "Audio RSP timing: tasks=256 avg_us=212 max_us=16794 code_cache_hits=1791 code_hashes=1"
+  ],
+  "last_graphics_timing": [
+    "Graphics timing: tasks=3 avg_us translate=400 draw=1163 readback=1278918 present=628 light_updates=0 vertex_rgba_updates=0 texture_hits=1233 texture_uploads=59"
+  ],
+  "emulator_texture_row_messages": 16,
+  "emulator_readback_selection": [
+    "Framebuffer readback: RGBA8 fallback (packed pixels differed)"
+  ],
+  "readback_selection_note": "Software emulator falls back to RGBA8 after image mismatch, as did the v00.12 baseline. This is not a native packed-path performance test.",
+  "release_contains_comparison_or_input_fixture": false,
+  "final_game_log_sha256": "c650304366c255ea46a7535bf49f187f36a38cf6de01fb9da7cf3e32560b825b",
+  "native_CI": {
+    "source_commit": "a46fb3d0f3822096967e9c134308e606ada1af1b",
+    "run_id": 40587141840,
+    "url": "https://github.com/PercAngle312/Duck-recomp/actions/runs/40587141840",
+    "conclusion": "success",
+    "renderer_compilation": "success",
+    "ARM32_NEON_fixture_execution": "success",
+    "runtime_ELF_link": "success"
+  },
+  "host_CI": {
+    "run_id": 40586820792,
+    "conclusion": "success"
+  },
+  "reproducibility_repair": "Cumulative patch retains backend header declarations; clean patched source byte-identical to compiled source. Corrected CI passes."
+}
