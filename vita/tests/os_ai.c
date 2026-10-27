@@ -44,6 +44,14 @@ int main(void){
  next_frame[1]=0x75;next_frame[0]=0x30; // right +30000
  state.phase=0;assert(duck_vita_audio_resample_joined(&state,ram,0x1000,4,24000,pcm,16,&done,next_frame)==8&&done);
  assert(pcm[12]==30000&&pcm[13]==-30000&&pcm[14]==0&&pcm[15]==0);
+ // A carried half input frame at 24 kHz is one full frame at 48 kHz.
+ // This keeps the next native sample at the same physical time after a
+ // guest frequency switch. A repeated call at that rate must not rescale.
+ state.phase=24000;state.phase_rate=24000;
+ assert(duck_vita_audio_resample(&state,ram,0x1000,4,48000,pcm,1,&done)==1&&!done);
+ assert(pcm[0]==-10000&&pcm[1]==10000&&state.phase==96000&&state.phase_rate==48000);
+ assert(duck_vita_audio_resample(&state,ram,0x1000,4,48000,pcm,1,&done)==1&&!done);
+ assert(pcm[0]==10000&&pcm[1]==-10000&&state.phase==144000);
  DuckAiAsyncSink sink={begin,poll,0,0,0};unsigned before=(unsigned)interrupts;
  assert(!duck_vita_ai_init_async(ram,48681812,&sink));enqueue(ram,&c);enqueue(ram,&c);
  assert(!duck_vita_ai_service()&&starts==1);

@@ -19,6 +19,11 @@ problem; successful linkage is not proof that it is resolved.
   The host still retires playback completions in order; no extra FIFO depth,
   invented completion, delayed IRQ or resampling-rate workaround is added.
 
+* Preserve residual resampling time when the next DMA changes frequency.
+  The previous phase was in old input-frame units and was reused at the new
+  rate. A focused test checks the first sample after a rate switch and verifies
+  that subsequent chunks at the same rate are not scaled twice.
+
 ## Checks
 
 The host RSP comparison covers 524,672 cases across every DMEM address, all

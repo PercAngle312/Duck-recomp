@@ -7,6 +7,11 @@ unsigned duck_vita_audio_resample_joined(DuckAudioResampler *state,const uint8_t
  uint32_t address,unsigned frames,unsigned rate,int16_t *out,unsigned capacity,int *done,const uint8_t *next_frame){
  if(!done)return 0;
  *done=0;if(!state||!ram||!out||!frames||!rate||!capacity)return 0;
+ // Phase is measured in input-frame units. On a DMA rate change, preserve
+ // the residual time rather than interpreting the old units at a new rate.
+ if(state->phase_rate&&state->phase_rate!=rate)
+  state->phase=state->phase*rate/state->phase_rate;
+ state->phase_rate=rate;
  uint64_t end=(uint64_t)frames*48000;unsigned produced=0;
  while(state->phase<end&&produced<capacity){
   unsigned i=(unsigned)(state->phase/48000),fraction=(unsigned)(state->phase%48000);
