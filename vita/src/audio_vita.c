@@ -55,8 +55,12 @@ static int playback(unsigned args,void *opaque){
     active=1;
    }
    unsigned slot=cursor&1,frames=jobs[slot].frames;int done=0;
-   unsigned n=duck_vita_audio_resample(&resampler,jobs[slot].snapshot,0,
-       frames,jobs[slot].rate,pcm[buffer]+filled*2,256-filled,&done);
+   // Tail release/acquire publishes an immutable next snapshot. Never wait
+   // for a second DMA: a single-buffer producer may need this completion.
+   const uint8_t *next_frame=atomic_load_explicit(&tail,memory_order_acquire)-cursor>1?
+       jobs[(cursor+1)&1].snapshot:NULL;
+   unsigned n=duck_vita_audio_resample_joined(&resampler,jobs[slot].snapshot,0,
+       frames,jobs[slot].rate,pcm[buffer]+filled*2,256-filled,&done,next_frame);
    if(!n&&!done){atomic_store_explicit(&failure,-1,memory_order_release);return -1;}
    filled+=n;
    unsigned consumed=(unsigned)(resampler.phase/48000);

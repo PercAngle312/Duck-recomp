@@ -20,6 +20,10 @@ on:
       - 'vita/include/duck_vita_ai.h'
       - 'vita/include/duck_vita_sse2neon.h'
       - 'vita/rebuild_audio_rsp.py'
+      - 'vita/include/duck_vita_rsp_memory.h'
+      - 'vita/patch_rsp_memory.py'
+      - 'vita/tests/rsp_memory*.cpp'
+      - 'vita/tests/run_rsp_memory_arm.py'
       - 'vita/tests/neon_bridge.cpp'
       - 'vita/tests/framebuffer_neon.cpp'
       - 'vita/tests/run_framebuffer_neon.py'
@@ -151,8 +155,33 @@ jobs:
           python3 -m venv /tmp/duck-fb-test
           /tmp/duck-fb-test/bin/pip install unicorn==2.1.4
           /tmp/duck-fb-test/bin/python vita/tests/run_framebuffer_neon.py /tmp/duck-objects/framebuffer-neon.elf --report /tmp/duck-objects/framebuffer-neon.json
+      - name: Execute reference and optimized ARM32 RSP memory paths
+        run: |
+          SDK_CXX="$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-g++ -print -quit)"
+          mkdir -p /tmp/duck-rsp-reference/librecomp /tmp/duck-rsp-reference/ultramodern
+          for name in rsp.hpp rsp_vu.hpp rsp_vu_impl.hpp; do
+            curl -fLsS --retry 3 "https://raw.githubusercontent.com/N64Recomp/N64ModernRuntime/cdf5abbd5026fef5c364c676e4667c45e42b6863/librecomp/include/librecomp/$name" -o "/tmp/duck-rsp-reference/librecomp/$name"
+          done
+          cp /tmp/duck-abi/recomp.h /tmp/duck-abi/portable_mul.h /tmp/duck-rsp-reference/
+          curl -fLsS --retry 3 https://raw.githubusercontent.com/N64Recomp/N64ModernRuntime/cdf5abbd5026fef5c364c676e4667c45e42b6863/ultramodern/include/ultramodern/ultra64.h -o /tmp/duck-rsp-reference/ultramodern/ultra64.h
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          import sys, shutil
+          sys.path.insert(0,'vita')
+          from patch_rsp_memory import patch
+          root=Path('/tmp/duck-rsp-reference');p=root/'librecomp/rsp_vu.hpp'
+          s=p.read_text();anchor='#elif defined(__aarch64__) || defined(_M_ARM64)'
+          assert s.count(anchor)==1
+          p.write_text(s.replace(anchor,anchor+' || defined(__ARM_NEON)').replace('#include <sse2neon.h>','#include "duck_vita_sse2neon.h"'))
+          shutil.copytree(root,'/tmp/duck-rsp-fast');patch(Path('/tmp/duck-rsp-fast'))
+          PYCODE
+          for variant in reference fast; do
+            "$SDK_CXX" -std=c++20 -O2 -fwrapv -fno-strict-aliasing -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -DRSP=DuckRspMemory_$variant -DDUCK_MEMORY_TEST_NAME=duck_rsp_memory_$variant -I/tmp/duck-rsp-$variant -Ivita/include -I/tmp/duck-neon -c vita/tests/rsp_memory.cpp -o /tmp/duck-rsp-$variant.arm.o
+          done
+          "$SDK_CXX" -std=c++20 -O2 -fno-builtin -fno-exceptions -fno-rtti -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/include -nostdlib -Wl,-e,duck_rsp_memory_arm_test -Wl,-Ttext=0x10000 -Wl,-Tdata=0x200000 vita/tests/rsp_memory_arm.cpp /tmp/duck-rsp-reference.arm.o /tmp/duck-rsp-fast.arm.o -lgcc -o /tmp/duck-objects/rsp-memory.arm.elf
+          /tmp/duck-fb-test/bin/python vita/tests/run_rsp_memory_arm.py /tmp/duck-objects/rsp-memory.arm.elf --report /tmp/duck-objects/rsp-memory.json
       - name: Check private final-link script syntax
-        run: python3 -m py_compile vita/link_private_game.py vita/rebuild_audio_rsp.py
+        run: python3 -m py_compile vita/link_private_game.py vita/rebuild_audio_rsp.py vita/patch_rsp_memory.py
       - uses: actions/upload-artifact@v4
         with:
           name: duck-vita-sp-arm-objects

@@ -34,6 +34,9 @@ typedef struct {uint64_t phase;} DuckAudioResampler;
 /* Produces stereo 48 kHz PCM from one word-swapped guest DMA. The caller
  * repeatedly supplies the same buffer until done; phase carries to the next. */
 unsigned duck_vita_audio_resample(DuckAudioResampler*,const uint8_t*,uint32_t,unsigned,unsigned,int16_t*,unsigned,int*);
+/* Optional already-owned next DMA's first stereo frame, word-swapped. It
+ * supplies interpolation at the boundary; it never delays DMA completion. */
+unsigned duck_vita_audio_resample_joined(DuckAudioResampler*,const uint8_t*,uint32_t,unsigned,unsigned,int16_t*,unsigned,int*,const uint8_t*);
 int duck_vita_ai_vita_init(uint8_t *rdram,unsigned video_clock);
 void duck_vita_ai_vita_close(void);
 #ifdef __cplusplus

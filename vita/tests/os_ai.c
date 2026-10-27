@@ -36,6 +36,14 @@ int main(void){
  for(unsigned i=0;i<8;i++)assert(pcm[i]==expected[i]);
  state.phase=0;assert(duck_vita_audio_resample(&state,ram,0x1000,4,24000,pcm,16,&done)==8&&done);
  assert(pcm[2]==-20000&&pcm[3]==20000);
+ assert(pcm[14]==30000&&pcm[15]==-30000); // no-lookahead fallback
+ // A queued next frame supplies the interpolation neighbour at the last
+ // current-DMA sample. Legacy callers without lookahead still clamp safely.
+ uint8_t next_frame[4]={0};
+ next_frame[3]=0x8a;next_frame[2]=0xd0; // left -30000, logical big endian
+ next_frame[1]=0x75;next_frame[0]=0x30; // right +30000
+ state.phase=0;assert(duck_vita_audio_resample_joined(&state,ram,0x1000,4,24000,pcm,16,&done,next_frame)==8&&done);
+ assert(pcm[12]==30000&&pcm[13]==-30000&&pcm[14]==0&&pcm[15]==0);
  DuckAiAsyncSink sink={begin,poll,0,0,0};unsigned before=(unsigned)interrupts;
  assert(!duck_vita_ai_init_async(ram,48681812,&sink));enqueue(ram,&c);enqueue(ram,&c);
  assert(!duck_vita_ai_service()&&starts==1);

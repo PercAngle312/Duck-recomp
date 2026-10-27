@@ -82,7 +82,7 @@ int sceAudioOutOutput(int port,const void *buffer){
  }
  assert(!pthread_mutex_unlock(&mutex));const int16_t *pcm=buffer;
  assert(pcm[0]==12000||pcm[0]==6000);
- for(unsigned i=0;i<frames;i++)assert((pcm[i*2]==12000&&pcm[i*2+1]==-12000)||(pcm[i*2]==6000&&pcm[i*2+1]==-6000)||(!pcm[i*2]&&!pcm[i*2+1]));
+ for(unsigned i=0;i<frames;i++)assert((pcm[i*2]>=6000&&pcm[i*2]<=12000&&pcm[i*2+1]==-pcm[i*2])||(!pcm[i*2]&&!pcm[i*2+1]));
  if(capture){assert(captured+frames<=4096);for(unsigned i=0;i<frames*2;i++)recording[captured*2+i]=pcm[i];captured+=frames;}
  atomic_fetch_add(&outputs,1);return output_error;
 }
@@ -94,8 +94,10 @@ static void pattern(uint8_t *ram,unsigned at,unsigned count,int left){
   ram[p^3u]=(uint8_t)(value>>8);ram[(p+1)^3u]=(uint8_t)value;
  }
 }
+static unsigned queued_rate;
 static void queue(uint8_t *ram,unsigned at,unsigned bytes){
  recomp_context c={0};c.r4=32000;osAiSetFrequency_recomp(ram,&c);assert(c.r2>31000&&c.r2<33000);
+ queued_rate=(unsigned)c.r2;
  c.r4=0x80000000u+at;c.r5=bytes;osAiSetNextBuffer_recomp(ram,&c);assert(!c.r2);
 }
 static int complete(void){
@@ -118,6 +120,7 @@ int main(void){
  assert(!pthread_mutex_lock(&mutex));while(!gate_waiting)assert(!pthread_cond_wait(&changed,&mutex));assert(!pthread_mutex_unlock(&mutex));
  // Playback is blocked, yet the host services AI without blocking or early IRQ.
  pattern(ram,0x1000,1024,-8000); // must not alter the worker's owned snapshot
+ pattern(ram,0x3000,1024,-9000); // interpolation must use the next owned snapshot too
  for(unsigned i=0;i<1000;i++)assert(!duck_vita_ai_service()&&!atomic_load(&interrupts));
  assert(!pthread_mutex_lock(&mutex));gate=0;assert(!pthread_cond_broadcast(&changed));assert(!pthread_mutex_unlock(&mutex));
  assert(complete()==1&&atomic_load(&interrupts)==1);assert(complete()==1&&atomic_load(&interrupts)==2);
@@ -126,9 +129,12 @@ int main(void){
  // output-port reconfiguration at their shared boundary, and one idle drain.
  assert(captured==3072&&atomic_load(&outputs)==12&&atomic_load(&drains)==1&&!atomic_load(&configured));
  for(unsigned i=0;i<captured;i++){
-  int expected=i<1536?12000:6000;
+  uint64_t phase=(uint64_t)i*queued_rate;
+  int expected=phase<1024ull*48000?12000:6000;
+  if(phase/48000==1023)expected=12000+(int)((-6000ll*(int64_t)(phase%48000))/48000);
   assert(recording[i*2]==expected&&recording[i*2+1]==-expected);
  }
+ pattern(ram,0x3000,1024,6000);
  // A very short, high-rate second DMA can produce zero native samples.
  // It must still complete exactly once after the preceding output is played.
  recomp_context short_dma={0};short_dma.r4=360000;osAiSetFrequency_recomp(ram,&short_dma);
