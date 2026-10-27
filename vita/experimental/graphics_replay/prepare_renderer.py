@@ -24,6 +24,9 @@ def prepare(dependency: Path, output: Path) -> Path:
     options=here/'graphics-options.patch'
     subprocess.run(['git','apply','--check',str(options)],cwd=output,check=True)
     subprocess.run(['git','apply',str(options)],cwd=output,check=True)
+    validation=here/'texture-validation.patch'
+    subprocess.run(['git','apply','--check',str(validation)],cwd=output,check=True)
+    subprocess.run(['git','apply',str(validation)],cwd=output,check=True)
     return output/'Source'
 
 if __name__=='__main__':

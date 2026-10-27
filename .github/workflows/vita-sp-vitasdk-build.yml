@@ -145,6 +145,11 @@ jobs:
               subprocess.run([str(cc), '-std=gnu11', '-O1', '-mcpu=cortex-a9', '-mfpu=neon', '-mfloat-abi=hard', '-DHAVE_GLSL_TEXTURE_SIZE', '-DSKIP_SPLASHSCREEN', '-Wno-incompatible-pointer-types', *['-I' + str(deps / name / 'source') for name in ('vita-gl-reference', 'vita-shark-reference', 'vita-math-neon-reference')], '-c', str(deps / 'vita-gl-reference/source' / (source + '.c')), '-o', '/tmp/duck-objects/vitagl-' + source.replace('/', '-') + '.arm.o'], check=True)
           print('Compiled shared renderer and textureSize compatibility objects; no game assets, VPK or rendering validation.')
           PYCODE
+      - name: Compare actual texture validation methods against previous bridge
+        run: |
+          cp -r /tmp/duck-renderer-prepared /tmp/duck-validation-reference
+          git -C /tmp/duck-validation-reference apply --reverse "$GITHUB_WORKSPACE/vita/experimental/graphics_replay/texture-validation.patch"
+          ASAN_OPTIONS=detect_leaks=0 python3 vita/experimental/graphics_replay/test_texture_validation.py --source /tmp/duck-renderer-prepared/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.cpp --reference /tmp/duck-validation-reference/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.cpp --report /tmp/duck-objects/texture-validation.json
       - name: Compile ARM32 NEON audio bridge against pinned SSE2NEON
         run: |
           SDK_CXX="$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-g++ -print -quit)"

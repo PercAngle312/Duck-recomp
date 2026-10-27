@@ -1,0 +1,45 @@
+{
+  "optimization": "First-use texture validation replaces full historical-stage walk",
+  "actual_method_fixture": {
+    "reference": {
+      "hashes": 5124,
+      "texture_updates": 1026,
+      "historical_stage_visits": 532482
+    },
+    "lazy": {
+      "hashes": 5124,
+      "texture_updates": 1026,
+      "historical_stage_visits": 0
+    }
+  },
+  "fixture_scope": "Actual StageTextureImage and BuildDisplayList methods; substituted RAM copying, hash and GPU callback seams; ASan/UBSan enabled",
+  "serial_wrap_regression": "PASS: dormant serial=1 source revalidated after wrap",
+  "renderer_ARM32_units_compiled": 5,
+  "complete_private_game_link": true,
+  "unresolved_strong_imports": 0,
+  "emulator": {
+    "seconds_limit": 120,
+    "elapsed_seconds": 120.11457127700032,
+    "exit_code": 0,
+    "external_timeout": true,
+    "internal_VPK_sha256": "b9f5b33e880d3bc7833c33f12d11ba4ad138499f98521fa759ff3cfd88b389bf",
+    "installed_self_matches_candidate": true,
+    "instrumented": true,
+    "physical_hardware": false,
+    "new_user_release": false
+  },
+  "first_frame_presented": true,
+  "first_post_task_GL_error": 0,
+  "last_reported_guest_status": {
+    "polls": 54432,
+    "PI": 5104,
+    "SP_completed": 1365,
+    "SP_failed": 0
+  },
+  "physical_Vita_performance_measured": false,
+  "remaining_bottlenecks": [
+    "GPU drawing/readback stalls",
+    "Translated audio synthesis"
+  ],
+  "user_release_changed": false
+}

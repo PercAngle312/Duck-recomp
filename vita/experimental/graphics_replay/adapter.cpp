@@ -122,8 +122,8 @@ extern "C" int duck_fast3d_submit_task(uint32_t task_address){
   fprintf(stderr,"Invalid microcode or display-list span: code=%08x data=%08x list=%08x\n",task[4],task[6],task[12]);return -6;
  }
  UcodeInfo ucode=GBIMicrocode_DetectVersion(code,task[5],data,task[7]);
- // All guest writes are dirty until translated-store instrumentation is added.
- memset(g_RDRAMDirtyPages,1,sizeof g_RDRAMDirtyPages);
+ // The bridge validates every source on first use in this task. No global
+ // dirty-page fill or scan of historical texture stages is required.
  static bool first=true;
  if(first)fprintf(stderr,"Translating first display list\n");
  void *list=bridge.BuildDisplayList(task[12],ucode.version);if(!list)return -4;
