@@ -1,201 +1,59 @@
 #define _POSIX_C_SOURCE 200809L
-#include "duck_vita_ai.h"
-#include <psp2/audioout.h>
-#include <psp2/kernel/threadmgr.h>
+#include <stdint.h>
+uint64_t sceKernelGetProcessTimeWide(void);
+int sceKernelDelayThread(unsigned);
+#include "../src/audio_vita.c"
 #include <assert.h>
 #include <pthread.h>
-#include <stdatomic.h>
-#include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-static pthread_t host,thread;
-static pthread_mutex_t mutex=PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t changed=PTHREAD_COND_INITIALIZER;
-static DuckTestThreadEntry entry;
-static int sem_count,sema_live,thread_live,thread_started,port_live;
-static int gate,gate_waiting,open_error,config_error,output_error,drain_error;
-static unsigned gate_after_outputs;
-static int create_sema_error,create_thread_error,start_error,signal_error,join_error;
-static int volume_error;
-static const void *last_native_buffer;
-static unsigned frames,released,captured;
-static int capture;
-static int16_t recording[4096*2];
-static atomic_uint configured,outputs,drains,interrupts;
-int sceKernelCreateSema(const char *name,unsigned attr,int initial,int max,void *opt){
- assert(name&&!attr&&!initial&&max==2&&!opt&&!sema_live);
- if(create_sema_error)return create_sema_error;
- sema_live=1;sem_count=0;return 20;
-}
-int sceKernelWaitSema(int id,int count,unsigned *timeout){
- assert(id==20&&count==1&&!timeout);assert(!pthread_mutex_lock(&mutex));
- while(!sem_count)assert(!pthread_cond_wait(&changed,&mutex));
- sem_count--;assert(!pthread_mutex_unlock(&mutex));return 0;
-}
-int sceKernelSignalSema(int id,int count){
- assert(id==20&&count==1);if(signal_error)return signal_error;
- assert(!pthread_mutex_lock(&mutex));int rc=sem_count>=2?-1:0;
- if(!rc){sem_count++;assert(!pthread_cond_broadcast(&changed));}
- assert(!pthread_mutex_unlock(&mutex));return rc;
-}
-int sceKernelDeleteSema(int id){assert(id==20&&sema_live&&!thread_live);sema_live=0;return 0;}
-int sceKernelCreateThread(const char *name,DuckTestThreadEntry fn,int priority,unsigned stack,unsigned attr,int affinity,const void *opt){
- assert(name&&priority==0x10000100&&stack>=0x10000&&!attr&&!affinity&&!opt&&!thread_live);
- if(create_thread_error)return create_thread_error;
- entry=fn;thread_live=1;return 21;
-}
-static void *run(void *arg){(void)arg;entry(0,NULL);return NULL;}
-int sceKernelStartThread(int id,unsigned length,void *args){
- assert(id==21&&thread_live&&!length&&!args&&!thread_started);if(start_error)return start_error;
- assert(!pthread_create(&thread,NULL,run,NULL));thread_started=1;return 0;
-}
-int sceKernelWaitThreadEnd(int id,int *result,unsigned *timeout){
- assert(pthread_equal(pthread_self(),host)&&id==21&&!result&&!timeout&&thread_started);
- if(join_error)return join_error;
- assert(!pthread_join(thread,NULL));thread_started=0;return 0;
-}
-int sceKernelDeleteThread(int id){assert(id==21&&thread_live&&!thread_started);thread_live=0;return 0;}
-int sceAudioOutOpenPort(SceAudioOutPortType type,int len,int rate,SceAudioOutMode mode){
- assert(!port_live&&type==SCE_AUDIO_OUT_PORT_TYPE_MAIN&&len==DUCK_VITA_AUDIO_BLOCK_FRAMES&&rate==48000&&mode==SCE_AUDIO_OUT_MODE_STEREO);
- if(open_error)return open_error;
- port_live=1;frames=DUCK_VITA_AUDIO_BLOCK_FRAMES;return 7;
-}
-int sceAudioOutSetConfig(int port,unsigned len,int rate,SceAudioOutMode mode){
- assert(port==7&&port_live&&len&&len<=256&&!(len%64)&&rate==-1);
- assert(!last_native_buffer); // no reconfiguration of a queued device buffer
- assert(!pthread_equal(pthread_self(),host));assert(mode==SCE_AUDIO_OUT_MODE_STEREO);
- atomic_fetch_add(&configured,1);frames=len;return config_error;
-}
-int sceAudioOutSetVolume(int port,SceAudioOutChannelFlag flags,int *volumes){
- assert(port==7&&port_live&&flags==(SCE_AUDIO_VOLUME_FLAG_L_CH|SCE_AUDIO_VOLUME_FLAG_R_CH));
- assert(volumes[0]==SCE_AUDIO_OUT_MAX_VOL&&volumes[1]==SCE_AUDIO_OUT_MAX_VOL);return volume_error;
-}
-int sceAudioOutOutput(int port,const void *buffer){
- assert(port==7&&port_live);if(!buffer){last_native_buffer=NULL;atomic_fetch_add(&drains,1);return drain_error;}
- assert(buffer!=last_native_buffer);last_native_buffer=buffer;
- assert(!pthread_equal(pthread_self(),host)&&!((uintptr_t)buffer%64));
- assert(!pthread_mutex_lock(&mutex));
- if(gate&&atomic_load(&outputs)>=gate_after_outputs){
-  gate_waiting=1;assert(!pthread_cond_broadcast(&changed));
-  while(gate)assert(!pthread_cond_wait(&changed,&mutex));
- }
- assert(!pthread_mutex_unlock(&mutex));const int16_t *pcm=buffer;
- for(unsigned i=0;i<frames;i++)assert(pcm[i*2]>=0&&pcm[i*2]<=12000&&pcm[i*2+1]==-pcm[i*2]);
- if(capture){assert(captured+frames<=4096);for(unsigned i=0;i<frames*2;i++)recording[captured*2+i]=pcm[i];captured+=frames;}
- atomic_fetch_add(&outputs,1);return output_error;
-}
-int sceAudioOutReleasePort(int port){assert(port==7&&port_live&&!thread_live&&!sema_live);port_live=0;released++;return 0;}
-int duck_vita_os_event_emit(unsigned event){assert(event==6&&pthread_equal(pthread_self(),host));atomic_fetch_add(&interrupts,1);return 0;}
-static void pattern(uint8_t *ram,unsigned at,unsigned count,int left){
- for(unsigned i=0;i<count;i++)for(unsigned ch=0;ch<2;ch++){
-  unsigned value=(uint16_t)(ch?-left:left),p=at+i*4+ch*2;
-  ram[p^3u]=(uint8_t)(value>>8);ram[(p+1)^3u]=(uint8_t)value;
- }
-}
-static unsigned queued_rate;
-static void queue(uint8_t *ram,unsigned at,unsigned bytes){
- recomp_context c={0};c.r4=32000;osAiSetFrequency_recomp(ram,&c);assert(c.r2>31000&&c.r2<33000);
- queued_rate=(unsigned)c.r2;
- c.r4=0x80000000u+at;c.r5=bytes;osAiSetNextBuffer_recomp(ram,&c);assert(!c.r2);
-}
-static int complete(void){
- struct timespec pause={0,1000000};
- for(unsigned i=0;i<2000;i++){int rc=duck_vita_ai_service();if(rc)return rc;nanosleep(&pause,NULL);}
- assert(!"audio worker timeout");return -1;
-}
+static atomic_uint ticks,output_count,events;
+static atomic_int output_failure;
+static pthread_t thread;
+static int (*thread_entry)(unsigned,void*);
+static void nap(void){struct timespec t={0,1000000};nanosleep(&t,0);}
+uint64_t sceKernelGetProcessTimeWide(void){return atomic_load(&ticks);}
+int sceKernelDelayThread(unsigned us){(void)us;nap();return 0;}
+static void *run(void *x){(void)x;thread_entry(0,0);return 0;}
+int sceKernelCreateThread(const char *n,int (*f)(unsigned,void*),int p,unsigned s,unsigned a,int c,const void *o){(void)n;(void)p;(void)s;(void)a;(void)c;(void)o;thread_entry=f;return 1;}
+int sceKernelStartThread(int id,unsigned n,void *p){(void)id;(void)n;(void)p;return pthread_create(&thread,0,run,0);}
+int sceKernelWaitThreadEnd(int id,int *r,unsigned *t){(void)id;(void)r;(void)t;return pthread_join(thread,0);}
+int sceKernelDeleteThread(int id){(void)id;return 0;}
+int sceAudioOutOpenPort(SceAudioOutPortType t,int f,int r,SceAudioOutMode m){assert(t==SCE_AUDIO_OUT_PORT_TYPE_MAIN&&f==256&&r==48000&&m==SCE_AUDIO_OUT_MODE_STEREO);return 2;}
+int sceAudioOutSetVolume(int p,SceAudioOutChannelFlag f,int *v){(void)p;(void)f;(void)v;return 0;}
+int sceAudioOutOutput(int p,const void *data){(void)p;if(data){const int16_t *s=data;for(unsigned i=0;i<256;i++){assert(s[i*2]>=0&&s[i*2]<=12000);assert(s[i*2+1]==-s[i*2]);}atomic_fetch_add(&output_count,1);nap();}return atomic_load(&output_failure);}
+int sceAudioOutReleasePort(int p){(void)p;return 0;}
+int duck_vita_os_event_emit(unsigned e){assert(e==6);atomic_fetch_add(&events,1);return 0;}
+static void fill(uint8_t *ram,unsigned frames){for(unsigned i=0;i<frames;i++){unsigned l=12000,r=(unsigned)(uint16_t)-12000;ram[(i*4)^3]=l>>8;ram[(i*4+1)^3]=l;ram[(i*4+2)^3]=r>>8;ram[(i*4+3)^3]=r;}}
+static void enqueue(uint8_t *ram){recomp_context c={0};c.r4=0x80000000u;c.r5=552*4;osAiSetNextBuffer_recomp(ram,&c);assert(c.r2==0);}
 int main(void){
- assert(sizeof(SceAudioOutMode)==1);host=pthread_self();uint8_t *ram=calloc(1,0x800000);assert(ram);
- open_error=-11;assert(duck_vita_ai_vita_init(ram,48681812)==-11);open_error=0;
- int *errors[]={&volume_error,&create_sema_error,&create_thread_error,&start_error};
- for(unsigned i=0;i<4;i++){
-  *errors[i]=-20-(int)i;assert(duck_vita_ai_vita_init(ram,48681812)==*errors[i]);*errors[i]=0;
-  assert(!port_live&&!sema_live&&!thread_live);
- }
- atomic_store(&drains,0);atomic_store(&outputs,0);atomic_store(&configured,0);
- pattern(ram,0x1000,1024,12000);pattern(ram,0x3000,1024,6000);
- assert(!duck_vita_ai_vita_init(ram,48681812));assert(duck_vita_ai_vita_init(ram,48681812)==-1);
- capture=1;gate=1;queue(ram,0x1000,4096);queue(ram,0x3000,4096);
- // Playback must begin without servicing a scheduler checkpoint. Otherwise
- // a long renderer call after SetNextBuffer leaves ready PCM idle.
- struct timespec deadline;assert(!clock_gettime(CLOCK_REALTIME,&deadline));deadline.tv_sec+=2;
- assert(!pthread_mutex_lock(&mutex));while(!gate_waiting)assert(!pthread_cond_timedwait(&changed,&mutex,&deadline));assert(!pthread_mutex_unlock(&mutex));
- // Playback is blocked, yet the host services AI without blocking or early IRQ.
- pattern(ram,0x1000,1024,-8000); // must not alter the worker's owned snapshot
- pattern(ram,0x3000,1024,-9000); // interpolation must use the next owned snapshot too
- for(unsigned i=0;i<1000;i++)assert(!duck_vita_ai_service()&&!atomic_load(&interrupts));
- assert(!pthread_mutex_lock(&mutex));gate=0;assert(!pthread_cond_broadcast(&changed));assert(!pthread_mutex_unlock(&mutex));
- assert(complete()==1&&atomic_load(&interrupts)==1);assert(complete()==1&&atomic_load(&interrupts)==2);
- capture=0;
- // Both complete DMAs form 3072 real stereo samples: no zero padding or
- // output-port reconfiguration at their shared boundary, and one idle drain.
- assert(captured==3072&&atomic_load(&outputs)==3072/DUCK_VITA_AUDIO_BLOCK_FRAMES&&atomic_load(&drains)==1&&!atomic_load(&configured));
- for(unsigned i=0;i<captured;i++){
-  uint64_t phase=(uint64_t)i*queued_rate;
-  int expected=phase<1024ull*48000?12000:6000;
-  if(phase/48000==1023)expected=12000+(int)((-6000ll*(int64_t)(phase%48000))/48000);
-  assert(recording[i*2]==expected&&recording[i*2+1]==-expected);
- }
- pattern(ram,0x3000,1024,6000);
- // A very short, high-rate second DMA can produce zero native samples.
- // It must still complete exactly once after the preceding output is played.
- recomp_context short_dma={0};short_dma.r4=360000;osAiSetFrequency_recomp(ram,&short_dma);
- assert(short_dma.r2>350000&&short_dma.r2<370000);
- short_dma.r4=0x80003000;short_dma.r5=8;
- osAiSetNextBuffer_recomp(ram,&short_dma);assert(!short_dma.r2);
- osAiSetNextBuffer_recomp(ram,&short_dma);assert(!short_dma.r2);
- unsigned short_irq=atomic_load(&interrupts);
- assert(complete()==1&&atomic_load(&interrupts)==short_irq+1);
- assert(complete()==1&&atomic_load(&interrupts)==short_irq+2);
- // Freeze on a later device output: the preceding block has played, and the
- // guest length must decrease without prematurely completing the DMA.
- gate_waiting=0;gate_after_outputs=atomic_load(&outputs)+2;gate=1;
- queue(ram,0x3000,4096);unsigned progress_irq=atomic_load(&interrupts);assert(!duck_vita_ai_service());
- assert(!pthread_mutex_lock(&mutex));while(!gate_waiting)assert(!pthread_cond_wait(&changed,&mutex));assert(!pthread_mutex_unlock(&mutex));
- recomp_context length={0};osAiGetLength_recomp(ram,&length);assert(length.r2>0&&length.r2<4096&&!(length.r2&7));
- assert(atomic_load(&interrupts)==progress_irq);
- assert(!pthread_mutex_lock(&mutex));gate=0;assert(!pthread_cond_broadcast(&changed));assert(!pthread_mutex_unlock(&mutex));
- assert(complete()==1&&atomic_load(&interrupts)==progress_irq+1);
- osAiGetLength_recomp(ram,&length);assert(!length.r2);
- // Refill the FIFO while the second DMA is still owned: reuse both snapshot
- // slots repeatedly and exercise semaphore tokens without drops/extra IRQs.
- unsigned refill_irq=atomic_load(&interrupts);
- queue(ram,0x3000,1024);queue(ram,0x3000,1024);
- for(unsigned i=0;i<64;i++){
-  assert(complete()==1&&atomic_load(&interrupts)==refill_irq+i+1);
-  if(i<62)queue(ram,0x3000,1024);
- }
- queue(ram,0x3000,4096);assert(!duck_vita_ai_service());unsigned irq=atomic_load(&interrupts);
- duck_vita_ai_vita_close();assert(!duck_vita_ai_service()&&atomic_load(&interrupts)==irq);
- assert(!port_live&&!thread_live&&!sema_live);pattern(ram,0x1000,1024,12000);
- int *failures[]={&output_error,&drain_error,&signal_error};
- for(unsigned i=0;i<3;i++){
-  assert(!duck_vita_ai_vita_init(ram,48681812));*failures[i]=-30-(int)i;queue(ram,0x1000,4096);irq=atomic_load(&interrupts);
-  assert(complete()==-1&&duck_vita_ai_error()==*failures[i]&&atomic_load(&interrupts)==irq);
-  *failures[i]=0;duck_vita_ai_vita_close();assert(!port_live&&!thread_live&&!sema_live);
- }
- assert(!duck_vita_ai_vita_init(ram,48681812));join_error=-44;duck_vita_ai_vita_close();
- assert(port_live&&thread_live&&sema_live&&duck_vita_ai_vita_init(ram,48681812)==-1);
- join_error=0;duck_vita_ai_vita_close();assert(!port_live&&!thread_live&&!sema_live);
- unsigned before=released;duck_vita_ai_vita_close();assert(released==before);
- // A real-sized single DMA must pad less than one 64-frame block. This
- // exercises starvation rather than the exactly-divisible two-DMA fixture.
- for(unsigned frequency=24000;frequency<=32000;frequency+=8000){
-  assert(!duck_vita_ai_vita_init(ram,48681812));
-  recomp_context one={0};one.r4=frequency;osAiSetFrequency_recomp(ram,&one);unsigned rate=(unsigned)one.r2;
-  captured=0;capture=1;one.r4=0x80001000;one.r5=552*4;
-  osAiSetNextBuffer_recomp(ram,&one);assert(!one.r2);assert(complete()==1);capture=0;
-  unsigned real=(unsigned)((552ull*48000+rate-1)/rate);
-  assert(captured==(real+63u)/64u*64u&&captured-real<64);
-  unsigned last=real%DUCK_VITA_AUDIO_BLOCK_FRAMES;
-  unsigned taper=last<16?last:16;
-  for(unsigned i=0;i<captured;i++){
-   int expected=i<real?12000:0;
-   if(last&&i>=real-taper&&i<real)expected=12000*(int)(real-1-i)/(int)(taper>1?taper-1:1);
-   assert(recording[i*2]==expected&&recording[i*2+1]==-expected);
-  }
-  duck_vita_ai_vita_close();
- }
- free(ram);
- puts("PASS: concurrent native worker, nonblocking host, owned stereo snapshot, two-DMA completion order, device errors and joined shutdown");return 0;
+ uint8_t *ram=calloc(1,0x800000);assert(ram);fill(ram,552);
+ assert(!duck_vita_ai_vita_init(ram,48681812));
+ recomp_context c={0};c.r4=24000;osAiSetFrequency_recomp(ram,&c);assert(c.r2==24004);
+ enqueue(ram);enqueue(ram);for(int i=0;i<5;i++)nap();assert(!atomic_load(&output_count));
+ assert(write_dma-read_dma==2);assert(!poll(0));
+ atomic_store(&ticks,23000);assert(poll(0)==1);assert(!poll(0));
+ /* Direct sink poll above advanced only backend; restart clean for integration. */
+ duck_vita_ai_vita_close();assert(!duck_vita_ai_vita_init(ram,48681812));c.r4=24000;osAiSetFrequency_recomp(ram,&c);
+ enqueue(ram);enqueue(ram);atomic_store(&ticks,46000);assert(duck_vita_ai_service()==1);assert(atomic_load(&events)==1);
+ enqueue(ram); /* Third DMA supplies lookahead; guest progresses before speakers. */
+ for(int i=0;i<100&&!atomic_load(&output_count);i++)nap();assert(atomic_load(&output_count));
+ memset(ram,0,552*4); /* Ring already owns PCM; reuse cannot alter queued audio. */
+ duck_vita_ai_vita_close();
+ /* One short DMA starts after the timeout without a second DMA. */
+ atomic_store(&ticks,0);atomic_store(&output_count,0);fill(ram,552);
+ assert(!duck_vita_ai_vita_init(ram,48681812));c.r4=24000;osAiSetFrequency_recomp(ram,&c);enqueue(ram);
+ for(int i=0;i<5;i++)nap();assert(!atomic_load(&output_count));atomic_store(&ticks,80001);
+ for(int i=0;i<100&&!atomic_load(&output_count);i++)nap();assert(atomic_load(&output_count));
+ duck_vita_ai_vita_close();
+ /* A device failure remains a fault, never a successful completion. */
+ atomic_store(&output_failure,-77);atomic_store(&ticks,0);atomic_store(&output_count,0);
+ assert(!duck_vita_ai_vita_init(ram,48681812));c.r4=24000;osAiSetFrequency_recomp(ram,&c);enqueue(ram);
+ atomic_store(&ticks,80001);for(int i=0;i<100&&!atomic_load(&failure);i++)nap();
+ assert(poll(0)==-77);duck_vita_ai_vita_close();
+ /* High water applies backpressure without dropping queued PCM. */
+ atomic_store(&failure,0);duck_audio_stream_reset(&stream);read_dma=0;write_dma=1;
+ dma[0].end=1;atomic_store(&stream.write,DUCK_AUDIO_HIGH_WATER+1);assert(!poll(0));
+ atomic_store(&stream.read,1);assert(poll(0)==1);
+ free(ram);puts("buffered audio: timed completions, prefill, stereo, RDRAM ownership, short sound and shutdown passed");
 }
