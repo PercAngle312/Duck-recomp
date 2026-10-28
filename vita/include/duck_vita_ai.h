@@ -30,6 +30,7 @@ void osAiSetFrequency_recomp(uint8_t*,recomp_context*);
 void osAiSetNextBuffer_recomp(uint8_t*,recomp_context*);
 void osAiGetLength_recomp(uint8_t*,recomp_context*);
 void osAiGetStatus_recomp(uint8_t*,recomp_context*);
+enum { DUCK_VITA_AUDIO_BLOCK_FRAMES = 64 };
 typedef struct {uint64_t phase;unsigned phase_rate;} DuckAudioResampler;
 /* Produces stereo 48 kHz PCM from one word-swapped guest DMA. The caller
  * repeatedly supplies the same buffer until done; phase carries to the next. */

@@ -57,9 +57,9 @@ int sceKernelWaitThreadEnd(int id,int *result,unsigned *timeout){
 }
 int sceKernelDeleteThread(int id){assert(id==21&&thread_live&&!thread_started);thread_live=0;return 0;}
 int sceAudioOutOpenPort(SceAudioOutPortType type,int len,int rate,SceAudioOutMode mode){
- assert(!port_live&&type==SCE_AUDIO_OUT_PORT_TYPE_MAIN&&len==256&&rate==48000&&mode==SCE_AUDIO_OUT_MODE_STEREO);
+ assert(!port_live&&type==SCE_AUDIO_OUT_PORT_TYPE_MAIN&&len==DUCK_VITA_AUDIO_BLOCK_FRAMES&&rate==48000&&mode==SCE_AUDIO_OUT_MODE_STEREO);
  if(open_error)return open_error;
- port_live=1;frames=256;return 7;
+ port_live=1;frames=DUCK_VITA_AUDIO_BLOCK_FRAMES;return 7;
 }
 int sceAudioOutSetConfig(int port,unsigned len,int rate,SceAudioOutMode mode){
  assert(port==7&&port_live&&len&&len<=256&&!(len%64)&&rate==-1);
@@ -127,7 +127,7 @@ int main(void){
  capture=0;
  // Both complete DMAs form 3072 real stereo samples: no zero padding or
  // output-port reconfiguration at their shared boundary, and one idle drain.
- assert(captured==3072&&atomic_load(&outputs)==12&&atomic_load(&drains)==1&&!atomic_load(&configured));
+ assert(captured==3072&&atomic_load(&outputs)==3072/DUCK_VITA_AUDIO_BLOCK_FRAMES&&atomic_load(&drains)==1&&!atomic_load(&configured));
  for(unsigned i=0;i<captured;i++){
   uint64_t phase=(uint64_t)i*queued_rate;
   int expected=phase<1024ull*48000?12000:6000;
@@ -175,6 +175,19 @@ int main(void){
  assert(!duck_vita_ai_vita_init(ram,48681812));join_error=-44;duck_vita_ai_vita_close();
  assert(port_live&&thread_live&&sema_live&&duck_vita_ai_vita_init(ram,48681812)==-1);
  join_error=0;duck_vita_ai_vita_close();assert(!port_live&&!thread_live&&!sema_live);
- unsigned before=released;duck_vita_ai_vita_close();assert(released==before);free(ram);
+ unsigned before=released;duck_vita_ai_vita_close();assert(released==before);
+ // A real-sized single DMA must pad less than one 64-frame block. This
+ // exercises starvation rather than the exactly-divisible two-DMA fixture.
+ for(unsigned frequency=24000;frequency<=32000;frequency+=8000){
+  assert(!duck_vita_ai_vita_init(ram,48681812));
+  recomp_context one={0};one.r4=frequency;osAiSetFrequency_recomp(ram,&one);unsigned rate=(unsigned)one.r2;
+  captured=0;capture=1;one.r4=0x80001000;one.r5=552*4;
+  osAiSetNextBuffer_recomp(ram,&one);assert(!one.r2);assert(complete()==1);capture=0;
+  unsigned real=(unsigned)((552ull*48000+rate-1)/rate);
+  assert(captured==(real+63u)/64u*64u&&captured-real<64);
+  for(unsigned i=0;i<captured;i++)assert(recording[i*2]==(i<real?12000:0)&&recording[i*2+1]==(i<real?-12000:0));
+  duck_vita_ai_vita_close();
+ }
+ free(ram);
  puts("PASS: concurrent native worker, nonblocking host, owned stereo snapshot, two-DMA completion order, device errors and joined shutdown");return 0;
 }

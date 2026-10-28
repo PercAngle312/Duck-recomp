@@ -81,10 +81,10 @@ inline int duck_write_tlut(uint8_t (&dst)[2][256],uint64_t (&revisions)[16],
     return (int)changed;
 }
 
-inline uint32_t duck_texture_source_pitch(uint32_t line,uint32_t full,uint32_t total,uint32_t blockLine){
+inline uint32_t duck_texture_source_pitch(uint32_t line,uint32_t full,uint32_t total,uint32_t blockLine,bool loadBlock=true){
     // Only LoadBlock's width=1 sentinel has BOTH pitches equal to total.
     // A real sub-tile's full-image pitch can coincidentally equal its byte count.
-    return line==total&&full==total?blockLine:full;
+    return loadBlock&&line==total&&full==total?blockLine:full;
 }
 inline uint8_t duck_texture_nibble(const uint8_t *src,unsigned pitch,unsigned x,unsigned y,unsigned first){
     unsigned pixel=x+first;uint8_t b=src[(size_t)y*pitch+pixel/2];
