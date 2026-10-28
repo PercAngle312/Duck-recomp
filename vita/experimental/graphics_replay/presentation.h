@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstring>
 #include "settings_menu.h"
+#include "duck_vita_audio_stats.h"
 extern "C" void vglBufferData(GLenum,const GLvoid*);
 
 // Restore all GL state touched by presentation. Fast3D's cached state remains
@@ -123,18 +124,85 @@ inline void duck_menu_text(int x,int y,const char *s,unsigned scale=3){
 inline void duck_draw_settings(const DuckSettingsMenu &menu,bool failed){
     DuckPresentationState saved;glBindFramebuffer(GL_FRAMEBUFFER,0);glEnable(GL_SCISSOR_TEST);glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
     duck_menu_rect(0,0,960,544,0.025f,0.035f,0.065f);duck_menu_text(72,36,"DUCK DODGERS SETTINGS",4);
-    char lines[7][80];const auto &o=menu.pending;
+    char lines[8][80];const auto &o=menu.pending;
     std::snprintf(lines[0],80,"RESOLUTION: %uX%u - %s",o.width,o.height,o.quality==0?"NATIVE":o.quality==1?"2X":"DISPLAY");
     std::snprintf(lines[1],80,"ANTIALIASING: %s",o.antialias?"EDGE AA":"OFF");
     std::snprintf(lines[2],80,"TEXTURE FILTER: %s",o.filter==0?"N64":o.filter==1?"BILINEAR":"NEAREST");
     std::snprintf(lines[3],80,"ASPECT: %s",o.widescreen?"WIDESCREEN":"4:3");
     std::snprintf(lines[4],80,"SCALING: %s",o.smooth?"SMOOTH":"SHARP");
-    std::snprintf(lines[5],80,"APPLY AND SAVE");std::snprintf(lines[6],80,"CANCEL");
-    for(unsigned row=0;row<7;row++){
-        if(menu.row==row)duck_menu_rect(60,100+row*43,840,34,0.08f,0.24f,0.35f);
-        duck_menu_text(78,107+row*43,lines[row]);
+    std::snprintf(lines[5],80,"LIVE STATS: %s",o.live_stats?"ON":"OFF");
+    std::snprintf(lines[6],80,"APPLY AND SAVE");std::snprintf(lines[7],80,"CANCEL");
+    for(unsigned row=0;row<8;row++){
+        if(menu.row==row)duck_menu_rect(60,100+row*38,840,34,0.08f,0.24f,0.35f);
+        duck_menu_text(78,107+row*38,lines[row]);
     }
     duck_menu_text(72,430,failed?"SAVE FAILED - CHANGES NOT APPLIED":"HIGHER RESOLUTION USES MORE GPU TIME",2);
     duck_menu_text(72,468,"D-PAD: CHANGE   CROSS: CHOOSE   CIRCLE: BACK",2);
     duck_menu_text(72,500,"HOLD SELECT TO OPEN - GUEST PAUSED",2);
 }
+
+// One batched draw for both backdrop and bitmap text, after guest readback.
+struct DuckFpsOverlay {
+    GLuint program=0,vbo=0;bool attempted=false;
+    bool initialize(){
+        if(attempted)return program!=0;attempted=true;
+        const char *sources[]={
+            "attribute vec2 position;attribute vec3 colour;varying vec3 rgb;void main(){gl_Position=vec4(position,0.0,1.0);rgb=colour;}",
+            "precision mediump float;varying vec3 rgb;void main(){gl_FragColor=vec4(rgb,1.0);}"};
+        GLuint candidate=glCreateProgram(),stages[2]={};bool ok=candidate!=0;
+        for(unsigned i=0;i<2&&ok;i++){
+            stages[i]=glCreateShader(i?GL_FRAGMENT_SHADER:GL_VERTEX_SHADER);glShaderSource(stages[i],1,&sources[i],nullptr);
+            glCompileShader(stages[i]);GLint status=0;glGetShaderiv(stages[i],GL_COMPILE_STATUS,&status);ok=status!=0;
+            if(ok)glAttachShader(candidate,stages[i]);
+        }
+        if(ok){glBindAttribLocation(candidate,0,"position");glBindAttribLocation(candidate,1,"colour");glLinkProgram(candidate);
+            GLint status=0;glGetProgramiv(candidate,GL_LINK_STATUS,&status);ok=status!=0;}
+        for(auto s:stages)if(s)glDeleteShader(s);
+        if(!ok){if(candidate)glDeleteProgram(candidate);std::fprintf(stderr,"FPS overlay shader unavailable\n");return false;}
+        program=candidate;glGenBuffers(1,&vbo);return true;
+    }
+    void draw(unsigned fps,unsigned frame_us,bool ready,unsigned width,unsigned height){
+        DuckPresentationState saved;if(!initialize())return;
+        DuckVitaAudioStats audio={};duck_vita_audio_stats(&audio);
+        char lines[6][32];
+        if(ready){std::snprintf(lines[0],32,"FPS %u",fps);std::snprintf(lines[1],32,"FRAME %u MS",(frame_us+500)/1000);}
+        else {std::snprintf(lines[0],32,"FPS --");std::snprintf(lines[1],32,"FRAME -- MS");}
+        std::snprintf(lines[2],32,"RENDER %uX%u",width,height);
+        std::snprintf(lines[3],32,"AUDIO BUFFER %u MS",audio.queued_frames/48);
+        std::snprintf(lines[4],32,"UNDERRUNS %u",audio.underrun_blocks);
+        std::snprintf(lines[5],32,"SILENCE %u MS",audio.padded_frames/48);
+        unsigned longest=0,runs=1;
+        for(auto &line:lines){unsigned length=unsigned(std::strlen(line));if(length>longest)longest=length;
+            for(unsigned c=0;c<length;c++)for(unsigned row=0;row<7;row++){
+                unsigned bits=duck_font_row(line[c],row);
+                for(unsigned col=0;col<5;){if(!(bits&(16u>>col))){col++;continue;}runs++;while(col<5&&(bits&(16u>>col)))col++;}
+            }
+        }
+        float *vertices=(float*)vglAllocFromScratch(runs*6*5*sizeof(float));if(!vertices)return;
+        unsigned used=0;
+        auto rect=[&](float x,float y,float w,float h,float colour){
+            const float points[12]={x,y,x+w,y,x,y+h,x,y+h,x+w,y,x+w,y+h};
+            for(unsigned i=0;i<6;i++){
+                float *v=vertices+(used++)*5;v[0]=points[i*2]/480.0f-1.0f;v[1]=1.0f-points[i*2+1]/272.0f;
+                v[2]=v[3]=v[4]=colour;
+            }
+        };
+        unsigned x=960-12-longest*12;
+        rect(float(x-5),7,float(longest*12+10),6*18+10,0.03f);
+        for(unsigned line=0;line<6;line++)for(unsigned c=0;c<std::strlen(lines[line]);c++)for(unsigned row=0;row<7;row++){
+            unsigned bits=duck_font_row(lines[line][c],row);
+            for(unsigned col=0;col<5;){
+                if(!(bits&(16u>>col))){col++;continue;}unsigned begin=col;
+                while(col<5&&(bits&(16u>>col)))col++;
+                rect(float(x+c*12+begin*2),float(12+line*18+row*2),float((col-begin)*2),2,1.0f);
+            }
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER,0);glViewport(0,0,960,544);
+        glDisable(GL_BLEND);glDisable(GL_DEPTH_TEST);glDisable(GL_CULL_FACE);glDisable(GL_SCISSOR_TEST);glColorMask(GL_TRUE,GL_TRUE,GL_TRUE,GL_TRUE);
+        glUseProgram(program);glBindBuffer(GL_ARRAY_BUFFER,vbo);vglBufferData(GL_ARRAY_BUFFER,vertices);
+        glEnableVertexAttribArray(0);glEnableVertexAttribArray(1);
+        glVertexAttribPointer(0,2,GL_FLOAT,GL_FALSE,5*sizeof(float),nullptr);
+        glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,5*sizeof(float),(void*)(2*sizeof(float)));
+        glDrawArrays(GL_TRIANGLES,0,used);
+    }
+};

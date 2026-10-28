@@ -9,6 +9,7 @@
 #include "fast3d_task.h"
 #include "graphics_options.h"
 #include "presentation.h"
+#include "fps_counter.h"
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
@@ -37,6 +38,8 @@ static bool init_attempted;
 static DuckGraphicsOptions graphics;
 static DuckSettingsMenu settings;
 static DuckEdgeAA edge_aa;
+static DuckFpsCounter fps_counter;
+static DuckFpsOverlay fps_overlay;
 static bool settings_save_failed;
 static unsigned settings_closing_buttons;
 extern "C" int duck_fast3d_smooth_presentation(void){return graphics.smooth;}
@@ -178,8 +181,10 @@ extern "C" int duck_fast3d_submit_task(uint32_t task_address){
  GLenum render_error=glGetError();
  if(first)fprintf(stderr,"Fast3D GL post-task error=0x%x\n",unsigned(render_error));
  if(render_error!=GL_NO_ERROR)return -7;
+ if(graphics.live_stats)fps_overlay.draw(fps_counter.value,fps_counter.frame_us,fps_counter.ready,graphics.width,graphics.height);
  vglSwapBuffers(GL_FALSE);
  uint64_t finished=sceKernelGetProcessTimeWide();
+ fps_counter.presented(finished);
  static uint64_t last_report,total_translate,total_draw,total_readback,total_present;
  static unsigned measured_tasks;
  if(!last_report)last_report=started;
@@ -212,7 +217,7 @@ extern "C" int duck_fast3d_settings_poll(uint32_t buttons,uint64_t us){
   settings_closing_buttons=0;return 0;
  }
  auto action=settings.poll(buttons,us,graphics);
- if(action==DuckSettingsMenu::Opened){settings_save_failed=false;fprintf(stderr,"Settings opened; guest dispatch paused\n");}
+ if(action==DuckSettingsMenu::Opened){fps_counter.reset();settings_save_failed=false;fprintf(stderr,"Settings opened; guest dispatch paused\n");}
  if(action==DuckSettingsMenu::Apply){
   if(duck_save_graphics("ux0:data/DuckRecomp/graphics.ini",settings.pending)){
    graphics=settings.pending;

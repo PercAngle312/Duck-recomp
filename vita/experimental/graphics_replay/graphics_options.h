@@ -9,6 +9,7 @@ struct DuckGraphicsOptions {
     bool smooth=false;
     bool edge_borders=true;
     bool antialias=false;
+    bool live_stats=false;
     unsigned quality=0; // 0 native, 1 enhanced, 2 display
     unsigned filter=0;  // 0 N64 three-point, 1 bilinear, 2 nearest
     unsigned width=320,height=240;
@@ -32,6 +33,9 @@ struct DuckGraphicsOptions {
         }else if(!std::strcmp(key,"aa")){
             if(!std::strcmp(value,"off"))antialias=false;
             else if(!std::strcmp(value,"edge"))antialias=true;else return false;
+        }else if(!std::strcmp(key,"stats")){
+            if(!std::strcmp(value,"on"))live_stats=true;
+            else if(!std::strcmp(value,"off"))live_stats=false;else return false;
         }else if(!std::strcmp(key,"borders")){
             if(!std::strcmp(value,"edge"))edge_borders=true;
             else if(!std::strcmp(value,"original"))edge_borders=false;else return false;

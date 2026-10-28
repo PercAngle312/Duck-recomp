@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "duck_vita_audio_stream.h"
+#include "duck_vita_audio_stats.h"
 static int port=-1,worker=-1,started;
 static atomic_int stopping,failure;
 static DuckAudioStream stream;
@@ -128,4 +129,11 @@ int duck_vita_ai_vita_init(uint8_t *ram,unsigned clock){
  rc=duck_vita_ai_init_async(ram,clock,&sink);if(rc)duck_vita_ai_vita_close();
  else fprintf(stderr,"Native audio: timed AI, bounded stereo FIFO, 64ms startup prefill, immediate underrun recovery, 256-frame output, priority=0x%x\n",priority);
  return rc;
+}
+
+void duck_vita_audio_stats(DuckVitaAudioStats *stats){
+ if(!stats)return;
+ stats->queued_frames=duck_audio_stream_queued(&stream);
+ stats->underrun_blocks=atomic_load_explicit(&stream.underruns,memory_order_relaxed);
+ stats->padded_frames=atomic_load_explicit(&stream.padded,memory_order_relaxed);
 }

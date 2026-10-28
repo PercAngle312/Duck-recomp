@@ -21,8 +21,8 @@ struct DuckSettingsMenu {
             return None;
         }
         if(pressed&(Circle|Select)){active=false;holding=false;return Cancelled;}
-        if(pressed&Up)row=(row+6)%7;
-        if(pressed&Down)row=(row+1)%7;
+        if(pressed&Up)row=(row+7)%8;
+        if(pressed&Down)row=(row+1)%8;
         int step=(pressed&Right)?1:(pressed&Left)?-1:0;
         if(step){
             if(row==0)pending.quality=(pending.quality+(step>0?1:2))%3;
@@ -30,11 +30,12 @@ struct DuckSettingsMenu {
             if(row==2)pending.filter=(pending.filter+(step>0?1:2))%3;
             if(row==3)pending.widescreen=!pending.widescreen;
             if(row==4)pending.smooth=!pending.smooth;
+            if(row==5)pending.live_stats=!pending.live_stats;
             pending.resolve();
         }
         if(pressed&Cross){
-            if(row==5)return Apply;
-            if(row==6){active=false;return Cancelled;}
+            if(row==6)return Apply;
+            if(row==7){active=false;return Cancelled;}
         }
         return None;
     }
@@ -48,10 +49,10 @@ inline bool duck_save_graphics(const char *path,const DuckGraphicsOptions &o){
     if(std::snprintf(temp,sizeof temp,"%s.tmp",path)>=int(sizeof temp)||
        std::snprintf(backup,sizeof backup,"%s.bak",path)>=int(sizeof backup))return false;
     FILE *f=std::fopen(temp,"w");if(!f)return false;
-    int written=std::fprintf(f,"aspect=%s\nquality=%s\nfilter=%s\npresentation=%s\nborders=%s\naa=%s\n",
+    int written=std::fprintf(f,"aspect=%s\nquality=%s\nfilter=%s\npresentation=%s\nborders=%s\naa=%s\nstats=%s\n",
         o.widescreen?"wide":"original",o.quality==0?"native":o.quality==1?"enhanced":"display",
         o.filter==0?"n64":o.filter==1?"bilinear":"nearest",o.smooth?"smooth":"sharp",
-        o.edge_borders?"edge":"original",o.antialias?"edge":"off");
+        o.edge_borders?"edge":"original",o.antialias?"edge":"off",o.live_stats?"on":"off");
     bool ok=written>0&&std::fflush(f)==0&&!std::ferror(f);
     if(std::fclose(f))ok=false;
     if(!ok){std::remove(temp);return false;}
