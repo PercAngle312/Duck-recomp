@@ -1,0 +1,133 @@
+name: Vita pinned recomp ABI bridge
+on:
+  push:
+    branches: [vita/arm32-bringup]
+    paths:
+      - 'vita/include/duck_vita_recomp_bridge.h'
+      - 'vita/src/recomp_bridge.c'
+      - 'vita/src/os_core.c'
+      - 'vita/src/os_threads.c'
+      - 'vita/src/os_interrupt.c'
+      - 'vita/src/os_input.c'
+      - 'vita/src/input_vita.c'
+      - 'vita/src/os_overlays.c'
+      - 'vita/include/duck_vita_input.h'
+      - 'vita/include/duck_vita_overlays.h'
+      - 'vita/tests/os_input.c'
+      - 'vita/tests/overlays.c'
+      - 'vita/generate_overlay_catalog.py'
+      - 'vita/instrument_checkpoints.py'
+      - 'vita/test_instrument_checkpoints.py'
+      - 'vita/tests/checkpoints.c'
+      - 'vita/src/os_time.c'
+      - 'vita/src/os_vi.c'
+      - 'vita/src/os_vi_config.c'
+      - 'vita/src/clock_vita.c'
+      - 'vita/include/duck_vita_time.h'
+      - 'vita/tests/os_time.c'
+      - 'vita/src/fiber_vita.c'
+      - 'vita/include/duck_vita_threads.h'
+      - 'vita/tests/os_threads.c'
+      - 'vita/tests/fiber_host.c'
+      - 'vita/src/os_queue.c'
+      - 'vita/src/os_io.c'
+      - 'vita/include/duck_vita_os_io.h'
+      - 'vita/tests/os_core.c'
+      - 'vita/tests/os_io.c'
+      - 'vita/tests/recomp_bridge.c'
+      - 'vita/include/duck_vita_dispatch.h'
+      - 'vita/src/dispatch.c'
+      - 'vita/tests/dispatch.c'
+      - 'vita/generate_dispatch.py'
+      - 'vita/test_generate_dispatch.py'
+      - 'vita/test_generated_registry.py'
+      - 'vita/CMakeLists.txt'
+      - '.github/workflows/vita-recomp-abi.yml'
+  pull_request:
+    paths:
+      - 'vita/include/duck_vita_recomp_bridge.h'
+      - 'vita/src/recomp_bridge.c'
+      - 'vita/src/os_core.c'
+      - 'vita/src/os_threads.c'
+      - 'vita/src/os_interrupt.c'
+      - 'vita/src/os_input.c'
+      - 'vita/src/input_vita.c'
+      - 'vita/src/os_overlays.c'
+      - 'vita/include/duck_vita_input.h'
+      - 'vita/include/duck_vita_overlays.h'
+      - 'vita/tests/os_input.c'
+      - 'vita/tests/overlays.c'
+      - 'vita/generate_overlay_catalog.py'
+      - 'vita/instrument_checkpoints.py'
+      - 'vita/test_instrument_checkpoints.py'
+      - 'vita/tests/checkpoints.c'
+      - 'vita/src/os_time.c'
+      - 'vita/src/os_vi.c'
+      - 'vita/src/os_vi_config.c'
+      - 'vita/src/clock_vita.c'
+      - 'vita/include/duck_vita_time.h'
+      - 'vita/tests/os_time.c'
+      - 'vita/src/fiber_vita.c'
+      - 'vita/include/duck_vita_threads.h'
+      - 'vita/tests/os_threads.c'
+      - 'vita/tests/fiber_host.c'
+      - 'vita/src/os_queue.c'
+      - 'vita/src/os_io.c'
+      - 'vita/include/duck_vita_os_io.h'
+      - 'vita/tests/os_core.c'
+      - 'vita/tests/os_io.c'
+      - 'vita/tests/recomp_bridge.c'
+      - '.github/workflows/vita-recomp-abi.yml'
+jobs:
+  abi-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retrieve exact pinned N64Recomp API header
+        run: |
+          mkdir -p /tmp/duck-abi
+          curl -fLsS --retry 3 https://raw.githubusercontent.com/N64Recomp/N64Recomp/ffb39cdad1da5de07eaaa48bd1db4a89a7986771/include/recomp.h -o /tmp/duck-abi/recomp.h
+          grep -Fq 'typedef void (recomp_func_t)(uint8_t* rdram, recomp_context* ctx);' /tmp/duck-abi/recomp.h
+      - name: Test private registry generator
+        run: python3 vita/test_generate_dispatch.py
+      - name: Compile and link synthetic private function registry
+        run: python3 vita/test_generated_registry.py --recomp-include /tmp/duck-abi
+      - name: Compile ABI dispatch test
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -O1 -fsanitize=address,undefined -fno-omit-frame-pointer -I /tmp/duck-abi -I vita/include vita/src/queue.c vita/src/scheduler.c vita/src/recomp_bridge.c vita/tests/recomp_bridge.c -lm -o /tmp/duck-vita-recomp-test
+      - name: Verify context-backed ABI dispatch
+        run: /tmp/duck-vita-recomp-test
+      - name: Compile exact VRAM dispatcher contract
+        run: cc -std=c11 -Wall -Wextra -Werror -O1 -fsanitize=address,undefined -fno-omit-frame-pointer -I /tmp/duck-abi -I vita/include vita/src/queue.c vita/src/scheduler.c vita/src/recomp_bridge.c vita/src/dispatch.c vita/tests/dispatch.c -lm -o /tmp/duck-vita-dispatch-test
+      - name: Test exact translated function dispatch
+        run: /tmp/duck-vita-dispatch-test
+      - name: Test guest OS core callbacks
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -I /tmp/duck-abi vita/src/os_core.c vita/tests/os_core.c -o /tmp/duck-vita-os-core
+          /tmp/duck-vita-os-core
+      - name: Test queued cartridge DMA and event messages
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -I /tmp/duck-abi -I vita/include vita/src/os_io.c vita/src/os_queue.c vita/tests/os_io.c -o /tmp/duck-vita-os-io
+          /tmp/duck-vita-os-io
+      - name: Test stack-preserving guest thread and queue execution
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -O1 -fsanitize=undefined -I /tmp/duck-abi -I vita/include vita/src/os_threads.c vita/src/os_interrupt.c vita/src/os_queue.c vita/src/os_core.c vita/tests/fiber_host.c vita/tests/os_threads.c -lm -o /tmp/duck-vita-thread-test
+          /tmp/duck-vita-thread-test
+      - name: Test guest timer and VI service with blocked fiber wakeup
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -O1 -fsanitize=undefined -DDUCK_TIME_FIBER_TEST -I /tmp/duck-abi -I vita/include vita/src/os_time.c vita/src/os_vi.c vita/src/os_vi_config.c vita/src/os_core.c vita/src/os_queue.c vita/src/os_threads.c vita/tests/fiber_host.c vita/tests/os_time.c -lm -o /tmp/duck-vita-time-test
+          /tmp/duck-vita-time-test
+      - name: Test overlay lifecycle and reused guest allocations
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -O1 -fsanitize=address,undefined -I /tmp/duck-abi -I vita/include vita/src/os_overlays.c vita/tests/overlays.c -o /tmp/duck-vita-overlays
+          /tmp/duck-vita-overlays
+      - name: Test serial controller completions and guest memory layout
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -O1 -fsanitize=address,undefined -I /tmp/duck-abi -I vita/include vita/src/os_input.c vita/src/os_io.c vita/src/os_queue.c vita/src/os_core.c vita/tests/os_input.c -lm -o /tmp/duck-vita-input
+          /tmp/duck-vita-input
+      - name: Check generated loop instrumentation
+        run: python3 vita/test_instrument_checkpoints.py
+      - name: Execute busy-loop guest scheduling checkpoints
+        run: |
+          cc -std=c11 -O1 -Wall -Wextra -Werror -fsanitize=undefined -I/tmp/duck-abi -Ivita/include vita/src/os_threads.c vita/src/os_queue.c vita/src/os_core.c vita/tests/fiber_host.c vita/tests/checkpoints.c -lm -o /tmp/duck-checkpoints
+          /tmp/duck-checkpoints

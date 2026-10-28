@@ -1,0 +1,29 @@
+name: Vita RSP memory equivalence
+on:
+  push:
+    branches: [vita/arm32-bringup]
+    paths: ['vita/include/duck_vita_rsp_memory.h', 'vita/patch_rsp_memory.py', 'vita/rebuild_audio_rsp.py', 'vita/tests/rsp_memory*.cpp', '.github/workflows/vita-rsp-memory.yml']
+  pull_request:
+    paths: ['vita/include/duck_vita_rsp_memory.h', 'vita/patch_rsp_memory.py', 'vita/rebuild_audio_rsp.py', 'vita/tests/rsp_memory*.cpp', '.github/workflows/vita-rsp-memory.yml']
+jobs:
+  reference-comparison:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retrieve pinned public RSP ABI
+        run: |
+          mkdir -p /tmp/duck-rsp-reference/librecomp /tmp/duck-rsp-reference/ultramodern
+          for name in rsp.hpp rsp_vu.hpp rsp_vu_impl.hpp; do
+            curl -fLsS --retry 3 "https://raw.githubusercontent.com/N64Recomp/N64ModernRuntime/cdf5abbd5026fef5c364c676e4667c45e42b6863/librecomp/include/librecomp/$name" -o "/tmp/duck-rsp-reference/librecomp/$name"
+          done
+          curl -fLsS --retry 3 https://raw.githubusercontent.com/N64Recomp/N64Recomp/ffb39cdad1da5de07eaaa48bd1db4a89a7986771/include/recomp.h -o /tmp/duck-rsp-reference/recomp.h
+          curl -fLsS --retry 3 https://raw.githubusercontent.com/N64Recomp/N64ModernRuntime/cdf5abbd5026fef5c364c676e4667c45e42b6863/ultramodern/include/ultramodern/ultra64.h -o /tmp/duck-rsp-reference/ultramodern/ultra64.h
+          cp -r /tmp/duck-rsp-reference /tmp/duck-rsp-fast
+          PYTHONPATH=vita python3 -c 'from pathlib import Path; from patch_rsp_memory import patch; patch(Path("/tmp/duck-rsp-fast"))'
+      - name: Compare all DMEM addresses and vector elements
+        run: |
+          for variant in reference fast; do
+            c++ -std=c++20 -O2 -fwrapv -fno-strict-aliasing -msse4.1 -DRSP=DuckRspMemory_$variant -DDUCK_MEMORY_TEST_NAME=duck_rsp_memory_$variant -I/tmp/duck-rsp-$variant -Ivita/include -c vita/tests/rsp_memory.cpp -o /tmp/duck-rsp-$variant.o
+          done
+          c++ -std=c++20 -O2 vita/tests/rsp_memory_compare.cpp /tmp/duck-rsp-reference.o /tmp/duck-rsp-fast.o -o /tmp/duck-rsp-memory
+          /tmp/duck-rsp-memory

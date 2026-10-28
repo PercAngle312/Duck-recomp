@@ -1,0 +1,39 @@
+name: Vita SP graphics runtime
+on:
+  push:
+    branches: [vita/arm32-bringup]
+    paths:
+      - 'vita/include/duck_vita_sp.h'
+      - 'vita/src/sp.c'
+      - 'vita/tests/sp.c'
+      - 'vita/tests/os_sp.c'
+      - 'vita/tests/headers/recomp.h'
+      - 'vita/src/os_sp.c'
+      - 'vita/include/duck_vita_sp_os.h'
+      - 'vita/tests/os_sp.c'
+      - 'vita/tests/headers/recomp.h'
+      - 'vita/src/os_sp.c'
+      - 'vita/include/duck_vita_sp_os.h'
+      - 'vita/experimental/graphics_replay/**'
+      - '.github/workflows/vita-sp-graphics.yml'
+  pull_request:
+    paths:
+      - 'vita/include/duck_vita_sp.h'
+      - 'vita/src/sp.c'
+      - 'vita/tests/sp.c'
+      - '.github/workflows/vita-sp-graphics.yml'
+jobs:
+  sp-dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build SP task runtime
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=undefined -Ivita/include vita/src/sp.c vita/tests/sp.c -o /tmp/duck-sp
+      - name: Validate graphics task completion
+        run: /tmp/duck-sp
+      - name: Build live SP callback bridge
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=undefined -Ivita/tests/headers -Ivita/include vita/src/sp.c vita/src/os_sp.c vita/tests/os_sp.c -o /tmp/duck-os-sp
+      - name: Validate guest graphics task dispatch
+        run: /tmp/duck-os-sp
+      - name: Syntax check build script
+        run: python3 -m py_compile vita/experimental/graphics_replay/build.py

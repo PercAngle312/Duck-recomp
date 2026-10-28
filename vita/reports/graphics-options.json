@@ -1,0 +1,75 @@
+{
+  "feature": "Startup graphics configuration and presets",
+  "renderer_ARM32_units_compiled": [
+    "adapter",
+    "bridge",
+    "compat",
+    "interpreter",
+    "gfx"
+  ],
+  "complete_private_game_ELF_linked": true,
+  "unresolved_strong_imports": 0,
+  "host_tests": "PASS with ASan/UBSan and -Werror: bounded presets, invalid input, projection aspect, readback center crop",
+  "defaults_without_config": "unchanged original aspect, native resolution, N64 filtering, sharp presentation",
+  "gameplay_visual_quality_verified": false,
+  "physical_Vita_tested": false,
+  "performance_improvement_verified": false,
+  "new_user_release": false,
+  "emulator_runs": [
+    {
+      "seconds_limit": 120,
+      "elapsed_seconds": 120.11674732399933,
+      "exit_code": 0,
+      "external_timeout": true,
+      "internal_VPK_sha256": "f0d13278e990d32632b29accf9a2659109afcbb4756957ad923382a973cba74c",
+      "installed_self_matches_candidate": true,
+      "instrumented": true,
+      "physical_hardware": false,
+      "new_user_release": false,
+      "resolution": "424x240",
+      "presentation": "960x544",
+      "aspect": "wide",
+      "filter": "bilinear",
+      "smooth_presentation": true,
+      "first_swap_completed": true,
+      "first_post_task_GL_error": 0,
+      "last_reported_guest_status": {
+        "polls": 46239,
+        "PI": 5104,
+        "SP_completed": 1087,
+        "SP_failed": 0
+      }
+    },
+    {
+      "seconds_limit": 60,
+      "elapsed_seconds": 60.11468754799989,
+      "exit_code": 0,
+      "external_timeout": true,
+      "internal_VPK_sha256": "f0d13278e990d32632b29accf9a2659109afcbb4756957ad923382a973cba74c",
+      "installed_self_matches_candidate": true,
+      "instrumented": true,
+      "physical_hardware": false,
+      "new_user_release": false,
+      "resolution": "848x480",
+      "presentation": "960x544",
+      "aspect": "wide",
+      "filter": "bilinear",
+      "smooth_presentation": true,
+      "first_swap_completed": true,
+      "first_post_task_GL_error": 0,
+      "last_reported_guest_status": {
+        "polls": 15608,
+        "PI": 5104,
+        "SP_completed": 238,
+        "SP_failed": 0
+      }
+    }
+  ],
+  "known_limits": [
+    "Game CPU-side culling and HUD/camera scenes need gameplay inspection",
+    "Higher resolution increases GPU work",
+    "Original texture detail unchanged; no replacement texture pack",
+    "MSAA not implemented",
+    "Blocking framebuffer readback remains"
+  ]
+}

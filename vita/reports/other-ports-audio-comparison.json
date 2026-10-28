@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-27",
+  "upstream_revision": "fb7238e2d4b3600e5e5c84986871be1396e337af",
+  "execution": "VitaSDK ARM32 binaries in Unicorn; synthetic tasks only",
+  "comparison": "entire 8 MiB RDRAM after each synthetic task; translated reference and optimized DSP also compared including DMEM",
+  "upstream": {
+    "synthetic_jobs": 128,
+    "by_kind": {
+      "0": {
+        "pass": 32,
+        "different": 0
+      },
+      "1": {
+        "pass": 32,
+        "different": 0
+      },
+      "2": {
+        "pass": 32,
+        "different": 0
+      },
+      "3": {
+        "pass": 0,
+        "different": 32
+      }
+    },
+    "kinds": [
+      "load/save",
+      "clear/move",
+      "interleave",
+      "mixer"
+    ],
+    "hardware_performance_measured": false,
+    "production_enabled": false
+  },
+  "candidate_with_exact_mixer": {
+    "synthetic_jobs": 128,
+    "by_kind": {
+      "0": {
+        "pass": 32,
+        "different": 0
+      },
+      "1": {
+        "pass": 32,
+        "different": 0
+      },
+      "2": {
+        "pass": 32,
+        "different": 0
+      },
+      "3": {
+        "pass": 32,
+        "different": 0
+      }
+    },
+    "kinds": [
+      "load/save",
+      "clear/move",
+      "interleave",
+      "mixer"
+    ],
+    "hardware_performance_measured": false,
+    "production_enabled": false
+  },
+  "not_validated": [
+    "ADPCM",
+    "resampling",
+    "envelope processing",
+    "inter-task state",
+    "real game task sequences",
+    "hardware performance"
+  ],
+  "production_enabled": false
+}

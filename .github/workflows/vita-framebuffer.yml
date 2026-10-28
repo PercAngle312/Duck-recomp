@@ -1,0 +1,102 @@
+name: Vita framebuffer contract
+on:
+  push:
+    branches: [vita/arm32-bringup]
+    paths:
+      - 'vita/include/duck_vita_framebuffer.h'
+      - 'vita/src/framebuffer_convert.c'
+      - 'vita/tests/framebuffer.c'
+      - 'vita/include/duck_vita_guest_memory.h'
+      - 'vita/src/guest_memory.c'
+      - 'vita/tests/guest_memory.c'
+      - 'vita/include/duck_vita_bus.h'
+      - 'vita/src/bus.c'
+      - 'vita/tests/bus.c'
+      - 'vita/include/duck_vita_dma.h'
+      - 'vita/src/dma.c'
+      - 'vita/tests/dma.c'
+      - 'vita/include/duck_vita_pi.h'
+      - 'vita/src/pi.c'
+      - 'vita/tests/pi.c'
+      - 'vita/include/duck_vita_mi.h'
+      - 'vita/src/mi.c'
+      - 'vita/tests/mi_pi.c'
+      - 'vita/include/duck_vita_cpu_irq.h'
+      - 'vita/src/cpu_irq.c'
+      - 'vita/tests/cpu_irq.c'
+      - 'vita/include/duck_vita_queue.h'
+      - 'vita/src/queue.c'
+      - 'vita/tests/queue.c'
+      - 'vita/include/duck_vita_scheduler.h'
+      - 'vita/src/scheduler.c'
+      - 'vita/tests/scheduler.c'
+      - 'vita/include/duck_vita_event_bridge.h'
+      - 'vita/src/event_bridge.c'
+      - 'vita/tests/event_bridge.c'
+      - 'vita/include/duck_vita_context.h'
+      - 'vita/src/context.c'
+      - 'vita/tests/context.c'
+      - 'vita/include/duck_vita_executor.h'
+      - 'vita/src/executor.c'
+      - 'vita/tests/executor.c'
+      - '.github/workflows/vita-framebuffer.yml'
+  pull_request:
+    paths:
+      - 'vita/include/duck_vita_framebuffer.h'
+      - 'vita/src/framebuffer_convert.c'
+      - 'vita/tests/framebuffer.c'
+      - '.github/workflows/vita-framebuffer.yml'
+jobs:
+  host-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile native-pixel contract test
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/framebuffer_convert.c vita/tests/framebuffer.c -o /tmp/duck-vita-framebuffer
+      - name: Test scaled and bounded pixels
+        run: /tmp/duck-vita-framebuffer
+      - name: Compile guest memory contract
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/guest_memory.c vita/tests/guest_memory.c -o /tmp/duck-vita-guest-memory
+      - name: Test guest memory boundaries
+        run: /tmp/duck-vita-guest-memory
+      - name: Compile memory bus contract
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/guest_memory.c vita/src/bus.c vita/tests/bus.c -o /tmp/duck-vita-bus
+      - name: Test device dispatch isolation
+        run: /tmp/duck-vita-bus
+      - name: Compile ROM DMA contract
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/guest_memory.c vita/src/dma.c vita/tests/dma.c -o /tmp/duck-vita-dma
+      - name: Test bounded cartridge transfers
+        run: /tmp/duck-vita-dma
+      - name: Compile PI register test
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/guest_memory.c vita/src/bus.c vita/src/dma.c vita/src/pi.c vita/tests/pi.c -o /tmp/duck-vita-pi
+      - name: Test PI ROM DMA and interrupt acknowledgment
+        run: /tmp/duck-vita-pi
+      - name: Compile PI to MI delivery test
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/guest_memory.c vita/src/bus.c vita/src/dma.c vita/src/pi.c vita/src/mi.c vita/tests/mi_pi.c -o /tmp/duck-vita-mi-pi
+      - name: Test interrupt mask and acknowledgement
+        run: /tmp/duck-vita-mi-pi
+      - name: Compile CPU IRQ delivery test
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/guest_memory.c vita/src/bus.c vita/src/dma.c vita/src/pi.c vita/src/mi.c vita/src/cpu_irq.c vita/tests/cpu_irq.c -o /tmp/duck-vita-cpu-irq
+      - name: Test CPU IP2 and exception-level gating
+        run: /tmp/duck-vita-cpu-irq
+      - name: Compile message queue test
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/queue.c vita/tests/queue.c -o /tmp/duck-vita-queue
+      - name: Test queue wraparound and priority
+        run: /tmp/duck-vita-queue
+      - name: Compile scheduler test
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/queue.c vita/src/scheduler.c vita/tests/scheduler.c -o /tmp/duck-vita-scheduler
+      - name: Test cooperative scheduling and message wakeup
+        run: /tmp/duck-vita-scheduler
+      - name: Compile interrupt queue integration test
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/guest_memory.c vita/src/bus.c vita/src/dma.c vita/src/pi.c vita/src/mi.c vita/src/cpu_irq.c vita/src/queue.c vita/src/scheduler.c vita/src/event_bridge.c vita/tests/event_bridge.c -o /tmp/duck-vita-event-bridge
+      - name: Test PI IRQ to message and thread wakeup
+        run: /tmp/duck-vita-event-bridge
+      - name: Compile guest context regression
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/queue.c vita/src/scheduler.c vita/src/context.c vita/tests/context.c -o /tmp/duck-vita-context
+      - name: Test per-thread guest CPU contexts
+        run: /tmp/duck-vita-context
+      - name: Compile guest step execution harness
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined -fno-omit-frame-pointer -I vita/include vita/src/queue.c vita/src/scheduler.c vita/src/context.c vita/src/executor.c vita/tests/executor.c -o /tmp/duck-vita-executor
+      - name: Test context-backed guest execution seam
+        run: /tmp/duck-vita-executor

@@ -1,0 +1,28 @@
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/interpreter.cpp
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/interpreter.cpp
+@@ -1,3 +1,4 @@
++#include "combiner_cycle.h"
+ #include "graphics_options.h"
+ #include "texture_layout.h"
+ #include "framebuffer_pack.h"
+@@ -1924,7 +1925,8 @@
+     }
+ 
+     ColorCombinerKey key;
+-    key.combine_mode = mRdp->combine_mode;
++    key.combine_mode = duck_combiner_shader_mux(mRdp->combine_mode,
++        (mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE)) == G_CYC_1CYCLE);
+     key.options = cc_options;
+ 
+     ColorCombiner* comb = LookupOrCreateColorCombiner(key);
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/gfx_opengl.cpp
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/gfx_opengl.cpp
+@@ -500,7 +500,7 @@
+     GLuint shader_program = 0;
+     char fname[256];
+     snprintf(fname, sizeof fname,
+-        "ux0:data/DuckRecomp/shaders-v007/%016llX_%016llX_%u_%u.bin",
++        "ux0:data/DuckRecomp/shaders-v008/%016llX_%016llX_%u_%u.bin",
+         (unsigned long long)shader_id1, (unsigned long long)shader_id0,
+         (unsigned)mCurrentFilterMode, (unsigned)mSrgbMode);
+     std::vector<uint8_t> binary;

@@ -1,0 +1,24 @@
+name: Vita EEPROM persistence
+on:
+  push:
+    branches: [vita/arm32-bringup]
+    paths: ['vita/src/os_eeprom.c', 'vita/src/eeprom_file.c', 'vita/include/duck_vita_eeprom.h', 'vita/tests/os_eeprom.c', 'vita/tests/eeprom_vita_io.c', 'vita/tests/fake_sdk/psp2/io/fcntl.h', '.github/workflows/vita-eeprom.yml']
+  pull_request:
+    paths: ['vita/src/os_eeprom.c', 'vita/src/eeprom_file.c', 'vita/include/duck_vita_eeprom.h', 'vita/tests/os_eeprom.c', 'vita/tests/eeprom_vita_io.c', 'vita/tests/fake_sdk/psp2/io/fcntl.h', '.github/workflows/vita-eeprom.yml']
+jobs:
+  persistence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retrieve pinned N64Recomp ABI
+        run: |
+          mkdir -p /tmp/duck-abi
+          curl -fLsS --retry 3 https://raw.githubusercontent.com/N64Recomp/N64Recomp/ffb39cdad1da5de07eaaa48bd1db4a89a7986771/include/recomp.h -o /tmp/duck-abi/recomp.h
+      - name: Validate persistent reload and save failure behavior
+        run: |
+          cc -std=c11 -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -I/tmp/duck-abi -Ivita/include vita/src/os_eeprom.c vita/src/eeprom_file.c vita/tests/os_eeprom.c -o /tmp/duck-eeprom
+          /tmp/duck-eeprom
+      - name: Validate Vita file-I/O transactions and error recovery
+        run: |
+          cc -std=c11 -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -D__vita__ -Ivita/tests/fake_sdk -I/tmp/duck-abi -Ivita/include vita/src/os_eeprom.c vita/src/eeprom_file.c vita/tests/eeprom_vita_io.c -o /tmp/duck-eeprom-vita-io
+          /tmp/duck-eeprom-vita-io

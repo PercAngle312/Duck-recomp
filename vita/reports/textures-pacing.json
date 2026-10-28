@@ -1,0 +1,180 @@
+{
+  "version": "00.12",
+  "hardware_baseline": "00.11: user reports better FPS and good controls, remaining texture corruption and choppy gameplay",
+  "hardware_v012_tested": false,
+  "physical_FPS_gain_measured": false,
+  "texture_quality_visually_verified": false,
+  "audible_quality_verified": false,
+  "original_translated_game_source_modified": false,
+  "translated_game_exports": 9416,
+  "private_game_core_changed": false,
+  "controller_runtime_changed": false,
+  "audio_worker_FIFO_changed": false,
+  "ARM32_NEON_vector_cases": 4096,
+  "vector_selectors": 16,
+  "ARM32_NEON_vector_checks_passed": true,
+  "sampled_real_audio_tasks_compared": 15,
+  "real_audio_comparison_bytes_per_task": {
+    "RDRAM": 8388608,
+    "DMEM": 4096
+  },
+  "real_audio_comparison_failures": 0,
+  "checks": {
+    "differential": {
+      "seconds_limit": 240,
+      "elapsed_seconds": 240.21496915900002,
+      "exit_code": 0,
+      "external_timeout": true,
+      "VPK": "/workspace/scratch/9a0cc171682a/vita-next-build/differential-final/Duck-Dodgers-Vita-WIP.vpk",
+      "VPK_sha256": "229c4d0e7d3a7043cefe7d999c1167b8878d377881a46e79b7d9340d55ca5943",
+      "installed_eboot_matches_VPK": true
+    },
+    "checked": {
+      "seconds_limit": 120,
+      "elapsed_seconds": 120.26457043600021,
+      "exit_code": 0,
+      "external_timeout": true,
+      "VPK": "/workspace/scratch/9a0cc171682a/vita-next-build/checked-final/Duck-Dodgers-Vita-WIP.vpk",
+      "VPK_sha256": "65d1592ad714fb31ac9644a88d3a2b7bf261ba37eef3d5ec544754ed19156ed6",
+      "installed_eboot_matches_VPK": true
+    },
+    "release-final": {
+      "seconds_limit": 180,
+      "elapsed_seconds": 180.66997491099983,
+      "exit_code": 0,
+      "external_timeout": true,
+      "VPK": "/workspace/scratch/9a0cc171682a/vita-next-build/final/Duck-Dodgers-Vita-WIP.vpk",
+      "VPK_sha256": "2eec05bc2dabf3371e4c8bad8c211e82a5c06de19b05f5d7656d5a792887595c",
+      "installed_eboot_matches_VPK": true
+    }
+  },
+  "last_release_guest_status": [
+    "Guest status: polls=73166 PI=5104 SP completed=1963 failed=0 loop_yields=36691"
+  ],
+  "last_release_audio_timing": [
+    "Audio RSP timing: tasks=256 avg_us=117 max_us=281 code_cache_hits=1791 code_hashes=1"
+  ],
+  "last_release_graphics_timing": [
+    "Graphics timing: tasks=4 avg_us translate=185 draw=340 readback=1248261 present=162 light_updates=0 vertex_rgba_updates=0 texture_hits=1394 texture_uploads=59"
+  ],
+  "reported_release_SP_failures": 0,
+  "emulator_host_adaptation": {
+    "version": "Vita3K v0.2.1 4236-17a8b340",
+    "AppImage_sha256": "a2b76221b8238947576e7992cd414d492fa6ae0bacc0d321ad628668ce5716f8",
+    "original_host_binary_sha256": "a8e52aac9f511ac2b9e3d7794299ab05b7603be519d0aa89064eb6b02d0c387c",
+    "adapted_host_binary_sha256": "e05b018c7f0eca1cd595b5192158d4fd46a42196be141ac7a4d2127062bfaa43",
+    "SDL_Init_instruction_offset": "0x10403d6",
+    "SDL_Init_flags_original": "0x1b030",
+    "SDL_Init_flags_adapted": "0x30",
+    "guest_modified": false
+  },
+  "software_video": "offscreen OpenGL, Mesa GL version override 4.6; unsuitable for native FPS claims",
+  "audio_capture": "Instrumented comparisons used SDL disk S16LE stereo 44100 Hz. Final release used dummy audio. Neither validates audible quality.",
+  "texture_validation": "Host decoder/state regression fixtures and VitaSDK renderer compilation; offscreen captures do not establish visual correctness",
+  "baseline_capture_comparison": {
+    "execution": {
+      "seconds_limit": 90,
+      "elapsed_seconds": 90.36481028199978,
+      "exit_code": 0,
+      "external_timeout": true,
+      "VPK": "/workspace/scratch/9a0cc171682a/vita-next-build/baseline-capture-final/Duck-Dodgers-Vita-WIP.vpk",
+      "VPK_sha256": "53cd12bc16e15ac5990428e4fbc570abcca52f81cc8e98e7a8d259297e2b58cf",
+      "installed_eboot_matches_VPK": true
+    },
+    "samples": [
+      {
+        "task": 1,
+        "channel_ranges": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ]
+      },
+      {
+        "task": 20,
+        "channel_ranges": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ]
+      },
+      {
+        "task": 40,
+        "channel_ranges": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ]
+      }
+    ],
+    "result": "Baseline and candidate offscreen captures are black in this host environment; no visual-fidelity pass is claimed."
+  },
+  "strong_unresolved_symbols": 0,
+  "vpk_sha256": "2eec05bc2dabf3371e4c8bad8c211e82a5c06de19b05f5d7656d5a792887595c",
+  "elf_sha256": "a3d38eb9e3dcaea6912e33c54ae85ace7c04ab0f9a76de3e4e5ed0cae8b49474",
+  "vpk_bytes": 5322845,
+  "current_native_audio_archive": {
+    "mode": "neon",
+    "source_sha256": "34b83278f6ea63b0a8c0b84ccb3794d942e345f7129951108e90b42f5fec9d35",
+    "original_vector_header_sha256": "18534c9c9fc66f0d2185d87de7cf1dd271ac1f5d4cb8791654c1eab7d8fc4e98",
+    "sse2neon_sha256": "b260c32b66d4bd7b28766204253c0bde9d7f7aeaa71d99390628387763a2dccd",
+    "archive_sha256": "9b128fc864f554a1e0262b21889f75692549832ebc0c23c069154a51b26fc3ee",
+    "float_abi": "hard",
+    "command": [
+      "/workspace/scratch/9a0cc171682a/vita-toolchain/vitasdk/bin/arm-vita-eabi-g++",
+      "-std=c++20",
+      "-O2",
+      "-fwrapv",
+      "-fno-strict-aliasing",
+      "-ffunction-sections",
+      "-fdata-sections",
+      "-mcpu=cortex-a9",
+      "-mfpu=neon",
+      "-mfloat-abi=hard",
+      "-I/workspace/scratch/9a0cc171682a/vita-next-build/audio-rsp/include",
+      "-I/workspace/scratch/9a0cc171682a/vita-production/vita/include",
+      "-I/workspace/scratch/9a0cc171682a/N64ModernRuntime/ultramodern/include",
+      "-I/workspace/scratch/9a0cc171682a/N64ModernRuntime/thirdparty/sse2neon",
+      "-c",
+      "/workspace/scratch/9a0cc171682a/restored/loader-source/Duck-Dodgers-Phase19-Rebuild/private-game-source/build/runtime/audio_rsp.cpp",
+      "-o",
+      "/workspace/scratch/9a0cc171682a/vita-next-build/audio-rsp/audio_rsp.arm.o"
+    ],
+    "generated_source_modified": false,
+    "hardware_tested": false
+  },
+  "release_instrumentation_absent": true,
+  "host_sanitizer_fixtures_passed": [
+    "texture state and decoder",
+    "staged texture index",
+    "live microcode cache"
+  ],
+  "baseline_core_and_runtime_byte_identical": true
+}

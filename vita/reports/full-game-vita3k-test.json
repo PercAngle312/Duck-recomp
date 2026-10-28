@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-26",
+  "title_id": "DUCKVIT04",
+  "emulator": "Vita3K v0.2.1 4232-92bda548",
+  "original_vpk_sha256": "0a5954aa7264cd9ca77c4f1e32aaeacd17dfdfe4cbef4577b34a167108ec5438",
+  "fixed_vpk_sha256": "84deca9408c367866fc02b53c1706580c23f2005289d680f84c2eb1085173f1d",
+  "vpk_modified_after_packaging": false,
+  "host": "Software OpenGL llvmpipe; SDL offscreen video and dummy audio; manual system modules with empty LLE list",
+  "host_emulator_adaptation": "Disable optional SDL gamepad, haptic, sensor and camera discovery; guest code, CPU and Vita HLE unchanged",
+  "host_emulator_original_sha256": "5229fedda2cd503b00feb423f81232e7b60c4b61237bc282c8cbaccf44b314e7",
+  "host_emulator_adapted_sha256": "b8862416d176a6f430cac952dc389141e7d497bc4b81e9c1411e66327ad46a5c",
+  "original_execution": {
+    "ROM_validation_passed": true,
+    "vitaGL_initialization_passed": true,
+    "Fast3D_initialization_passed": true,
+    "translated_guest_started": true,
+    "failure": "AI output returned 0x80260007 (invalid format)",
+    "cause": "VitaSDK small-enum ABI compiled (SceAudioOutMode)-1 into argument 255; confirmed in ARM disassembly"
+  },
+  "fixed_execution": {
+    "fix": "Pass explicit SCE_AUDIO_OUT_MODE_STEREO to sceAudioOutSetConfig",
+    "full_ELF_relinked": true,
+    "strong_unresolved_imports": 0,
+    "native_runtime_sources_compiled": 29,
+    "reached_first_Fast3D_shader_lookup": true,
+    "failure": "Shader compiler module missing at both ur0:/data/libshacccg.suprx and ur0:data/external/libshacccg.suprx, followed by emulator host SIGSEGV",
+    "guest_log_limitation": "Vita3K crashed without closing guest file streams; after-fix game.log retained the prior normal-exit contents and must not be used as fresh execution evidence. Emulator shader/module logs and installed eboot checksum identify the fixed run."
+  },
+  "host_contract_tests_passed": ["AI FIFO/resampling", "relocated live catalog", "EEPROM persistence and failure recovery", "SP task dispatch", "guest OS SP bridge"],
+  "graphics_verified": false,
+  "audible_sound_verified": false,
+  "gameplay_verified": false,
+  "physical_vita_tested": false,
+  "emulated_save_durability_verified": false,
+  "notes": "Vita3K reports sceIoSync and sceIoSyncByFd unimplemented; a created emulator EEPROM file is not proof of durable hardware saves. No Sony modules supplied."
+}

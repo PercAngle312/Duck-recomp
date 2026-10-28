@@ -1,0 +1,403 @@
+{
+  "reference_user_build": "00.13",
+  "new_user_VPK_released": false,
+  "source_commit": "95604f5458d8eff03481f0f71418a1886f1b14dd",
+  "changes": [
+    "Queued owned-DMA boundary interpolation",
+    "Resampling phase time preserved across guest rate changes",
+    "Opt-in aligned RSP vector and DMA memory paths; scalar fallback retained"
+  ],
+  "fast_RSP_memory_default_enabled": false,
+  "host_memory_comparison_cases": 524672,
+  "host_memory_comparison_mismatches": 0,
+  "ARM32_memory": {
+    "reference_and_optimized_ARM32_executed": true,
+    "vector_cases": 3072,
+    "DMA_read_write_sizes": 4097,
+    "runner": "Unicorn 2.1.4 Cortex-A9",
+    "fixture_sha256": "c4d99f9d2b76a56edc8588e6fd954df419c1ea4263dd571d0104d09fc0009dd5",
+    "result": 0,
+    "hardware_performance_measured": false,
+    "real_game_audio_tasks_compared": false
+  },
+  "synthetic_complete_audio_tasks": {
+    "synthetic_translated_tasks": 128,
+    "types": [
+      "load/save",
+      "clear/move",
+      "interleave",
+      "mixer"
+    ],
+    "reference": "byte-identical v00.13 native archive with all defined symbols isolated",
+    "ARM32_execution": "Unicorn 2.1.4 Cortex-A9",
+    "comparison_bytes_per_task": {
+      "RDRAM": 8388608,
+      "DMEM": 4096
+    },
+    "real_game_audio_tasks": false,
+    "native_speed_test": false,
+    "mismatches": 0,
+    "fixture_sha256": "ed069056699a5d7473b0813ea5ebe8abf877b3accedca9f42e96b8a32c4cf93f"
+  },
+  "final_audio_checks": {
+    "native_worker": "passed",
+    "queued_next_snapshot_mutation": "passed",
+    "boundary_interpolation": "passed",
+    "rate_change_and_repeated_chunks": "passed",
+    "AI_FIFO_IRQ_order": "passed",
+    "device_failures_and_shutdown": "passed"
+  },
+  "native_runtime_link": {
+    "native_sources": 29,
+    "sdk_linked": true,
+    "strong_imports": 0,
+    "game_elf": false
+  },
+  "optimized_audio_build": {
+    "mode": "neon",
+    "fast_memory": true,
+    "source_sha256": "34b83278f6ea63b0a8c0b84ccb3794d942e345f7129951108e90b42f5fec9d35",
+    "original_vector_header_sha256": "18534c9c9fc66f0d2185d87de7cf1dd271ac1f5d4cb8791654c1eab7d8fc4e98",
+    "sse2neon_sha256": "b260c32b66d4bd7b28766204253c0bde9d7f7aeaa71d99390628387763a2dccd",
+    "archive_sha256": "cae929a34bdc31d221a9b7cfbfcdef37cc673abafed1b32f38d71a2e9e17425b",
+    "float_abi": "hard",
+    "command": [
+      "/workspace/scratch/9a0cc171682a/vita-toolchain/vitasdk/bin/arm-vita-eabi-g++",
+      "-std=c++20",
+      "-O2",
+      "-fwrapv",
+      "-fno-strict-aliasing",
+      "-ffunction-sections",
+      "-fdata-sections",
+      "-mcpu=cortex-a9",
+      "-mfpu=neon",
+      "-mfloat-abi=hard",
+      "-I/workspace/scratch/9a0cc171682a/stability-pass/audio-fast/include",
+      "-I/workspace/scratch/9a0cc171682a/vita-production/vita/include",
+      "-I/workspace/scratch/9a0cc171682a/N64ModernRuntime/ultramodern/include",
+      "-I/workspace/scratch/9a0cc171682a/N64ModernRuntime/thirdparty/sse2neon",
+      "-c",
+      "/workspace/scratch/9a0cc171682a/restored/loader-source/Duck-Dodgers-Phase19-Rebuild/private-game-source/build/runtime/audio_rsp.cpp",
+      "-o",
+      "/workspace/scratch/9a0cc171682a/stability-pass/audio-fast/audio_rsp.arm.o"
+    ],
+    "generated_source_modified": false,
+    "hardware_tested": false,
+    "fast_memory_helper_sha256": "f3ad4743931b8f8d66f9038a73fb77861b7c432ed88cf23ff647b126e3a35f95",
+    "patched_headers_sha256": {
+      "rsp.hpp": "46d806526366ccf063003fd32732175efc379b12c78bec2d7d5a7c355ab7f2b5",
+      "rsp_vu.hpp": "babc704bbc6311ba6e39e682cf55b8663e5cee7e24c06b41dcc5a9f6393e12c6",
+      "rsp_vu_impl.hpp": "ed4285c35540d01e45bdbd886d078ba9ad674586d820795442cccb3f3ef8b79a"
+    }
+  },
+  "final_instrumented_ELF_sha256": "8ab03d992d7ae98e1472d61c8f02ce66d7684f1e618adb2acd7195925401c5df",
+  "final_internal_SELF_sha256": "2828dba3b663fa599ef93e633a653141c298e2feb818a86d574086bb70cd98e1",
+  "physical_candidate_tested": false,
+  "native_performance_gain_verified": false,
+  "audio_quality_verified": false,
+  "GPU_readback_stalls_resolved": false,
+  "all_bugs_fixed": false,
+  "known_remaining": [
+    "Blocking framebuffer readback and synchronous graphics/audio synthesis",
+    "Heavy-scene native frame pacing and audio starvation need further work",
+    "Two-source TMEM approximation and base-mip fallback",
+    "No release candidate gameplay/saves/stability verification on hardware"
+  ],
+  "interrupted_instrumented_run": {
+    "reason": "Execution session disconnected; no completed duration assertion",
+    "sampled_real_audio_tasks_passed": 16,
+    "real_audio_memory_mismatches": 0,
+    "reported_SP_failures": 0,
+    "source_note": "Memory optimization and queued interpolation; before final rate-change patch",
+    "physical_hardware": false
+  },
+  "native_CI": {
+    "commit": "95604f5458d8eff03481f0f71418a1886f1b14dd",
+    "run": 40596153498,
+    "conclusion": "success",
+    "url": "https://github.com/PercAngle312/Duck-recomp/actions/runs/40596153498"
+  },
+  "host_RSP_CI": {
+    "run": 40596161822,
+    "conclusion": "success"
+  },
+  "audio_CI": {
+    "run": 40596161783,
+    "conclusion": "success"
+  },
+  "contract_steps_with_focused_final_reruns": [
+    {
+      "workflow": "vita-audio-catalog.yml",
+      "name": "Validate AI DMA completion and PCM conversion",
+      "exit": 0,
+      "log": "stability-pass/checks/ai-final.log",
+      "focused_rerun": true
+    },
+    {
+      "workflow": "vita-audio-catalog.yml",
+      "name": "Validate relocated startup lookup",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-audio-catalog.yml-1.log"
+    },
+    {
+      "workflow": "vita-audio-catalog.yml",
+      "name": "Validate native audio calls with VitaSDK small enums",
+      "exit": 0,
+      "log": "stability-pass/checks/native-audio-final.log",
+      "focused_rerun": true
+    },
+    {
+      "workflow": "vita-audio-catalog.yml",
+      "name": "Validate native controller mapping and stick centering",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-audio-catalog.yml-3.log"
+    },
+    {
+      "workflow": "vita-audio-catalog.yml",
+      "name": "Validate exact live microcode identity cache",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-audio-catalog.yml-4.log"
+    },
+    {
+      "workflow": "vita-eeprom.yml",
+      "name": "Validate persistent reload and save failure behavior",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-eeprom.yml-5.log"
+    },
+    {
+      "workflow": "vita-eeprom.yml",
+      "name": "Validate Vita file-I/O transactions and error recovery",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-eeprom.yml-6.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Compile native-pixel contract test",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-7.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Test scaled and bounded pixels",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-8.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Compile guest memory contract",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-9.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Test guest memory boundaries",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-10.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Compile memory bus contract",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-11.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Test device dispatch isolation",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-12.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Compile ROM DMA contract",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-13.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Test bounded cartridge transfers",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-14.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Compile PI register test",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-15.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Test PI ROM DMA and interrupt acknowledgment",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-16.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Compile PI to MI delivery test",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-17.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Test interrupt mask and acknowledgement",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-18.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Compile CPU IRQ delivery test",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-19.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Test CPU IP2 and exception-level gating",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-20.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Compile message queue test",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-21.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Test queue wraparound and priority",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-22.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Compile scheduler test",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-23.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Test cooperative scheduling and message wakeup",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-24.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Compile interrupt queue integration test",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-25.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Test PI IRQ to message and thread wakeup",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-26.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Compile guest context regression",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-27.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Test per-thread guest CPU contexts",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-28.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Compile guest step execution harness",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-29.log"
+    },
+    {
+      "workflow": "vita-framebuffer.yml",
+      "name": "Test context-backed guest execution seam",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-framebuffer.yml-30.log"
+    },
+    {
+      "workflow": "vita-graphics-task-check.yml",
+      "name": "Compile task span checks",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-graphics-task-check.yml-31.log"
+    },
+    {
+      "workflow": "vita-graphics-task-check.yml",
+      "name": "Exercise safe guest address ranges",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-graphics-task-check.yml-32.log"
+    },
+    {
+      "workflow": "vita-graphics-task-check.yml",
+      "name": "Validate shader cache corruption and interrupted writes",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-graphics-task-check.yml-33.log"
+    },
+    {
+      "workflow": "vita-graphics-task-check.yml",
+      "name": "Validate logical N64 material and vertex colors",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-graphics-task-check.yml-34.log"
+    },
+    {
+      "workflow": "vita-graphics-task-check.yml",
+      "name": "Validate staged texture indexing and growth",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-graphics-task-check.yml-35.log"
+    },
+    {
+      "workflow": "vita-graphics-task-check.yml",
+      "name": "Validate pre-swapped texture rows and packed framebuffer stores",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-graphics-task-check.yml-36.log"
+    },
+    {
+      "workflow": "vita-sp-graphics.yml",
+      "name": "Build SP task runtime",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-sp-graphics.yml-37.log"
+    },
+    {
+      "workflow": "vita-sp-graphics.yml",
+      "name": "Validate graphics task completion",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-sp-graphics.yml-38.log"
+    },
+    {
+      "workflow": "vita-sp-graphics.yml",
+      "name": "Build live SP callback bridge",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-sp-graphics.yml-39.log"
+    },
+    {
+      "workflow": "vita-sp-graphics.yml",
+      "name": "Validate guest graphics task dispatch",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-sp-graphics.yml-40.log"
+    },
+    {
+      "workflow": "vita-sp-graphics.yml",
+      "name": "Syntax check build script",
+      "exit": 0,
+      "log": "stability-pass/contracts/vita-sp-graphics.yml-41.log"
+    }
+  ],
+  "contract_steps_count": 42,
+  "fixture_adjustment": "Worker fixture initially rejected the newly intended interpolated boundary sample; exact boundary expectations and both snapshot-mutation checks were added, then the fixture passed.",
+  "final_internal_execution": {
+    "seconds_limit": 120,
+    "elapsed_seconds": 120.31518421800001,
+    "exit_code": 0,
+    "external_timeout": true,
+    "internal_VPK_sha256": "0303a17505eaf0534674439e9c5acc458c9f82de33c40d92dd85cadc01c0dcc6",
+    "installed_self_matches_candidate": true,
+    "instrumented": true,
+    "physical_hardware": false,
+    "new_user_release": false,
+    "sampled_real_audio_tasks_passed": 15,
+    "real_audio_memory_mismatches": 0,
+    "reported_SP_failures": 0,
+    "last_guest_status": [
+      "Guest status: polls=54216 PI=5104 SP completed=1354 failed=0 loop_yields=27579"
+    ]
+  }
+}

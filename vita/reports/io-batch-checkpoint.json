@@ -1,0 +1,57 @@
+{
+  "before_count": 30,
+  "remaining_count": 26,
+  "resolved": [
+    "osCreatePiManager_recomp",
+    "osPiReadIo_recomp",
+    "osPiStartDma_recomp",
+    "osSetEventMesg_recomp"
+  ],
+  "new_undefined": [],
+  "remaining_by_subsystem": {
+    "compiler_and_libm": [
+      "__aeabi_ldivmod",
+      "__aeabi_uidiv",
+      "__aeabi_uldivmod",
+      "fegetround",
+      "fesetround",
+      "lrintf",
+      "sqrtf"
+    ],
+    "threading": [
+      "osCreateThread_recomp",
+      "osDestroyThread_recomp",
+      "osSetThreadPri_recomp",
+      "osStartThread_recomp",
+      "pause_self"
+    ],
+    "vi_init_timer_interrupt": [
+      "osCreateViManager_recomp",
+      "osInitialize_recomp",
+      "osSetIntMask_recomp",
+      "osSetTimer_recomp"
+    ],
+    "rsp_tasks": [
+      "osSpTaskLoad_recomp",
+      "osSpTaskStartGo_recomp",
+      "osSpTaskYield_recomp",
+      "osSpTaskYielded_recomp"
+    ],
+    "dispatch_loader_diagnostics": [
+      "get_function",
+      "duck_before_free",
+      "duck_register_loaded_module",
+      "func_8000F810",
+      "do_break",
+      "switch_error"
+    ]
+  },
+  "host_sanitizer_tests_passed": true,
+  "hard_float_test_elf_unresolved": 0,
+  "soft_float_partial_link": true,
+  "full_game_linked": false,
+  "vita_os_tested": false,
+  "playable_game": false,
+  "base_sha256": "99eff82d707ebdefa31f2222def4c9298168d796ca12e4c0a5638479c1584502",
+  "combined_sha256": "ec6127da20d536e02410aa0597807d109e9e065aa47b24319780aa3ba50660bf"
+}

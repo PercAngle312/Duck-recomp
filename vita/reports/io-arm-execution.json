@@ -1,0 +1,12 @@
+{
+  "arm_calls_returned": 16,
+  "private_binding_wrappers_executed": 4,
+  "pio_valid_cases": 4,
+  "invalid_pio_entire_ram_unchanged": true,
+  "priority_dma_jobs_completed": 2,
+  "word_swapped_dma_verified": true,
+  "completion_messages_are_job_pointers": true,
+  "event_registration_and_delivery_passed": true,
+  "vita_os_tested": false,
+  "gameplay_tested": false
+}

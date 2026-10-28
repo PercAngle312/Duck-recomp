@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-25",
+  "app_title": "Duck Vita Thread Test",
+  "title_id": "DUCKVIT02",
+  "vpk_sha256": "b7b2885767a31c0eefdca979521a0c7b73bf16abfa618dea20d877860dc625b8",
+  "source_commit": "c83d907775e2a460144841c934ddb75b551a5245",
+  "emulator": "Vita3K v0.2.1 4232-92bda548",
+  "vpk_modified": false,
+  "visible_result": "Native fiber / guest thread tests: PASS (0)",
+  "result_evidence": "PASS text visually verified on captured emulator framebuffer",
+  "tests": [
+    "blocking send and receive resume native stacks",
+    "priority wakeup and preemption at kernel boundaries",
+    "self-destruction and dispatch budgets",
+    "external queue wakeups",
+    "equal-priority FIFO yields",
+    "floating-point rounding state across yields"
+  ],
+  "emulation_mode": "Manual system modules with empty LLE list; built-in HLE fibers",
+  "sony_firmware_installed": false,
+  "initial_configuration_failure": "Automatic module selection tried to load absent vs0:sys/external/libfiber.suprx and returned 0x805A10FF; built-in HLE mode passes",
+  "host_adaptation": {
+    "description": "Disable optional host gamepad/haptic/sensor/camera discovery only; actual SDL audio/video initialization, guest CPU and Vita HLE/fibers unchanged",
+    "address": "0x1041766",
+    "old_flags": "0x1b030",
+    "new_flags": "0x30",
+    "original_sha256": "5229fedda2cd503b00feb423f81232e7b60c4b61237bc282c8cbaccf44b314e7",
+    "adapted_sha256": "b8862416d176a6f430cac952dc389141e7d497bc4b81e9c1411e66327ad46a5c"
+  },
+  "renderer": "llvmpipe OpenGL 4.5; virtual X11 display; dummy host audio",
+  "run_seconds": 18,
+  "test_remained_at_pass_screen_until_emulator_shutdown": true,
+  "triangle_exit_tested": false,
+  "host_gamepad_tested": false,
+  "emulated_vita_fiber_test_passed": true,
+  "physical_vita_tested": false,
+  "sony_firmware_fiber_implementation_tested": false,
+  "duck_dodgers_gameplay_tested": false,
+  "host_ubsan_thread_retest_passed": true,
+  "arm_io_retest_calls_passed": 16
+}

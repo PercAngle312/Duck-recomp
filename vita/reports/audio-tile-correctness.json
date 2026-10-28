@@ -1,0 +1,37 @@
+{
+  "hardware_feedback": "v00.14 FPS improved; audio distorted, textures wrong, some choppiness",
+  "host_audio_worker_test": "PASS ASan/UBSan; 64-frame native blocks; existing FIFO/IRQ/snapshot/error/shutdown cases plus 552-frame single-DMA cases",
+  "single_DMA_cases": [
+    {
+      "input_frames": 552,
+      "input_rate": 24004,
+      "real_native_frames": 1104,
+      "padded_frames": 48
+    },
+    {
+      "input_frames": 552,
+      "input_rate": 32006,
+      "real_native_frames": 828,
+      "padded_frames": 4
+    }
+  ],
+  "texture_origin_test": "PASS 132 row-origin cases plus RGBA16 and CI4 one-row pixel fixtures; actual prepared renderer stride function compiled",
+  "renderer_ARM32_units_compiled": 5,
+  "runtime_ARM32_sources_compiled": 29,
+  "complete_private_game_ELF_linked": true,
+  "unresolved_strong_imports": 0,
+  "physical_audio_quality_verified": false,
+  "physical_texture_artifacts_resolved": false,
+  "performance_gain_verified": false,
+  "VPK_issued": false,
+  "source_CI": {
+    "commit": "39a97ea3f7a51b92eb4f68b65e70d78825d56358",
+    "pinned_VitaSDK_run": 40672813922,
+    "conclusion": "success"
+  },
+  "emulator_attempt": {
+    "guest_started": false,
+    "blocked_before_guest": "Host SDL_Init could not initialize UDEV",
+    "hardware_quality_claim": false
+  }
+}

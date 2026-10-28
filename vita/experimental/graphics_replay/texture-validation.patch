@@ -1,0 +1,69 @@
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.cpp
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.cpp
+@@ -185,7 +185,7 @@
+ 
+     u32 hash[4] = {};
+     bool hashComputed = false;
+-    if ((!stage || stage->dirty) && !(stage && stage->validatedBuild == mBuildSerial)) {
++    if (!stage || stage->validatedBuild != mBuildSerial) {
+         HashRdramBytes(sourceAddress, requiredBytes, hash);
+         hashComputed = true;
+     }
+@@ -231,7 +231,6 @@
+         stage->validatedBuild = mBuildSerial;
+         stage->rowBytes = rowBytes;
+         stage->swizzleGroup = swizzleGroup;
+-        stage->dirty = false;
+         stage->data = data;
+     } else if (hashComputed &&
+                (stage->hash[0] != hash[0] || stage->hash[1] != hash[1] ||
+@@ -248,7 +247,6 @@
+         stage->hash[3] = hash[3];
+     }
+ 
+-    stage->dirty = false;
+     stage->validatedBuild = mBuildSerial;
+     if (mInterpreter) {
+         mInterpreter->RegisterStagedTextureSource(stage->data, stage->size, sourceAddress);
+@@ -957,23 +955,15 @@
+ void* Fast3DMemoryBridge::BuildDisplayList(u32 address, GBIVersion version) {
+     Reset();
+ 
++    // Guest writes are not fully instrumented. Check a source on its first
++    // use in each task, rather than walking every previously staged texture.
++    // Reset serial tags only on wrap, so an old tag cannot alias this build.
+     ++mBuildSerial;
+-    if (mBuildSerial == 0) ++mBuildSerial;
+-
+-    for (u32 i = 0; i < mTextureStageCount; ++i) {
+-        TextureStage& stage = mTextureStages[i];
+-        if (stage.dirty || stage.size == 0) continue;
+-
+-        const u32 firstPage = stage.address >> RDRAM_DIRTY_PAGE_SHIFT;
+-        const u32 lastPage = (stage.address + stage.size - 1) >> RDRAM_DIRTY_PAGE_SHIFT;
+-        for (u32 page = firstPage; page <= lastPage && page < RDRAM_DIRTY_PAGE_COUNT; ++page) {
+-            if (g_RDRAMDirtyPages[page]) {
+-                stage.dirty = true;
+-                break;
+-            }
+-        }
+-    }
+-    RDRAM_ClearDirtyPages();
++    if (mBuildSerial == 0) {
++        mBuildSerial = 1;
++        for (u32 i = 0; i < mTextureStageCount; ++i)
++            mTextureStages[i].validatedBuild = 0;
++    }
+ 
+     mTranslationFailed = false;
+     mSawFullSync = false;
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.h
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.h
+@@ -55,7 +55,6 @@
+         u32 validatedBuild;
+         u32 rowBytes;
+         u8 swizzleGroup;
+-        bool dirty;
+         u8* data;
+     };
+ 

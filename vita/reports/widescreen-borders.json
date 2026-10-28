@@ -1,0 +1,21 @@
+{
+  "hardware_report": "Wide scene is visible outside the original 4:3 region, with interior black strips near its edges",
+  "hypothesis": "Native edge fill rectangles remain centered under horizontal aspect correction",
+  "change": "Anchor matching thin full-height opaque-black fill-cycle rectangles to outer wide-view edges; retain strip width",
+  "guards": [
+    "main view only",
+    "widescreen only",
+    "opaque black fill cycle only",
+    "full native height",
+    "at most 1/16 native width",
+    "touches native left/right edge"
+  ],
+  "override": "borders=original",
+  "host_tests": "PASS ASan/UBSan with -Werror: edge placement, width preservation, original aspect and exclusion fixtures",
+  "renderer_ARM32_units_compiled": 5,
+  "renderer_relocatable_link": true,
+  "full_private_game_linked_this_pass": false,
+  "guest_commands_confirmed_on_hardware": false,
+  "physical_visual_result_verified": false,
+  "VPK_issued": false
+}

@@ -1,0 +1,43 @@
+{
+  "resolved_existing_game_symbols": [
+    "osCreateThread_recomp",
+    "osStartThread_recomp",
+    "osDestroyThread_recomp",
+    "osSetThreadPri_recomp",
+    "pause_self",
+    "func_8000F810"
+  ],
+  "remaining_game_services": [
+    "dmem",
+    "do_break",
+    "duck_before_free",
+    "duck_register_loaded_module",
+    "get_function",
+    "osCreateViManager_recomp",
+    "osInitialize_recomp",
+    "osSetIntMask_recomp",
+    "osSetTimer_recomp",
+    "osSpTaskLoad_recomp",
+    "osSpTaskStartGo_recomp",
+    "osSpTaskYield_recomp",
+    "osSpTaskYielded_recomp",
+    "section_addresses",
+    "switch_error"
+  ],
+  "remaining_game_service_count": 15,
+  "complete_code_strong_imports": 31,
+  "complete_code_weak_imports": 4,
+  "host_stack_and_queue_tests_passed": true,
+  "host_fpu_yield_test_passed": true,
+  "host_sanitizer": "UBSan; ucontext backend",
+  "vita_native_test_elf_linked": true,
+  "native_test_strong_undefined": 0,
+  "native_test_weak_undefined": 5,
+  "vpk_crc_verified": true,
+  "native_assert_call_sites": 30,
+  "vpk_bytes": 59180,
+  "vpk_sha256": "b7b2885767a31c0eefdca979521a0c7b73bf16abfa618dea20d877860dc625b8",
+  "vita_os_tested": false,
+  "gameplay_tested": false,
+  "playable_game": false
+}

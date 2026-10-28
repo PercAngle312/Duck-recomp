@@ -1,0 +1,52 @@
+{
+  "host_api_model_passed": true,
+  "host_queue_unique_items": 20000,
+  "vita_queue_object_compiled": true,
+  "vita_os_tested": false,
+  "full_game_linked": false,
+  "playable_game": false,
+  "runtime_audit": [
+    {
+      "source": "ultramodern/src/threads.cpp",
+      "compile_exit": 1,
+      "first_error": "<runtime>/ultramodern/include/ultramodern/renderer_context.hpp:99:94: error: 'WindowHandle' has not been declared; did you mean 'WindowMode'?",
+      "log": "ultramodern-src-threads.cpp.log"
+    },
+    {
+      "source": "ultramodern/src/events.cpp",
+      "compile_exit": 1,
+      "first_error": "<runtime>/ultramodern/include/ultramodern/renderer_context.hpp:99:94: error: 'WindowHandle' has not been declared; did you mean 'WindowMode'?",
+      "log": "ultramodern-src-events.cpp.log"
+    },
+    {
+      "source": "ultramodern/src/renderer_context.cpp",
+      "compile_exit": 1,
+      "first_error": "<runtime>/ultramodern/include/ultramodern/renderer_context.hpp:99:94: error: 'WindowHandle' has not been declared; did you mean 'WindowMode'?",
+      "log": "ultramodern-src-renderer_context.cpp.log"
+    },
+    {
+      "source": "librecomp/src/recomp.cpp",
+      "compile_exit": 1,
+      "first_error": "<runtime>/librecomp/src/recomp.cpp:32:14: fatal error: sys/mman.h: No such file or directory",
+      "log": "librecomp-src-recomp.cpp.log"
+    },
+    {
+      "source": "librecomp/src/rsp.cpp",
+      "compile_exit": 0,
+      "first_error": "none",
+      "log": "librecomp-src-rsp.cpp.log"
+    }
+  ],
+  "vita_queue_probe_linked": true,
+  "note": "2026-10-25 semaphore checkpoint. Host API model, native compile/link only; not Vita OS execution. No new VPK release.",
+  "compiler": "arm-vita-eabi-g++ 15.2.0; Cortex-A9 NEON hard-float",
+  "pins": {
+    "sdk_tag": "sdk-snapshot-20261015.850.1",
+    "sdk_url": "https://github.com/vitasdk/autobuilds/releases/download/sdk-snapshot-20261015.850.1/vitasdk-x86_64-linux-gnu-2026-10-15_05-01-16.tar.bz2",
+    "sdk_sha256": "801f483928523fe63547faf58a7dfdaca7482b26c33af0064acea96a906f7662",
+    "samples_commit": "fe8fbef570f3280586c0c20157146e3faefb2181",
+    "N64Recomp_commit": "ffb39cdad1da5de07eaaa48bd1db4a89a7986771",
+    "N64ModernRuntime_commit": "cdf5abbd5026fef5c364c676e4667c45e42b6863",
+    "renderer_reference_commit": "fb7238e2d4b3600e5e5c84986871be1396e337af"
+  }
+}

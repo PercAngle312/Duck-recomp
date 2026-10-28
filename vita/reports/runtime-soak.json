@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-26",
+  "source_commit": "59b824bbbe0b1ebc695ee5d540a3040aafe09e02",
+  "started_utc": "2026-10-26T11:39:29.700584+00:00",
+  "duration_seconds": 300.039,
+  "planned_seconds": 300,
+  "complete_rounds": 5067,
+  "successful_process_runs": 60804,
+  "test_runs": {
+    "duck-ai": 5067,
+    "duck-live-catalog": 5067,
+    "duck-native-audio": 5067,
+    "duck-eeprom": 5067,
+    "duck-vita-recomp-test": 5067,
+    "duck-vita-dispatch-test": 5067,
+    "duck-vita-os-core": 5067,
+    "duck-vita-os-io": 5067,
+    "duck-vita-thread-test": 5067,
+    "duck-vita-time-test": 5067,
+    "duck-vita-overlays": 5067,
+    "duck-vita-input": 5067
+  },
+  "failures": [],
+  "sanitizers": "AddressSanitizer and UBSan for memory/runtime contracts; UBSan only for ucontext fiber tests",
+  "leak_sanitizer_enabled": false,
+  "method": "Repeated executable runs with subprocess isolation; this is not one continuously running game or a hardware soak",
+  "native_audio_device": "Mock SDK calls exercise production audio_vita.c with -fshort-enums; no physical audio output",
+  "gameplay_tested": false,
+  "graphics_tested": false,
+  "shader_compiler_blocker": "Missing libshacccg.suprx; Vita3K HLE compile entrypoint unimplemented"
+}

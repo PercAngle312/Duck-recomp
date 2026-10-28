@@ -1,0 +1,57 @@
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/interpreter.cpp
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/interpreter.cpp
+@@ -2775,7 +2775,7 @@
+     mRdp->fill_color.a = a * 255;
+ }
+ 
+-void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry) {
++void Interpreter::GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry, int borderAnchor) {
+     uint32_t saved_other_mode_h = mRdp->other_mode_h;
+     uint32_t cycle_type = (mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE));
+ 
+@@ -2796,6 +2796,9 @@
+ 
+     ulxf = AdjXForAspectRatio(ulxf);
+     lrxf = AdjXForAspectRatio(lrxf);
++    const float edgeShift=duck_widescreen_border_shift(borderAnchor,AdjXForAspectRatio(1.0f));
++    ulxf+=edgeShift;lrxf+=edgeShift;
++    if(borderAnchor==-2||borderAnchor==2){ulxf=-1.0f;lrxf=1.0f;}
+ 
+     struct LoadedVertex* ul = &mRsp->loaded_vertices[MAX_VERTICES + 0];
+     struct LoadedVertex* ll = &mRsp->loaded_vertices[MAX_VERTICES + 1];
+@@ -2998,6 +3001,15 @@
+     }
+     uint32_t mode = (mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE));
+ 
++    const bool blackFill=mode==G_CYC_FILL && !mFbActive && duck_fast3d_edge_borders() &&
++        mRdp->fill_color.r==0 && mRdp->fill_color.g==0 && mRdp->fill_color.b==0 && mRdp->fill_color.a==255;
++    const int borderAnchor=duck_widescreen_border_anchor(ulx,uly,lrx,lry,
++        mNativeDimensions.width,mNativeDimensions.height,AdjXForAspectRatio(1.0f),blackFill);
++    static unsigned borderReports=0;
++    if(borderAnchor && borderReports++<8)
++        fprintf(stderr,"Widescreen border anchor: %s rect=%d,%d-%d,%d\n",
++            borderAnchor==-1?"left":borderAnchor==1?"right":borderAnchor==-2?"top":"bottom",ulx,uly,lrx,lry);
++
+     // Expand fullscreen fill rects to cover widescreen viewports.
+     // Without this, screen clears and fades only cover the native 4:3 area.
+     if (ulx == 0 && uly == 0) {
+@@ -3028,7 +3040,7 @@
+         GfxDpSetCombineMode(color_comb(0, 0, 0, G_CCMUX_SHADE), alpha_comb(0, 0, 0, G_ACMUX_SHADE), 0, 0);
+     }
+ 
+-    GfxDrawRectangle(ulx, uly, lrx, lry);
++    GfxDrawRectangle(ulx, uly, lrx, lry, borderAnchor);
+     mRdp->combine_mode = saved_combine_mode;
+ }
+ 
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/interpreter.h
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/interpreter.h
+@@ -527,7 +527,7 @@
+     void GfxDpSetFogColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+     void GfxDpSetBlendColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+     void GfxDpSetFillColor(uint32_t pickedColor);
+-    void GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry);
++    void GfxDrawRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry, int borderAnchor=0);
+     void GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry, uint8_t tile, int16_t uls,
+                                int16_t ult, int16_t dsdx, int16_t dtdy, bool flip);
+     void GfxDpImageRectangle(int32_t tile, int32_t w, int32_t h, int32_t ulx, int32_t uly, int16_t uls, int16_t ult,

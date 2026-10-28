@@ -1,0 +1,208 @@
+name: Compile Vita game graphics runtime with pinned VitaSDK
+on:
+  workflow_dispatch:
+  push:
+    branches: [vita/arm32-bringup]
+    paths:
+      - 'vita/src/sp*.c'
+      - 'vita/src/os_sp.c'
+      - 'vita/src/game_loop.c'
+      - 'vita/src/live.c'
+      - 'vita/src/os_threads.c'
+      - 'vita/include/duck_vita_threads.h'
+      - 'vita/src/os_input.c'
+      - 'vita/src/os_overlays.c'
+      - 'vita/src/os_eeprom.c'
+      - 'vita/src/os_ai.c'
+      - 'vita/src/audio_resample.c'
+      - 'vita/src/audio_vita.c'
+      - 'vita/src/guest_fault.c'
+      - 'vita/include/duck_vita_ai.h'
+      - 'vita/include/duck_vita_sse2neon.h'
+      - 'vita/rebuild_audio_rsp.py'
+      - 'vita/include/duck_vita_rsp_memory.h'
+      - 'vita/patch_rsp_memory.py'
+      - 'vita/tests/rsp_memory*.cpp'
+      - 'vita/tests/run_rsp_memory_arm.py'
+      - 'vita/include/duck_vita_rsp_multiply.h'
+      - 'vita/patch_rsp_multiply.py'
+      - 'vita/tests/rsp_multiply.cpp'
+      - 'vita/tests/run_rsp_multiply_arm.py'
+      - 'vita/tests/neon_bridge.cpp'
+      - 'vita/tests/framebuffer_neon.cpp'
+      - 'vita/tests/run_framebuffer_neon.py'
+      - 'vita/src/eeprom_file.c'
+      - 'vita/include/duck_vita_eeprom.h'
+      - 'vita/src/input_vita.c'
+      - 'vita/src/live_registry.c'
+      - 'vita/include/duck_vita_live_registry.h'
+      - 'vita/include/duck_vita_live.h'
+      - 'vita/include/duck_vita_sp*.h'
+      - 'vita/include/duck_vita_game_loop.h'
+      - 'vita/link_private_game.py'
+      - 'vita/experimental/graphics_replay/**'
+      - '.github/workflows/vita-sp-vitasdk-build.yml'
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pinned VitaSDK
+        run: |
+          mkdir -p /tmp/duck-sdk
+          curl -fL --retry 3 "https://github.com/vitasdk/autobuilds/releases/download/sdk-snapshot-20261015.850.1/vitasdk-x86_64-linux-gnu-2026-10-15_05-01-16.tar.bz2" -o /tmp/duck-sdk/sdk.tar.bz2
+          echo "801f483928523fe63547faf58a7dfdaca7482b26c33af0064acea96a906f7662  /tmp/duck-sdk/sdk.tar.bz2" | sha256sum -c -
+          mkdir -p /tmp/duck-sdk/root
+          tar -xjf /tmp/duck-sdk/sdk.tar.bz2 -C /tmp/duck-sdk/root
+      - name: Get pinned N64Recomp ABI
+        run: |
+          mkdir -p /tmp/duck-abi
+          curl -fL --retry 3 https://raw.githubusercontent.com/N64Recomp/N64Recomp/ffb39cdad1da5de07eaaa48bd1db4a89a7986771/include/recomp.h -o /tmp/duck-abi/recomp.h
+          cp vita/include/portable_mul.h /tmp/duck-abi/portable_mul.h
+          python3 vita/patch_arm_recomp.py --header /tmp/duck-abi/recomp.h --portable-header /tmp/duck-abi/portable_mul.h
+      - name: Cross-compile production scheduler and graphics runtime
+        run: |
+          set -eu
+          SDK_CC="$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-gcc -print -quit)"
+          test -n "$SDK_CC"
+          mkdir -p /tmp/duck-objects
+          export VITASDK="$(dirname "$(dirname "$SDK_CC")")"
+          echo "VitaSDK root: $VITASDK"
+          "$SDK_CC" --version
+          for file in live live_registry sp sp_events sp_runtime os_sp game_loop dispatch recomp_bridge scheduler queue os_io os_queue os_core os_threads os_interrupt fiber_vita os_time os_vi os_vi_config os_input input_vita os_overlays os_eeprom eeprom_file os_ai audio_resample audio_vita guest_fault; do
+            echo "::group::Compile $file.c"
+            "$SDK_CC" -std=c11 -O1 -Wall -Wextra -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/include -I/tmp/duck-abi -c "vita/src/$file.c" -o "/tmp/duck-objects/$file.o"
+            echo "::endgroup::"
+          done
+          test "$(find /tmp/duck-objects -name '*.o' | wc -l)" -eq 29
+      - name: Relocatable ARM link of scheduler and graphics components
+        run: |
+          set -eu
+          SDK_BIN="$(dirname "$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-gcc -print -quit)")"
+          "$SDK_BIN/arm-vita-eabi-gcc" -r /tmp/duck-objects/sp.o /tmp/duck-objects/sp_events.o /tmp/duck-objects/sp_runtime.o /tmp/duck-objects/os_sp.o /tmp/duck-objects/game_loop.o /tmp/duck-objects/live.o /tmp/duck-objects/live_registry.o /tmp/duck-objects/dispatch.o /tmp/duck-objects/recomp_bridge.o /tmp/duck-objects/scheduler.o /tmp/duck-objects/queue.o /tmp/duck-objects/os_io.o /tmp/duck-objects/os_queue.o /tmp/duck-objects/os_core.o /tmp/duck-objects/os_threads.o /tmp/duck-objects/os_interrupt.o /tmp/duck-objects/fiber_vita.o /tmp/duck-objects/os_time.o /tmp/duck-objects/os_vi.o /tmp/duck-objects/os_vi_config.o /tmp/duck-objects/os_input.o /tmp/duck-objects/input_vita.o /tmp/duck-objects/os_overlays.o /tmp/duck-objects/os_eeprom.o /tmp/duck-objects/eeprom_file.o /tmp/duck-objects/os_ai.o /tmp/duck-objects/audio_resample.o /tmp/duck-objects/audio_vita.o /tmp/duck-objects/guest_fault.o -o /tmp/duck-objects/duck-vita-graphics-runtime-linked.o
+          "$SDK_BIN/arm-vita-eabi-nm" -u /tmp/duck-objects/duck-vita-graphics-runtime-linked.o | tee /tmp/duck-objects/unresolved-runtime.txt
+          file /tmp/duck-objects/duck-vita-graphics-runtime-linked.o
+          "$SDK_BIN/arm-vita-eabi-nm" /tmp/duck-objects/duck-vita-graphics-runtime-linked.o | grep -q " T duck_vita_live_run"
+          echo "Relocatable ARM link only: unresolved production external functions remain and this is NOT a Vita ELF/VPK."
+      - name: Package real ARM runtime providers for private game link
+        run: |
+          set -eu
+          SDK_BIN="$(dirname "$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-gcc -print -quit)")"
+          "$SDK_BIN/arm-vita-eabi-nm" -g --defined-only /tmp/duck-objects/duck-vita-graphics-runtime-linked.o > /tmp/duck-objects/runtime-providers.txt
+          for symbol in duck_vita_thread_checkpoint duck_vita_threads_checkpoint_yields osCreateViManager_recomp osSetTimer_recomp pause_self osSpTaskLoad_recomp osSpTaskYield_recomp osSpTaskYielded_recomp duck_vita_live_run duck_vita_live_registry_lookup osContInit_recomp osContStartReadData_recomp osContGetReadData_recomp osContStartQuery_recomp osContGetQuery_recomp get_function duck_register_loaded_module duck_before_free osEepromProbe_recomp osEepromLongRead_recomp osEepromLongWrite_recomp duck_vita_live_start_catalog osAiSetFrequency_recomp osAiSetNextBuffer_recomp osAiGetStatus_recomp osAiGetLength_recomp duck_vita_ai_init_async do_break switch_error; do
+            if ! grep -Eq "[[:space:]]T[[:space:]]${symbol}$" /tmp/duck-objects/runtime-providers.txt; then
+              echo "Missing functional runtime provider: ${symbol}"
+              exit 1
+            fi
+          done
+          cp vita/toolchain-lock.json /tmp/duck-objects/pinned-toolchain.json
+          echo "Private relink provider is duck-vita-graphics-runtime-linked.o; no translated game binaries included."
+      - name: Link runtime against VitaSDK libc
+        run: |
+          set -eu
+          SDK_CC="$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-gcc -print -quit)"
+          cat > /tmp/duck-objects/runtime-entry.c <<'EOF'
+          /* Link-only entry: never presented as a playable game. */
+          int main(void) { return 0; }
+          EOF
+          "$SDK_CC" -std=c11 -c /tmp/duck-objects/runtime-entry.c -o /tmp/duck-objects/runtime-entry.o
+          "$SDK_CC" -Wl,--no-gc-sections /tmp/duck-objects/runtime-entry.o /tmp/duck-objects/duck-vita-graphics-runtime-linked.o -lSceFiber_stub -lSceSysmodule_stub -lSceCtrl_stub -lSceIofilemgr_stub -lSceAudio_stub -lSceKernelThreadMgr_stub -lm -o /tmp/duck-objects/duck-vita-runtime-link.elf
+          "$(dirname "$SDK_CC")/arm-vita-eabi-nm" -u /tmp/duck-objects/duck-vita-runtime-link.elf | tee /tmp/duck-objects/final-undefined.txt
+          if grep -Eq '^[[:space:]]*U[[:space:]]' /tmp/duck-objects/final-undefined.txt; then
+            echo "Unresolved strong symbols in ELF"; exit 1
+          fi
+          file /tmp/duck-objects/duck-vita-runtime-link.elf
+          echo "Linked runtime-only ELF, no game assets or translated gameplay."
+      - name: Compile shared production renderer with pinned VitaSDK
+        run: |
+          python3 - <<'PYCODE'
+          import json, pathlib, subprocess, sys
+          root = pathlib.Path.cwd()
+          sdk = next(pathlib.Path('/tmp/duck-sdk/root').rglob('arm-vita-eabi-g++'))
+          lock = json.loads((root / 'vita/experimental/graphics_replay/dependencies.json').read_text())
+          deps = pathlib.Path('/tmp/duck-renderer-deps')
+          deps.mkdir(exist_ok=True)
+          for name in ('vita-renderer-reference', 'vita-gl-reference', 'vita-shark-reference', 'vita-math-neon-reference'):
+              item = lock['repositories'][name]
+              target = deps / name
+              subprocess.run(['git', 'init', str(target)], check=True)
+              subprocess.run(['git', '-C', str(target), 'fetch', '--depth=1', item['url'], item['commit']], check=True)
+              subprocess.run(['git', '-C', str(target), 'checkout', '--detach', 'FETCH_HEAD'], check=True)
+              assert subprocess.check_output(['git', '-C', str(target), 'rev-parse', 'HEAD'], text=True).strip() == item['commit']
+          here = root / 'vita/experimental/graphics_replay'
+          sys.path.insert(0, str(here))
+          from prepare_renderer import prepare
+          original_src = deps / 'vita-renderer-reference/Source'
+          src = prepare(deps / 'vita-renderer-reference', pathlib.Path('/tmp/duck-renderer-prepared'))
+          fast = src / 'SysVita/HLEGraphics/Accurate'
+          includes = [here, fast / 'Fast3D/include', src, root / 'vita/include', deps / 'vita-shark-reference/source', deps / 'vita-gl-reference/source', original_src, original_src / 'SysVita/Include', original_src / 'Config/Dev']
+          for name, source in [('adapter', here / 'adapter.cpp'), ('bridge', fast / 'Fast3DMemoryBridge.cpp'), ('compat', fast / 'Fast3DCompat.cpp'), ('interpreter', fast / 'Fast3D/src/interpreter.cpp'), ('gfx', fast / 'Fast3D/src/gfx_opengl.cpp')]:
+              subprocess.run([str(sdk), '-std=c++17', '-O2', '-fno-strict-aliasing', '-ffunction-sections', '-fdata-sections', '-mcpu=cortex-a9', '-mfpu=neon', '-mfloat-abi=hard', '-DDAEDALUS_VITA', '-DGBI_FLOATS', '-DENABLE_OPENGL', *['-I' + str(p) for p in includes], '-c', str(source), '-o', '/tmp/duck-objects/renderer-' + name + '.arm.o'], check=True)
+          # Fast3D needs vitaGL's textureSize compatibility path. Compile its
+          # producer, uniform linker and draw consumer with matching metadata.
+          cc = sdk.with_name('arm-vita-eabi-gcc')
+          for source in ('utils/glsl_utils', 'custom_shaders', 'draw'):
+              subprocess.run([str(cc), '-std=gnu11', '-O1', '-mcpu=cortex-a9', '-mfpu=neon', '-mfloat-abi=hard', '-DHAVE_GLSL_TEXTURE_SIZE', '-DSKIP_SPLASHSCREEN', '-Wno-incompatible-pointer-types', *['-I' + str(deps / name / 'source') for name in ('vita-gl-reference', 'vita-shark-reference', 'vita-math-neon-reference')], '-c', str(deps / 'vita-gl-reference/source' / (source + '.c')), '-o', '/tmp/duck-objects/vitagl-' + source.replace('/', '-') + '.arm.o'], check=True)
+          print('Compiled shared renderer and textureSize compatibility objects; no game assets, VPK or rendering validation.')
+          PYCODE
+      - name: Compare actual texture validation methods against previous bridge
+        run: |
+          cp -r /tmp/duck-renderer-prepared /tmp/duck-validation-reference
+          git -C /tmp/duck-validation-reference apply --reverse "$GITHUB_WORKSPACE/vita/experimental/graphics_replay/texture-validation.patch"
+          ASAN_OPTIONS=detect_leaks=0 python3 vita/experimental/graphics_replay/test_texture_validation.py --source /tmp/duck-renderer-prepared/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.cpp --reference /tmp/duck-validation-reference/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.cpp --report /tmp/duck-objects/texture-validation.json
+      - name: Validate explicit tile origins and single-row decoders
+        run: |
+          ASAN_OPTIONS=detect_leaks=0 python3 vita/experimental/graphics_replay/test_texture_origin.py --source /tmp/duck-renderer-prepared/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/interpreter.cpp
+      - name: Compile ARM32 NEON audio bridge against pinned SSE2NEON
+        run: |
+          SDK_CXX="$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-g++ -print -quit)"
+          mkdir -p /tmp/duck-neon
+          curl -fLsS --retry 3 https://raw.githubusercontent.com/N64Recomp/N64ModernRuntime/cdf5abbd5026fef5c364c676e4667c45e42b6863/thirdparty/sse2neon/sse2neon.h -o /tmp/duck-neon/sse2neon.h
+          echo "b260c32b66d4bd7b28766204253c0bde9d7f7aeaa71d99390628387763a2dccd  /tmp/duck-neon/sse2neon.h" | sha256sum -c -
+          "$SDK_CXX" -std=c++20 -O2 -fwrapv -fno-strict-aliasing -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/include -I/tmp/duck-neon -c vita/tests/neon_bridge.cpp -o /tmp/duck-objects/neon-bridge.arm.o
+      - name: Execute ARM32 framebuffer conversion fixture
+        run: |
+          SDK_CXX="$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-g++ -print -quit)"
+          "$SDK_CXX" -std=c++17 -O2 -fno-builtin -fno-exceptions -fno-rtti -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/experimental/graphics_replay -nostdlib -Wl,-e,duck_framebuffer_neon_test -Wl,-Ttext=0x10000 -Wl,-Tdata=0x200000 vita/tests/framebuffer_neon.cpp -lgcc -o /tmp/duck-objects/framebuffer-neon.elf
+          python3 -m venv /tmp/duck-fb-test
+          /tmp/duck-fb-test/bin/pip install unicorn==2.1.4
+          /tmp/duck-fb-test/bin/python vita/tests/run_framebuffer_neon.py /tmp/duck-objects/framebuffer-neon.elf --report /tmp/duck-objects/framebuffer-neon.json
+      - name: Execute reference and optimized ARM32 RSP memory paths
+        run: |
+          SDK_CXX="$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-g++ -print -quit)"
+          mkdir -p /tmp/duck-rsp-reference/librecomp /tmp/duck-rsp-reference/ultramodern
+          for name in rsp.hpp rsp_vu.hpp rsp_vu_impl.hpp; do
+            curl -fLsS --retry 3 "https://raw.githubusercontent.com/N64Recomp/N64ModernRuntime/cdf5abbd5026fef5c364c676e4667c45e42b6863/librecomp/include/librecomp/$name" -o "/tmp/duck-rsp-reference/librecomp/$name"
+          done
+          cp /tmp/duck-abi/recomp.h /tmp/duck-abi/portable_mul.h /tmp/duck-rsp-reference/
+          curl -fLsS --retry 3 https://raw.githubusercontent.com/N64Recomp/N64ModernRuntime/cdf5abbd5026fef5c364c676e4667c45e42b6863/ultramodern/include/ultramodern/ultra64.h -o /tmp/duck-rsp-reference/ultramodern/ultra64.h
+          python3 - <<'PYCODE'
+          from pathlib import Path
+          import sys, shutil
+          sys.path.insert(0,'vita')
+          from patch_rsp_memory import patch
+          root=Path('/tmp/duck-rsp-reference');p=root/'librecomp/rsp_vu.hpp'
+          s=p.read_text();anchor='#elif defined(__aarch64__) || defined(_M_ARM64)'
+          assert s.count(anchor)==1
+          p.write_text(s.replace(anchor,anchor+' || defined(__ARM_NEON)').replace('#include <sse2neon.h>','#include "duck_vita_sse2neon.h"'))
+          shutil.copytree(root,'/tmp/duck-rsp-fast');patch(Path('/tmp/duck-rsp-fast'))
+          PYCODE
+          for variant in reference fast; do
+            "$SDK_CXX" -std=c++20 -O2 -fwrapv -fno-strict-aliasing -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -DRSP=DuckRspMemory_$variant -DDUCK_MEMORY_TEST_NAME=duck_rsp_memory_$variant -I/tmp/duck-rsp-$variant -Ivita/include -I/tmp/duck-neon -c vita/tests/rsp_memory.cpp -o /tmp/duck-rsp-$variant.arm.o
+          done
+          "$SDK_CXX" -std=c++20 -O2 -fno-builtin -fno-exceptions -fno-rtti -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/include -nostdlib -Wl,-e,duck_rsp_memory_arm_test -Wl,-Ttext=0x10000 -Wl,-Tdata=0x200000 vita/tests/rsp_memory_arm.cpp /tmp/duck-rsp-reference.arm.o /tmp/duck-rsp-fast.arm.o -lgcc -o /tmp/duck-objects/rsp-memory.arm.elf
+          /tmp/duck-fb-test/bin/python vita/tests/run_rsp_memory_arm.py /tmp/duck-objects/rsp-memory.arm.elf --report /tmp/duck-objects/rsp-memory.json
+      - name: Execute ARM32 fractional/high multiply and accumulator fixture
+        run: |
+          SDK_CXX="$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-g++ -print -quit)"
+          "$SDK_CXX" -std=c++20 -O2 -fwrapv -fno-strict-aliasing -fno-builtin -fno-exceptions -fno-rtti -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/include -nostdlib -Wl,-e,duck_test_rsp_multiply -Wl,-Ttext=0x10000 -Wl,-Tdata=0x200000 vita/tests/rsp_multiply.cpp -lgcc -o /tmp/duck-objects/rsp-multiply.arm.elf
+          /tmp/duck-fb-test/bin/python vita/tests/run_rsp_multiply_arm.py /tmp/duck-objects/rsp-multiply.arm.elf --report /tmp/duck-objects/rsp-multiply.json
+      - name: Check private final-link script syntax
+        run: python3 -m py_compile vita/link_private_game.py vita/rebuild_audio_rsp.py vita/patch_rsp_memory.py vita/patch_rsp_multiply.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: duck-vita-sp-arm-objects
+          path: |
+            /tmp/duck-objects/*.o
+            /tmp/duck-objects/runtime-providers.txt
+            /tmp/duck-objects/pinned-toolchain.json

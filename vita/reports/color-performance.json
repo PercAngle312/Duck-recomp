@@ -1,0 +1,64 @@
+{
+  "version": "00.08",
+  "vpk_sha256": "a83d9ef4a99594febd8b341580c26a47ef64dfecb0953476aef4ededdfffbff3",
+  "elf_sha256": "fc27654167336b381f4e1d9acc9bdc3336df70c28ecf9e0b6337d54f743f60f8",
+  "strong_unresolved_symbols": 0,
+  "renderer_objects": 5,
+  "renderer_optimization": "-O2 -fno-strict-aliasing; no added fast-math",
+  "game_core_changed": false,
+  "runtime_controls_audio_and_saves_changed": false,
+  "hardware_baseline_user_report": {
+    "movement_works": true,
+    "sound_works": true,
+    "real_graphics_visible_in_uploaded_videos": true,
+    "incorrect_colors": true,
+    "performance_unacceptable": true,
+    "doubled_text_attributed_to_screen_protector": true,
+    "installed_version_not_reconfirmed_by_new_log": true,
+    "stable_playability_confirmed": false
+  },
+  "material_helper_asan_ubsan_tests_passed": true,
+  "native_resolution": [
+    320,
+    240
+  ],
+  "presentation_viewport": [
+    117,
+    0,
+    725,
+    544
+  ],
+  "readback_enabled": true,
+  "readback_conversion": "RGBA bytes to explicit N64 RGBA5551",
+  "equal_size_intermediate_readback_blit_skipped": true,
+  "native_008_hardware_tested": false,
+  "correct_Daffy_color_visually_verified": false,
+  "hardware_FPS_gain_verified": false,
+  "full_playability_verified": false,
+  "emulator": "Vita3K v0.2.1 4233-2b1234fd",
+  "emulator_environment": "Offscreen software OpenGL; dummy audio; optional host SDL discovery disabled",
+  "final_installed_eboot_matches_packaged_vpk": true,
+  "emulator_test_seconds_limit": 90,
+  "emulator_test_termination": "External timeout; emulator logged shutdown",
+  "first_task_finished": true,
+  "first_GL_error": "0x0",
+  "first_framebuffer_swap": true,
+  "last_logged_counters": {
+    "polls": 87659,
+    "PI": 8729,
+    "SP_completed": 5262,
+    "SP_failed": 0,
+    "loop_yields": 24361
+  },
+  "last_timing_sample": {
+    "tasks": 250,
+    "translate_us": 258,
+    "draw_us": 1279,
+    "readback_us": 900,
+    "present_us": 4903,
+    "light_updates": 85860,
+    "vertex_rgba_updates": 0
+  },
+  "emulator_unhandled_transfer_format_error_present": false,
+  "performance_caveat": "Emulator phase timing improvements are not hardware FPS measurements. SP tasks include audio, not only frames. All texture/lighting errors are not proven fixed."
+}

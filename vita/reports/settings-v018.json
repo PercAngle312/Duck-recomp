@@ -1,0 +1,34 @@
+{
+  "hold_select_microseconds": 600000,
+  "guest_dispatch_paused": true,
+  "guest_clock_paused": true,
+  "native_audio_completion_serviced_while_paused": true,
+  "closing_button_release_consumed": true,
+  "resolution_profiles_wide": [
+    [
+      424,
+      240
+    ],
+    [
+      848,
+      480
+    ],
+    [
+      960,
+      544
+    ]
+  ],
+  "antialiasing": "directional edge postprocess over actual game FBO",
+  "hardware_msaa": false,
+  "save_path": "ux0:data/DuckRecomp/graphics.ini",
+  "host_menu_config_clock_tests_passed": true,
+  "Mesa_GLES_shader_compiled_and_linked": true,
+  "Mesa_flat_colour_preserved": true,
+  "Mesa_orientation_checked": true,
+  "Mesa_diagonal_pixels_changed": 370,
+  "Mesa_test_pixels": 4096,
+  "physical_Vita_menu_verified": false,
+  "physical_Vita_AA_verified": false,
+  "audio_fixed": false,
+  "private_coordinator_patch_reproduces_compiled_source": true
+}

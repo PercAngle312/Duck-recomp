@@ -1,0 +1,42 @@
+{
+  "basis": "User v00.15 video/log and recovered private first-task RDRAM capture",
+  "private_capture_sha256": "5932cef5638411ccec8a6d2e7f7797a16a5b183c6fa7ba95b2b8463ed6851ec8",
+  "captured_border_rectangles_pixels": [
+    [
+      0,
+      17,
+      23,
+      222
+    ],
+    [
+      295,
+      17,
+      319,
+      222
+    ],
+    [
+      0,
+      0,
+      319,
+      17
+    ],
+    [
+      0,
+      221,
+      319,
+      239
+    ]
+  ],
+  "captured_fill_rgba5551": "0001",
+  "old_matcher_matched": 0,
+  "new_matcher_matched": 4,
+  "combiner_reference": "https://github.com/ata4/angrylion-rdp-plus/blob/9c8b9ed3e7d7f00dff8bc872ccdd3fba1a3673fc/src/core/n64video/rdp/combiner.c#L173",
+  "one_cycle_mux_set": 1,
+  "copy_fill_and_two_cycle_paths_preserved": true,
+  "shader_cache": "shaders-v008",
+  "audio_gap_ramp_frames": 16,
+  "continuous_audio_unchanged_host_test": true,
+  "hardware_verified": false,
+  "all_texture_errors_solved": false,
+  "audio_starvation_eliminated": false
+}

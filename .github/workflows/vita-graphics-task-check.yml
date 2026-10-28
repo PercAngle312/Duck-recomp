@@ -1,0 +1,93 @@
+name: Vita graphics replay task validation
+on:
+  push:
+    branches: [vita/arm32-bringup]
+    paths:
+      - 'vita/experimental/graphics_replay/adapter.cpp'
+      - 'vita/experimental/graphics_replay/combiner_cycle.h'
+      - 'vita/experimental/graphics_replay/test_combiner_cycle.cpp'
+      - 'vita/experimental/graphics_replay/settings_menu.h'
+      - 'vita/experimental/graphics_replay/paused_clock.h'
+      - 'vita/experimental/graphics_replay/presentation.h'
+      - 'vita/experimental/graphics_replay/test_presentation_shader.py'
+      - 'vita/experimental/graphics_replay/test_settings_menu.cpp'
+      - 'vita/experimental/graphics_replay/graphics_options.h'
+      - 'vita/experimental/graphics_replay/test_graphics_options.cpp'
+      - 'vita/experimental/graphics_replay/task_bounds.h'
+      - 'vita/experimental/graphics_replay/test_task_bounds.c'
+      - 'vita/experimental/graphics_replay/shader_cache.h'
+      - 'vita/experimental/graphics_replay/test_shader_cache.cpp'
+      - 'vita/experimental/graphics_replay/texture_stage_index.h'
+      - 'vita/experimental/graphics_replay/test_texture_stage_index.cpp'
+      - 'vita/experimental/graphics_replay/texture_layout.h'
+      - 'vita/experimental/graphics_replay/framebuffer_pack.h'
+      - 'vita/experimental/graphics_replay/test_texture_layout.cpp'
+      - 'vita/experimental/graphics_replay/material_updates.h'
+      - 'vita/experimental/graphics_replay/test_material_updates.cpp'
+      - '.github/workflows/vita-graphics-task-check.yml'
+  pull_request:
+    paths:
+      - 'vita/experimental/graphics_replay/adapter.cpp'
+      - 'vita/experimental/graphics_replay/combiner_cycle.h'
+      - 'vita/experimental/graphics_replay/test_combiner_cycle.cpp'
+      - 'vita/experimental/graphics_replay/settings_menu.h'
+      - 'vita/experimental/graphics_replay/paused_clock.h'
+      - 'vita/experimental/graphics_replay/presentation.h'
+      - 'vita/experimental/graphics_replay/test_presentation_shader.py'
+      - 'vita/experimental/graphics_replay/test_settings_menu.cpp'
+      - 'vita/experimental/graphics_replay/graphics_options.h'
+      - 'vita/experimental/graphics_replay/test_graphics_options.cpp'
+      - 'vita/experimental/graphics_replay/task_bounds.h'
+      - 'vita/experimental/graphics_replay/test_task_bounds.c'
+      - 'vita/experimental/graphics_replay/shader_cache.h'
+      - 'vita/experimental/graphics_replay/test_shader_cache.cpp'
+      - 'vita/experimental/graphics_replay/texture_stage_index.h'
+      - 'vita/experimental/graphics_replay/test_texture_stage_index.cpp'
+      - 'vita/experimental/graphics_replay/texture_layout.h'
+      - 'vita/experimental/graphics_replay/framebuffer_pack.h'
+      - 'vita/experimental/graphics_replay/test_texture_layout.cpp'
+      - 'vita/experimental/graphics_replay/material_updates.h'
+      - 'vita/experimental/graphics_replay/test_material_updates.cpp'
+      - '.github/workflows/vita-graphics-task-check.yml'
+jobs:
+  task-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile task span checks
+        run: cc -std=c11 -Wall -Wextra -Werror -fsanitize=undefined -fno-omit-frame-pointer -I vita/experimental/graphics_replay vita/experimental/graphics_replay/test_task_bounds.c -o /tmp/duck-task-bounds
+      - name: Exercise safe guest address ranges
+        run: /tmp/duck-task-bounds
+      - name: Validate shader cache corruption and interrupted writes
+        run: |
+          c++ -std=c++17 -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -Ivita/experimental/graphics_replay vita/experimental/graphics_replay/test_shader_cache.cpp -o /tmp/duck-shader-cache
+          /tmp/duck-shader-cache
+      - name: Validate logical N64 material and vertex colors
+        run: |
+          c++ -std=c++17 -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -Ivita/experimental/graphics_replay vita/experimental/graphics_replay/test_material_updates.cpp -o /tmp/duck-materials
+          /tmp/duck-materials
+      - name: Validate staged texture indexing and growth
+        run: |
+          c++ -std=c++17 -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -Ivita/experimental/graphics_replay vita/experimental/graphics_replay/test_texture_stage_index.cpp -o /tmp/duck-texture-index
+          /tmp/duck-texture-index
+      - name: Validate pre-swapped texture rows and packed framebuffer stores
+        run: |
+          c++ -std=c++17 -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -Ivita/experimental/graphics_replay vita/experimental/graphics_replay/test_texture_layout.cpp -o /tmp/duck-texture-layout
+          /tmp/duck-texture-layout
+      - name: Validate display presets and guest framebuffer crop
+        run: |
+          c++ -std=c++17 -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -Ivita/experimental/graphics_replay vita/experimental/graphics_replay/test_graphics_options.cpp -o /tmp/duck-graphics-options
+          /tmp/duck-graphics-options
+      - name: Validate hardware one-cycle combiner mux selection
+        run: |
+          c++ -std=c++17 -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -Ivita/experimental/graphics_replay vita/experimental/graphics_replay/test_combiner_cycle.cpp -o /tmp/duck-combiner-cycle
+          /tmp/duck-combiner-cycle
+      - name: Validate settings gesture, persistence and guest pause clock
+        run: |
+          c++ -std=c++17 -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -Ivita/experimental/graphics_replay vita/experimental/graphics_replay/test_settings_menu.cpp -o /tmp/duck-settings
+          /tmp/duck-settings
+      - name: Validate production presentation shader under software GLES
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libegl1 libgl1-mesa-dri
+          python3 vita/experimental/graphics_replay/test_presentation_shader.py
