@@ -23,5 +23,15 @@
   "physical_audio_quality_verified": false,
   "physical_texture_artifacts_resolved": false,
   "performance_gain_verified": false,
-  "VPK_issued": false
+  "VPK_issued": false,
+  "source_CI": {
+    "commit": "39a97ea3f7a51b92eb4f68b65e70d78825d56358",
+    "pinned_VitaSDK_run": 40672813922,
+    "conclusion": "success"
+  },
+  "emulator_attempt": {
+    "guest_started": false,
+    "blocked_before_guest": "Host SDL_Init could not initialize UDEV",
+    "hardware_quality_claim": false
+  }
 }

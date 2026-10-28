@@ -48,3 +48,7 @@ Full GPU readback stalls, complete TMEM/mip behavior, audible correctness and
 the remaining hardware texture artifacts are still unresolved. A current
 v00.14 gameplay clip and game.log are needed to identify those remaining
 artifacts rather than infer them from older builds.
+
+The pinned VitaSDK CI run 40672813922 passes these source changes. The new
+emulator attempt stops before guest startup at host SDL input-device
+initialization (UDEV); it does not validate this candidate in-game.
