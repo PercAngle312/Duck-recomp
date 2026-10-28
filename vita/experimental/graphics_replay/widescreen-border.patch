@@ -9,16 +9,17 @@
      uint32_t saved_other_mode_h = mRdp->other_mode_h;
      uint32_t cycle_type = (mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE));
  
-@@ -2796,6 +2796,8 @@
+@@ -2796,6 +2796,9 @@
  
      ulxf = AdjXForAspectRatio(ulxf);
      lrxf = AdjXForAspectRatio(lrxf);
 +    const float edgeShift=duck_widescreen_border_shift(borderAnchor,AdjXForAspectRatio(1.0f));
 +    ulxf+=edgeShift;lrxf+=edgeShift;
++    if(borderAnchor==-2||borderAnchor==2){ulxf=-1.0f;lrxf=1.0f;}
  
      struct LoadedVertex* ul = &mRsp->loaded_vertices[MAX_VERTICES + 0];
      struct LoadedVertex* ll = &mRsp->loaded_vertices[MAX_VERTICES + 1];
-@@ -2998,6 +3000,15 @@
+@@ -2998,6 +3001,15 @@
      }
      uint32_t mode = (mRdp->other_mode_h & (3U << G_MDSFT_CYCLETYPE));
  
@@ -29,12 +30,12 @@
 +    static unsigned borderReports=0;
 +    if(borderAnchor && borderReports++<8)
 +        fprintf(stderr,"Widescreen border anchor: %s rect=%d,%d-%d,%d\n",
-+            borderAnchor<0?"left":"right",ulx,uly,lrx,lry);
++            borderAnchor==-1?"left":borderAnchor==1?"right":borderAnchor==-2?"top":"bottom",ulx,uly,lrx,lry);
 +
      // Expand fullscreen fill rects to cover widescreen viewports.
      // Without this, screen clears and fades only cover the native 4:3 area.
      if (ulx == 0 && uly == 0) {
-@@ -3028,7 +3039,7 @@
+@@ -3028,7 +3040,7 @@
          GfxDpSetCombineMode(color_comb(0, 0, 0, G_CCMUX_SHADE), alpha_comb(0, 0, 0, G_ACMUX_SHADE), 0, 0);
      }
  

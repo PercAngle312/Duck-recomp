@@ -93,7 +93,7 @@ extern "C" int duck_fast3d_init(uint8_t *rdram){
  fprintf(stderr,"Runtime shader compiler initialized; shader compilation still requires validation\n");
  // App-owned, versioned derived data; never consume another application's
  // program binaries or the older unvalidated Fast3D cache format.
- sceIoMkdir("ux0:data/DuckRecomp/shaders-v007",0777);
+ sceIoMkdir("ux0:data/DuckRecomp/shaders-v008",0777);
  fprintf(stderr,"Initializing Fast3D interpreter\n");
  g_pMemoryBuffers[MEM_RD_RAM]=rdram;
  interpreter=std::make_shared<Fast::Interpreter>();Fast::GfxSetInstance(interpreter);

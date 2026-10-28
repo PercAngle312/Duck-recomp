@@ -32,6 +32,10 @@ void osAiGetLength_recomp(uint8_t*,recomp_context*);
 void osAiGetStatus_recomp(uint8_t*,recomp_context*);
 enum { DUCK_VITA_AUDIO_BLOCK_FRAMES = 64 };
 typedef struct {uint64_t phase;unsigned phase_rate;} DuckAudioResampler;
+/* Output-only click suppression at a partially padded native block. Does not
+ * change resampling phase, DMA ownership, output length or completion timing. */
+typedef struct {unsigned resume;} DuckAudioGapFade;
+void duck_vita_audio_gap_fade(DuckAudioGapFade*,int16_t *pcm,unsigned real,unsigned capacity);
 /* Produces stereo 48 kHz PCM from one word-swapped guest DMA. The caller
  * repeatedly supplies the same buffer until done; phase carries to the next. */
 unsigned duck_vita_audio_resample(DuckAudioResampler*,const uint8_t*,uint32_t,unsigned,unsigned,int16_t*,unsigned,int*);

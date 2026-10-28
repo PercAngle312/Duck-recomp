@@ -33,6 +33,9 @@ def prepare(dependency: Path, output: Path) -> Path:
     border=here/'widescreen-border.patch'
     subprocess.run(['git','apply','--check',str(border)],cwd=output,check=True)
     subprocess.run(['git','apply',str(border)],cwd=output,check=True)
+    cycle=here/'combiner-cycle.patch'
+    subprocess.run(['git','apply','--check',str(cycle)],cwd=output,check=True)
+    subprocess.run(['git','apply',str(cycle)],cwd=output,check=True)
     return output/'Source'
 
 if __name__=='__main__':

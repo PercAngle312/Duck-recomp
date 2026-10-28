@@ -1,4 +1,18 @@
 #include "duck_vita_ai.h"
+void duck_vita_audio_gap_fade(DuckAudioGapFade *state,int16_t *pcm,unsigned real,unsigned capacity){
+ if(!state||!pcm||!real||real>capacity)return;
+ enum {ramp=16};
+ for(unsigned i=0;i<real&&state->resume;i++,state->resume--){
+  unsigned gain=ramp-state->resume;
+  for(unsigned ch=0;ch<2;ch++)pcm[i*2+ch]=(int16_t)((int32_t)pcm[i*2+ch]*(int)gain/(ramp-1));
+ }
+ if(real<capacity){
+  unsigned n=real<ramp?real:ramp;
+  for(unsigned i=0;i<n;i++)for(unsigned ch=0;ch<2;ch++)
+   pcm[(real-n+i)*2+ch]=(int16_t)((int32_t)pcm[(real-n+i)*2+ch]*(int)(n-1-i)/(int)(n>1?n-1:1));
+  state->resume=ramp;
+ }
+}
 static int sample(const uint8_t *ram,uint32_t address){
  unsigned value=((unsigned)ram[address^3u]<<8)|ram[(address+1)^3u];
  return value<=32767?(int)value:(int)value-65536;

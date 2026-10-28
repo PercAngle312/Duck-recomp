@@ -39,7 +39,15 @@ int main(){
     assert(!duck_widescreen_border_anchor(0,0,7*4,239*4,320,240,1,true)); // 4:3
     assert(!duck_widescreen_border_anchor(0,0,7*4,239*4,320,240,delta,false)); // textured/nonblack/offscreen
     assert(!duck_widescreen_border_anchor(0,0,319*4,239*4,320,240,delta,true)); // full-screen fade
-    assert(!duck_widescreen_border_anchor(0,0,319*4,7*4,320,240,delta,true)); // horizontal strip
+    assert(duck_widescreen_border_anchor(0,0,319*4,7*4,320,240,delta,true)==-2);
+    // Actual FILLRECT bounds recovered from the private first-task RAM capture.
+    assert(duck_widescreen_border_anchor(0,17*4,23*4,222*4,320,240,delta,true)==-1);
+    assert(duck_widescreen_border_anchor(295*4,17*4,319*4,222*4,320,240,delta,true)==1);
+    assert(duck_widescreen_border_anchor(0,0,319*4,17*4,320,240,delta,true)==-2);
+    assert(duck_widescreen_border_anchor(0,221*4,319*4,239*4,320,240,delta,true)==2);
+    assert(!duck_widescreen_border_anchor(0,17*4,23*4,222*4,320,240,1,true));
+    assert(!duck_widescreen_border_anchor(0,17*4,23*4,222*4,320,240,delta,false));
+    assert(duck_widescreen_border_shift(-2,delta)==0);
     assert(!duck_widescreen_border_anchor(0,20*4,7*4,80*4,320,240,delta,true)); // HUD panel
     assert(!duck_widescreen_border_anchor(120*4,0,128*4,239*4,320,240,delta,true)); // central quad
     assert(!duck_widescreen_border_anchor(0,0,100*4,239*4,320,240,delta,true)); // wide panel

@@ -69,19 +69,26 @@ inline void duck_graphics_readback_crop(int &left,int &right,float delta){
 extern "C" int duck_fast3d_smooth_presentation(void);
 extern "C" int duck_fast3d_edge_borders(void);
 
-// Classify only narrow, opaque-black fill-cycle strips spanning the native
-// screen height. Other quads (textured HUD, panels, fades and depth clears)
-// retain their original placement. Inputs use inclusive U10.2 fill bounds.
+// Opaque-black fill-cycle overscan strips. Captured game commands include
+// 24/25-pixel side strips at y=17..222, bounded by top/bottom overscan fills.
+// +/-1 anchors side strips; +/-2 expands top/bottom strips across the display.
+// Inputs use inclusive U10.2 fill bounds. Other quads retain their placement.
 inline int duck_widescreen_border_anchor(int32_t left,int32_t top,int32_t right,int32_t bottom,
                                         unsigned width,unsigned height,float delta,bool allowed){
     if(!allowed||!width||!height||!(delta>0.0f&&delta<1.0f))return 0;
     const int64_t w=(int64_t)width*4,h=(int64_t)height*4;
     const int64_t r=(int64_t)right+4,b=(int64_t)bottom+4;
-    if(top<0||top>4||b<h-4||b>h+4||left<0||r>w+4||r<=left||r-left>w/16)return 0;
-    if(left<=4)return -1;
-    if(r>=w-4)return 1;
+    if(top<0||left<0||b>h+4||r>w+4||r<=left||b<=top)return 0;
+    if(r-left<=w/8&&top<=h/8&&b>=h*7/8){
+        if(left<=4)return -1;
+        if(r>=w-4)return 1;
+    }
+    if(left<=4&&r>=w-4&&b-top<=h/8){
+        if(top<=4)return -2;
+        if(b>=h-4)return 2;
+    }
     return 0;
 }
 inline float duck_widescreen_border_shift(int edge,float delta){
-    return edge*(1.0f-delta);
+    return (edge==-1||edge==1)?edge*(1.0f-delta):0.0f;
 }

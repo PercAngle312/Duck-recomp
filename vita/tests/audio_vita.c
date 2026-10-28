@@ -81,8 +81,7 @@ int sceAudioOutOutput(int port,const void *buffer){
   while(gate)assert(!pthread_cond_wait(&changed,&mutex));
  }
  assert(!pthread_mutex_unlock(&mutex));const int16_t *pcm=buffer;
- assert(pcm[0]==12000||pcm[0]==6000);
- for(unsigned i=0;i<frames;i++)assert((pcm[i*2]>=6000&&pcm[i*2]<=12000&&pcm[i*2+1]==-pcm[i*2])||(!pcm[i*2]&&!pcm[i*2+1]));
+ for(unsigned i=0;i<frames;i++)assert(pcm[i*2]>=0&&pcm[i*2]<=12000&&pcm[i*2+1]==-pcm[i*2]);
  if(capture){assert(captured+frames<=4096);for(unsigned i=0;i<frames*2;i++)recording[captured*2+i]=pcm[i];captured+=frames;}
  atomic_fetch_add(&outputs,1);return output_error;
 }
@@ -185,7 +184,13 @@ int main(void){
   osAiSetNextBuffer_recomp(ram,&one);assert(!one.r2);assert(complete()==1);capture=0;
   unsigned real=(unsigned)((552ull*48000+rate-1)/rate);
   assert(captured==(real+63u)/64u*64u&&captured-real<64);
-  for(unsigned i=0;i<captured;i++)assert(recording[i*2]==(i<real?12000:0)&&recording[i*2+1]==(i<real?-12000:0));
+  unsigned last=real%DUCK_VITA_AUDIO_BLOCK_FRAMES;
+  unsigned taper=last<16?last:16;
+  for(unsigned i=0;i<captured;i++){
+   int expected=i<real?12000:0;
+   if(last&&i>=real-taper&&i<real)expected=12000*(int)(real-1-i)/(int)(taper>1?taper-1:1);
+   assert(recording[i*2]==expected&&recording[i*2+1]==-expected);
+  }
   duck_vita_ai_vita_close();
  }
  free(ram);

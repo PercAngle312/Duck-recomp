@@ -30,6 +30,7 @@ static int playback(unsigned args,void *opaque){
  unsigned cursor=0,buffer=0,previous_count=0;
  int active=0;
  Mark previous[2];
+ DuckAudioGapFade gap={0};
  for(;;){
   if(atomic_load_explicit(&stopping,memory_order_acquire))return 0;
   if(atomic_load_explicit(&failure,memory_order_acquire))return -1;
@@ -88,6 +89,7 @@ static int playback(unsigned args,void *opaque){
    memset(pcm[buffer]+filled*2,0,(DUCK_VITA_AUDIO_BLOCK_FRAMES-filled)*2*sizeof(int16_t));
    atomic_fetch_add_explicit(&padded_frames,DUCK_VITA_AUDIO_BLOCK_FRAMES-filled,memory_order_relaxed);
   }
+  duck_vita_audio_gap_fade(&gap,pcm[buffer],filled,DUCK_VITA_AUDIO_BLOCK_FRAMES);
   int rc=sceAudioOutOutput(port,pcm[buffer]);
   if(rc<0){atomic_store_explicit(&failure,rc,memory_order_release);return rc;}
   publish(previous,previous_count);

@@ -4,6 +4,8 @@ on:
     branches: [vita/arm32-bringup]
     paths:
       - 'vita/experimental/graphics_replay/adapter.cpp'
+      - 'vita/experimental/graphics_replay/combiner_cycle.h'
+      - 'vita/experimental/graphics_replay/test_combiner_cycle.cpp'
       - 'vita/experimental/graphics_replay/graphics_options.h'
       - 'vita/experimental/graphics_replay/test_graphics_options.cpp'
       - 'vita/experimental/graphics_replay/task_bounds.h'
@@ -21,6 +23,8 @@ on:
   pull_request:
     paths:
       - 'vita/experimental/graphics_replay/adapter.cpp'
+      - 'vita/experimental/graphics_replay/combiner_cycle.h'
+      - 'vita/experimental/graphics_replay/test_combiner_cycle.cpp'
       - 'vita/experimental/graphics_replay/graphics_options.h'
       - 'vita/experimental/graphics_replay/test_graphics_options.cpp'
       - 'vita/experimental/graphics_replay/task_bounds.h'
@@ -64,3 +68,7 @@ jobs:
         run: |
           c++ -std=c++17 -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -Ivita/experimental/graphics_replay vita/experimental/graphics_replay/test_graphics_options.cpp -o /tmp/duck-graphics-options
           /tmp/duck-graphics-options
+      - name: Validate hardware one-cycle combiner mux selection
+        run: |
+          c++ -std=c++17 -O1 -Wall -Wextra -Werror -fsanitize=address,undefined -Ivita/experimental/graphics_replay vita/experimental/graphics_replay/test_combiner_cycle.cpp -o /tmp/duck-combiner-cycle
+          /tmp/duck-combiner-cycle
