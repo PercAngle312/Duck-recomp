@@ -110,12 +110,20 @@ int duck_vita_ai_vita_init(uint8_t *ram,unsigned clock){
  memset(&resampler,0,sizeof resampler);duck_audio_stream_reset(&stream);
  submitted=completed=read_dma=write_dma=0;next_deadline=0;
  atomic_store(&stopping,0);atomic_store(&failure,0);
- worker=sceKernelCreateThread("DuckAudio",playback,0x10000100,64*1024,0,0,NULL);
+ /* Playback only blocks in sceAudioOutOutput and copies 256-frame blocks, so it
+  * can safely outrank the game/render threads. Fall back to the default
+  * priority if the SDK rejects the value. */
+ int priority=0x10000080;
+ worker=sceKernelCreateThread("DuckAudio",playback,priority,64*1024,0,0,NULL);
+ if(worker<0){
+  fprintf(stderr,"Audio priority 0x%x rejected: %d; trying default\n",priority,worker);
+  priority=0x10000100;worker=sceKernelCreateThread("DuckAudio",playback,priority,64*1024,0,0,NULL);
+ }
  if(worker<0){rc=worker;duck_vita_ai_vita_close();return rc;}
  rc=sceKernelStartThread(worker,0,NULL);
  if(rc<0){duck_vita_ai_vita_close();return rc;}started=1;
  DuckAiAsyncSink sink={begin,poll,NULL,remaining_bytes,2};
  rc=duck_vita_ai_init_async(ram,clock,&sink);if(rc)duck_vita_ai_vita_close();
- else fprintf(stderr,"Native audio: timed AI, bounded stereo FIFO, 64ms prefill, 256-frame output\n");
+ else fprintf(stderr,"Native audio: timed AI, bounded stereo FIFO, 64ms prefill, 256-frame output, priority=0x%x\n",priority);
  return rc;
 }
