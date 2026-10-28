@@ -35,6 +35,7 @@ static Fast3DMemoryBridge bridge;
 static bool init_attempted;
 static DuckGraphicsOptions graphics;
 extern "C" int duck_fast3d_smooth_presentation(void){return graphics.smooth;}
+extern "C" int duck_fast3d_edge_borders(void){return graphics.edge_borders;}
 // The pinned vitaGL exports this initializer; it sets its own compiler state
 // and tries both supported module paths. GL_SHADER_COMPILER is always true in
 // that revision, so querying the GL capability cannot detect a missing module.

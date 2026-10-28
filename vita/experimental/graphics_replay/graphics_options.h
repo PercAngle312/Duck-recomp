@@ -1,11 +1,13 @@
 #pragma once
 #include <cstdio>
 #include <cstring>
+#include <cstdint>
 
 // Startup-only configuration: no GL state changes while a task is executing.
 struct DuckGraphicsOptions {
     bool widescreen=false;
     bool smooth=false;
+    bool edge_borders=true;
     unsigned quality=0; // 0 native, 1 enhanced, 2 display
     unsigned filter=0;  // 0 N64 three-point, 1 bilinear, 2 nearest
     unsigned width=320,height=240;
@@ -26,6 +28,9 @@ struct DuckGraphicsOptions {
             if(!std::strcmp(value,"native"))quality=0;
             else if(!std::strcmp(value,"enhanced"))quality=1;
             else if(!std::strcmp(value,"display"))quality=2;else return false;
+        }else if(!std::strcmp(key,"borders")){
+            if(!std::strcmp(value,"edge"))edge_borders=true;
+            else if(!std::strcmp(value,"original"))edge_borders=false;else return false;
         }else if(!std::strcmp(key,"presentation")){
             if(!std::strcmp(value,"smooth"))smooth=true;
             else if(!std::strcmp(value,"sharp"))smooth=false;else return false;
@@ -62,3 +67,21 @@ inline void duck_graphics_readback_crop(int &left,int &right,float delta){
     }
 }
 extern "C" int duck_fast3d_smooth_presentation(void);
+extern "C" int duck_fast3d_edge_borders(void);
+
+// Classify only narrow, opaque-black fill-cycle strips spanning the native
+// screen height. Other quads (textured HUD, panels, fades and depth clears)
+// retain their original placement. Inputs use inclusive U10.2 fill bounds.
+inline int duck_widescreen_border_anchor(int32_t left,int32_t top,int32_t right,int32_t bottom,
+                                        unsigned width,unsigned height,float delta,bool allowed){
+    if(!allowed||!width||!height||!(delta>0.0f&&delta<1.0f))return 0;
+    const int64_t w=(int64_t)width*4,h=(int64_t)height*4;
+    const int64_t r=(int64_t)right+4,b=(int64_t)bottom+4;
+    if(top<0||top>4||b<h-4||b>h+4||left<0||r>w+4||r<=left||r-left>w/16)return 0;
+    if(left<=4)return -1;
+    if(r>=w-4)return 1;
+    return 0;
+}
+inline float duck_widescreen_border_shift(int edge,float delta){
+    return edge*(1.0f-delta);
+}

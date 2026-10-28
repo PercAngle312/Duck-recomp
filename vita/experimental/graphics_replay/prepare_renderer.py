@@ -30,6 +30,9 @@ def prepare(dependency: Path, output: Path) -> Path:
     origin=here/'texture-origin.patch'
     subprocess.run(['git','apply','--check',str(origin)],cwd=output,check=True)
     subprocess.run(['git','apply',str(origin)],cwd=output,check=True)
+    border=here/'widescreen-border.patch'
+    subprocess.run(['git','apply','--check',str(border)],cwd=output,check=True)
+    subprocess.run(['git','apply',str(border)],cwd=output,check=True)
     return output/'Source'
 
 if __name__=='__main__':

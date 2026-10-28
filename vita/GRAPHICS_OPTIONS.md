@@ -12,6 +12,7 @@ copy the chosen file to the above location and name it `graphics.ini`.
 | `quality` | `native`, `enhanced`, `display` | Internal rendering resolution |
 | `filter` | `n64`, `bilinear`, `nearest` | N64 three-point, hardware bilinear where requested by the game, or point texture sampling |
 | `presentation` | `sharp`, `smooth` | Point or bilinear scaling of the final game image |
+| `borders` | `edge`, `original` | Anchor matching thin black screen-edge fill strips to the wide display edges, or retain their original 4:3 placement |
 
 | Quality | Original aspect | Wide aspect |
 | --- | --- | --- |
@@ -49,3 +50,15 @@ the guest readback crop. All five renderer units are cross-compiled with the
 pinned VitaSDK and the complete private game is linked. See
 `reports/graphics-options.json` for the actual emulator validation scope.
 Visual quality and HUD/culling behavior require Vita gameplay confirmation.
+
+The `edge` border setting is the default for new candidates. It applies only
+to main-view, opaque-black fill-cycle rectangles spanning the native screen
+height and at most 1/16 of its width. Such strips otherwise stay at the old
+4:3 edges with scene pixels visible outside them. It preserves strip width and
+moves them to the outer display edges. Textured rectangles, partial-height HUD
+panels, central fills, full-screen fades, fixed offscreen buffers and original
+4:3 rendering keep their existing behavior. `borders=original` disables this
+correction if a scene needs the original behavior. The first matching commands
+are logged as `Widescreen border anchor` for hardware confirmation. This is a
+targeted interpretation of the reported interior black strips; their exact
+guest commands and the physical result have not yet been verified.
