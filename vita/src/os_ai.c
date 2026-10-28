@@ -9,6 +9,18 @@ static struct {
  DuckAiOutput output;DuckAiAsyncSink async;void *opaque;
 } ai;
 static int bound(void){return ai.output||ai.async.start;}
+/* Caller holds the host-thread processing guard. Starting owns/copies PCM;
+ * it does not poll playback or send an AI completion interrupt. */
+static int start_async_queued(void){
+ unsigned limit=ai.async.capacity?ai.async.capacity:1;int started=0;
+ while((unsigned)ai.inflight<ai.count&&(unsigned)ai.inflight<limit){
+  unsigned i=(unsigned)ai.inflight;
+  int r=ai.async.start(ai.async.opaque,ai.ram,ai.fifo[i].address,ai.fifo[i].bytes/4,ai.fifo[i].rate);
+  if(r){ai.fault=r<0?r:-1;return -1;}
+  ai.inflight++;started=1;
+ }
+ return started;
+}
 void duck_vita_ai_detach(void){memset(&ai,0,sizeof ai);}
 int duck_vita_ai_init(uint8_t *ram,unsigned clock,DuckAiOutput output,void *opaque){
  if(!ram||!clock||!output)return -1;
@@ -34,6 +46,12 @@ void osAiSetNextBuffer_recomp(uint8_t *ram,recomp_context *c){
     ((address&0xe0000000u)!=0x80000000u&&(address&0xe0000000u)!=0xa0000000u)||
     (p&7)||!length||(length&7)||length>0x3fff8u||p>0x800000u-length)return;
  ai.fifo[ai.count].address=p;ai.fifo[ai.count].bytes=length;ai.fifo[ai.count].rate=ai.rate;ai.count++;c->r2=0;
+ // Hardware starts an accepted DMA immediately. Do not leave ready PCM
+ // waiting for a guest checkpoint behind a long synchronous graphics task.
+ // Synchronous sinks retain deferred service so this syscall never blocks.
+ if(ai.async.start&&!ai.processing){
+  ai.processing=1;start_async_queued();ai.processing=0;
+ }
 }
 void osAiGetLength_recomp(uint8_t *ram,recomp_context *c){
  if(!c)return;
@@ -58,14 +76,8 @@ int duck_vita_ai_service(void){
  if(!bound()||!ai.count||ai.processing)return 0;
  ai.processing=1;
  if(ai.async.start){
-  unsigned limit=ai.async.capacity?ai.async.capacity:1;
-  int started=0;
-  while((unsigned)ai.inflight<ai.count&&(unsigned)ai.inflight<limit){
-   unsigned i=(unsigned)ai.inflight;
-   int r=ai.async.start(ai.async.opaque,ai.ram,ai.fifo[i].address,ai.fifo[i].bytes/4,ai.fifo[i].rate);
-   if(r){ai.processing=0;ai.fault=r<0?r:-1;return -1;}
-   ai.inflight++;started=1;
-  }
+  int started=start_async_queued();
+  if(started<0){ai.processing=0;return -1;}
   if(started){ai.processing=0;return 0;}
   int r=ai.async.poll(ai.async.opaque);
   if(!r){ai.processing=0;return 0;}

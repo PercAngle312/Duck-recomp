@@ -115,8 +115,11 @@ int main(void){
  atomic_store(&drains,0);atomic_store(&outputs,0);atomic_store(&configured,0);
  pattern(ram,0x1000,1024,12000);pattern(ram,0x3000,1024,6000);
  assert(!duck_vita_ai_vita_init(ram,48681812));assert(duck_vita_ai_vita_init(ram,48681812)==-1);
- capture=1;queue(ram,0x1000,4096);queue(ram,0x3000,4096);gate=1;assert(!duck_vita_ai_service());
- assert(!pthread_mutex_lock(&mutex));while(!gate_waiting)assert(!pthread_cond_wait(&changed,&mutex));assert(!pthread_mutex_unlock(&mutex));
+ capture=1;gate=1;queue(ram,0x1000,4096);queue(ram,0x3000,4096);
+ // Playback must begin without servicing a scheduler checkpoint. Otherwise
+ // a long renderer call after SetNextBuffer leaves ready PCM idle.
+ struct timespec deadline;assert(!clock_gettime(CLOCK_REALTIME,&deadline));deadline.tv_sec+=2;
+ assert(!pthread_mutex_lock(&mutex));while(!gate_waiting)assert(!pthread_cond_timedwait(&changed,&mutex,&deadline));assert(!pthread_mutex_unlock(&mutex));
  // Playback is blocked, yet the host services AI without blocking or early IRQ.
  pattern(ram,0x1000,1024,-8000); // must not alter the worker's owned snapshot
  pattern(ram,0x3000,1024,-9000); // interpolation must use the next owned snapshot too

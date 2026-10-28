@@ -3,6 +3,32 @@
 #include <arm_neon.h>
 #include <cstdint>
 
+// VMUDH/VMADH add a signed 16x16 product at accumulator bit 16. The low
+// accumulator slice is zeroed by VMUDH and untouched by VMADH. Widened NEON
+// multiply-accumulate handles the middle/high carry as one modulo-32-bit sum.
+template<bool Accumulate>
+inline void duck_rsp_multiply_high(void *destination,const void *source,const void *target,
+                                  void *low,void *middle,void *high){
+    const int16x8_t a=vld1q_s16(static_cast<const int16_t*>(source));
+    const int16x8_t b=vld1q_s16(static_cast<const int16_t*>(target));
+    int32x4_t x,y;
+    if constexpr (Accumulate){
+        const uint16x8_t m=vld1q_u16(static_cast<const uint16_t*>(middle));
+        const uint16x8_t h=vld1q_u16(static_cast<const uint16_t*>(high));
+        const uint32x4_t oldx=vorrq_u32(vmovl_u16(vget_low_u16(m)),vshlq_n_u32(vmovl_u16(vget_low_u16(h)),16));
+        const uint32x4_t oldy=vorrq_u32(vmovl_u16(vget_high_u16(m)),vshlq_n_u32(vmovl_u16(vget_high_u16(h)),16));
+        x=vmlal_s16(vreinterpretq_s32_u32(oldx),vget_low_s16(a),vget_low_s16(b));
+        y=vmlal_s16(vreinterpretq_s32_u32(oldy),vget_high_s16(a),vget_high_s16(b));
+    }else{
+        x=vmull_s16(vget_low_s16(a),vget_low_s16(b));
+        y=vmull_s16(vget_high_s16(a),vget_high_s16(b));
+        vst1q_u16(static_cast<uint16_t*>(low),vdupq_n_u16(0));
+    }
+    vst1q_s16(static_cast<int16_t*>(middle),vcombine_s16(vmovn_s32(x),vmovn_s32(y)));
+    vst1q_s16(static_cast<int16_t*>(high),vcombine_s16(vshrn_n_s32(x,16),vshrn_n_s32(y,16)));
+    vst1q_s16(static_cast<int16_t*>(destination),vcombine_s16(vqmovn_s32(x),vqmovn_s32(y)));
+}
+
 // Operate on the RSP's physical lane order. The caller already applied the
 // instruction's element shuffle. Preserve all 48 accumulator bits, including
 // overflow: saturating arithmetic belongs only on the destination register.

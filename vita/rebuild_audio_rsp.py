@@ -12,8 +12,10 @@ for name in ['source','headers','modern-runtime','vitasdk','output']:
 p.add_argument('--mode',choices=['scalar','neon'],default='neon')
 p.add_argument('--fast-memory',action='store_true',help='Enable validated aligned RSP memory paths in private header copies')
 p.add_argument('--native-multiply',action='store_true',help='Enable ARM32 fractional multiply paths; requires NEON mode and output validation')
+p.add_argument('--native-high-multiply',action='store_true',help='Enable VMUDH/VMADH widened NEON paths; requires --native-multiply and complete-task validation')
 a=p.parse_args();here=Path(__file__).resolve().parent;out=a.output.resolve()
 if a.native_multiply and a.mode!='neon':p.error('--native-multiply requires --mode neon')
+if a.native_high_multiply and not a.native_multiply:p.error('--native-high-multiply requires --native-multiply')
 if out==here.parent or here.parent in out.parents:p.error('Private outputs must remain outside the public repository')
 for path in [a.source,a.headers/'recomp.h',a.headers/'librecomp/rsp_vu.hpp',a.headers/'librecomp/rsp_vu_impl.hpp',a.modern_runtime/'thirdparty/sse2neon/sse2neon.h']:
  if not path.is_file():p.error('Missing private/source dependency: '+str(path))
@@ -28,7 +30,7 @@ if a.fast_memory:
  patch(headers)
 if a.native_multiply:
  from patch_rsp_multiply import patch
- patch(headers)
+ patch(headers, high=a.native_high_multiply)
 sdk=a.vitasdk.resolve()/'bin';obj=out/'audio_rsp.arm.o';archive=out/'libduck_vita_audio_rsp.a'
 cmd=[sdk/'arm-vita-eabi-g++','-std=c++20','-O2','-fwrapv','-fno-strict-aliasing','-ffunction-sections','-fdata-sections','-mcpu=cortex-a9','-mfpu=neon','-mfloat-abi=hard','-I'+str(headers),'-I'+str(here/'include'),'-I'+str(a.modern_runtime.resolve()/'ultramodern/include'),'-I'+str(a.modern_runtime.resolve()/'thirdparty/sse2neon'),'-c',a.source.resolve(),'-o',obj]
 with (out/'compile.log').open('w') as f:r=subprocess.run(list(map(str,cmd)),stdout=f,stderr=subprocess.STDOUT)
@@ -41,6 +43,7 @@ if a.fast_memory:
  report['fast_memory_helper_sha256']=hashlib.sha256((here/'include/duck_vita_rsp_memory.h').read_bytes()).hexdigest()
  report['patched_headers_sha256']={n:hashlib.sha256((headers/'librecomp'/n).read_bytes()).hexdigest() for n in ['rsp.hpp','rsp_vu.hpp','rsp_vu_impl.hpp']}
 report['native_multiply']=a.native_multiply
+report['native_high_multiply']=a.native_high_multiply
 if a.native_multiply:
  report['native_multiply_helper_sha256']=hashlib.sha256((here/'include/duck_vita_rsp_multiply.h').read_bytes()).hexdigest()
  report['multiply_header_sha256']=hashlib.sha256((headers/'librecomp/rsp_vu_impl.hpp').read_bytes()).hexdigest()

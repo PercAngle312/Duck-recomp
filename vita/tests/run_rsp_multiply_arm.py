@@ -1,4 +1,4 @@
-"""Execute the ARM32 fractional-multiply fixture (Unicorn 2.1.4)."""
+"""Execute the ARM32 fractional/high multiply fixture (Unicorn 2.1.4)."""
 import argparse
 import hashlib
 import json
@@ -33,9 +33,9 @@ u.reg_write(UC_ARM_REG_LR, 0x800000)
 u.emu_start(entry, 0x800000, count=2000000000)
 assert u.reg_read(UC_ARM_REG_PC) == 0x800000, 'Instruction limit reached'
 result = u.reg_read(UC_ARM_REG_R0)
-assert result == 98304, f'ARM32 RSP fractional multiply failed: returned {result}'
+assert result == 147456, f'ARM32 RSP multiply failed: returned {result}'
 report = {'ARM32_executed': True, 'cases': result,
-          'operations': ['VMULF', 'VMULU', 'VMACF', 'VMACU'],
+          'operations': ['VMULF', 'VMULU', 'VMACF', 'VMACU', 'VMUDH', 'VMADH'],
           'comparison': 'scalar arithmetic oracle; all 48 accumulator bits and saturated destination; distinct/aliased inputs',
           'runner': 'Unicorn 2.1.4 Cortex-A9',
           'fixture_sha256': hashlib.sha256(data).hexdigest(),

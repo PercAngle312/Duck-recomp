@@ -1,0 +1,76 @@
+{
+  "enqueue_delay_corrected": true,
+  "asynchronous_sink_started_at_SetNextBuffer": true,
+  "synchronous_sink_remains_deferred": true,
+  "AI_completion_requires_playback": true,
+  "before_runtime_fails_immediate_submission_regression": true,
+  "concurrent_native_worker_test_passed": true,
+  "arithmetic": {
+    "ARM32_executed": true,
+    "cases": 147456,
+    "operations": [
+      "VMULF",
+      "VMULU",
+      "VMACF",
+      "VMACU",
+      "VMUDH",
+      "VMADH"
+    ],
+    "comparison": "scalar arithmetic oracle; all 48 accumulator bits and saturated destination; distinct/aliased inputs",
+    "runner": "Unicorn 2.1.4 Cortex-A9",
+    "fixture_sha256": "fd83723137d0b26923da93894d9d509f095c4c25e4b3ebe2648e7c4b0e94c864",
+    "hardware_performance_measured": false
+  },
+  "v016_comparison": {
+    "synthetic_translated_tasks": 192,
+    "types": [
+      "load/save",
+      "clear/move",
+      "interleave",
+      "mixer",
+      "ADPCM init+continuation",
+      "resample init+continuation"
+    ],
+    "reference": "byte-identical v00.16 native archive with all defined symbols isolated",
+    "ARM32_execution": "Unicorn 2.1.4 Cortex-A9",
+    "comparison_bytes_per_task": {
+      "RDRAM": 8388608,
+      "DMEM": 4096
+    },
+    "real_game_audio_tasks": false,
+    "native_speed_test": false,
+    "mismatches": 0,
+    "fixture_sha256": "f8515d39d33a00d0457d7ad8608e8b229b79e4b4f33435542f2e0fc86276c5d8"
+  },
+  "scalar_comparison": {
+    "synthetic_translated_tasks": 192,
+    "types": [
+      "load/save",
+      "clear/move",
+      "interleave",
+      "mixer",
+      "ADPCM init+continuation",
+      "resample init+continuation"
+    ],
+    "reference": "pinned scalar DSP with all defined symbols isolated",
+    "ARM32_execution": "Unicorn 2.1.4 Cortex-A9",
+    "comparison_bytes_per_task": {
+      "RDRAM": 8388608,
+      "DMEM": 4096
+    },
+    "real_game_audio_tasks": false,
+    "native_speed_test": false,
+    "mismatches": 0,
+    "fixture_sha256": "520b3d2349ac8706ebdf4ae4f4bc95be8e59b8eb51f4a266d38e6f3720c14121"
+  },
+  "synthetic_instruction_counts": {
+    "4:reference__Z14duck_audio_rspPhj": 15795,
+    "4:_Z14duck_audio_rspPhj": 15354,
+    "5:reference__Z14duck_audio_rspPhj": 136657,
+    "5:_Z14duck_audio_rspPhj": 135939
+  },
+  "audio_archive_sha256": "5b7638b7070052d6682877ecc6026eabc36e74422e617192f1e036c60593598e",
+  "hardware_audio_verified": false,
+  "actual_game_audio_tasks_compared": false,
+  "audio_starvation_eliminated": false
+}

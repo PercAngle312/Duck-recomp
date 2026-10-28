@@ -54,18 +54,19 @@ int main(void){
  assert(pcm[0]==10000&&pcm[1]==-10000&&state.phase==144000);
  DuckAiAsyncSink sink={begin,poll,0,0,0};unsigned before=(unsigned)interrupts;
  assert(!duck_vita_ai_init_async(ram,48681812,&sink));enqueue(ram,&c);enqueue(ram,&c);
+ assert(starts==1&&(unsigned)interrupts==before); // starts without a checkpoint or early IRQ
  assert(!duck_vita_ai_service()&&starts==1);
  assert(!duck_vita_ai_service()&&(unsigned)interrupts==before);
  poll_result=1;assert(duck_vita_ai_service()==1&&starts==2&&(unsigned)interrupts==before+1);
  assert(duck_vita_ai_service()==1&&(unsigned)interrupts==before+2);assert(!duck_vita_ai_service());
  starts=0;start_failure=-9;assert(!duck_vita_ai_init_async(ram,48681812,&sink));enqueue(ram,&c);enqueue(ram,&c);
- before=(unsigned)interrupts;assert(!duck_vita_ai_service());
+ before=(unsigned)interrupts;
  assert(duck_vita_ai_service()==-1&&duck_vita_ai_error()==-9&&(unsigned)interrupts==before+1);
  assert(duck_vita_ai_service()==-1&&(unsigned)interrupts==before+1); // second start failed, first completion remains valid
  for(unsigned i=0;i<2;i++){
   starts=0;start_failure=0;poll_result=i?2:-7;
   assert(!duck_vita_ai_init_async(ram,48681812,&sink));enqueue(ram,&c);before=(unsigned)interrupts;
-  assert(!duck_vita_ai_service());assert(duck_vita_ai_service()==-1&&(unsigned)interrupts==before);
+  assert(duck_vita_ai_service()==-1&&(unsigned)interrupts==before);
  }
  starts=0;start_failure=0;poll_result=0;sink.remaining_bytes=progress;
  assert(!duck_vita_ai_init_async(ram,48681812,&sink));enqueue(ram,&c);enqueue(ram,&c);
@@ -77,6 +78,7 @@ int main(void){
  // the guest FIFO remains full and IRQs still retire in original order.
  starts=0;start_failure=0;poll_result=0;sink.remaining_bytes=0;sink.capacity=2;
  assert(!duck_vita_ai_init_async(ram,48681812,&sink));enqueue(ram,&c);enqueue(ram,&c);
+ assert(starts==2); // both owned before any scheduler service
  before=(unsigned)interrupts;assert(!duck_vita_ai_service()&&starts==2);
  osAiGetStatus_recomp(ram,&c);assert(c.r2==(gpr)(int32_t)0xc0000000u);
  assert(!duck_vita_ai_service()&&(unsigned)interrupts==before);

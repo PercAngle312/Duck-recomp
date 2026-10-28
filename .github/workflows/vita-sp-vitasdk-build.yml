@@ -192,7 +192,7 @@ jobs:
           done
           "$SDK_CXX" -std=c++20 -O2 -fno-builtin -fno-exceptions -fno-rtti -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/include -nostdlib -Wl,-e,duck_rsp_memory_arm_test -Wl,-Ttext=0x10000 -Wl,-Tdata=0x200000 vita/tests/rsp_memory_arm.cpp /tmp/duck-rsp-reference.arm.o /tmp/duck-rsp-fast.arm.o -lgcc -o /tmp/duck-objects/rsp-memory.arm.elf
           /tmp/duck-fb-test/bin/python vita/tests/run_rsp_memory_arm.py /tmp/duck-objects/rsp-memory.arm.elf --report /tmp/duck-objects/rsp-memory.json
-      - name: Execute ARM32 fractional multiply and accumulator fixture
+      - name: Execute ARM32 fractional/high multiply and accumulator fixture
         run: |
           SDK_CXX="$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-g++ -print -quit)"
           "$SDK_CXX" -std=c++20 -O2 -fwrapv -fno-strict-aliasing -fno-builtin -fno-exceptions -fno-rtti -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/include -nostdlib -Wl,-e,duck_test_rsp_multiply -Wl,-Ttext=0x10000 -Wl,-Tdata=0x200000 vita/tests/rsp_multiply.cpp -lgcc -o /tmp/duck-objects/rsp-multiply.arm.elf
