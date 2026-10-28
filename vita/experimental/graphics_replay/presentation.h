@@ -161,16 +161,19 @@ struct DuckFpsOverlay {
         if(!ok){if(candidate)glDeleteProgram(candidate);std::fprintf(stderr,"FPS overlay shader unavailable\n");return false;}
         program=candidate;glGenBuffers(1,&vbo);return true;
     }
-    void draw(unsigned fps,unsigned frame_us,bool ready,unsigned width,unsigned height){
+    void draw(unsigned fps,unsigned frame_us,bool ready,unsigned width,unsigned height,unsigned guest_us,unsigned translate_us,unsigned draw_us,unsigned read_us){
         DuckPresentationState saved;if(!initialize())return;
         DuckVitaAudioStats audio={};duck_vita_audio_stats(&audio);
-        char lines[6][32];
+        char lines[9][32];
         if(ready){std::snprintf(lines[0],32,"FPS %u",fps);std::snprintf(lines[1],32,"FRAME %u MS",(frame_us+500)/1000);}
         else {std::snprintf(lines[0],32,"FPS --");std::snprintf(lines[1],32,"FRAME -- MS");}
         std::snprintf(lines[2],32,"RENDER %uX%u",width,height);
         std::snprintf(lines[3],32,"AUDIO BUFFER %u MS",audio.queued_frames/48);
         std::snprintf(lines[4],32,"UNDERRUNS %u",audio.underrun_blocks);
         std::snprintf(lines[5],32,"SILENCE %u MS",audio.padded_frames/48);
+        std::snprintf(lines[6],32,"CPU GAP %u MS",(guest_us+500)/1000);
+        std::snprintf(lines[7],32,"LIST %u DRAW %u MS",(translate_us+500)/1000,(draw_us+500)/1000);
+        std::snprintf(lines[8],32,"READBACK %u MS",(read_us+500)/1000);
         unsigned longest=0,runs=1;
         for(auto &line:lines){unsigned length=unsigned(std::strlen(line));if(length>longest)longest=length;
             for(unsigned c=0;c<length;c++)for(unsigned row=0;row<7;row++){
@@ -188,8 +191,8 @@ struct DuckFpsOverlay {
             }
         };
         unsigned x=960-12-longest*12;
-        rect(float(x-5),7,float(longest*12+10),6*18+10,0.03f);
-        for(unsigned line=0;line<6;line++)for(unsigned c=0;c<std::strlen(lines[line]);c++)for(unsigned row=0;row<7;row++){
+        rect(float(x-5),7,float(longest*12+10),9*18+10,0.03f);
+        for(unsigned line=0;line<9;line++)for(unsigned c=0;c<std::strlen(lines[line]);c++)for(unsigned row=0;row<7;row++){
             unsigned bits=duck_font_row(lines[line][c],row);
             for(unsigned col=0;col<5;){
                 if(!(bits&(16u>>col))){col++;continue;}unsigned begin=col;

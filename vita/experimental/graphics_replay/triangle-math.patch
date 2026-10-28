@@ -1,0 +1,54 @@
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/interpreter.cpp
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/interpreter.cpp
+@@ -1772,9 +1772,9 @@
+     const uint32_t cull_back = get_attr(CULL_BACK);
+ 
+     if ((mRsp->geometry_mode & cull_both) != 0) {
+-        float inv_w1 = 1.0f / v1->w;
+-        float inv_w2 = 1.0f / v2->w;
+-        float inv_w3 = 1.0f / v3->w;
++        float inv_w1 = mDuckTriangleMath.vertex_inverse(vtx1_idx,v1->w);
++        float inv_w2 = mDuckTriangleMath.vertex_inverse(vtx2_idx,v2->w);
++        float inv_w3 = mDuckTriangleMath.vertex_inverse(vtx3_idx,v3->w);
+         float dx1 = (v1->x * inv_w1) - (v2->x * inv_w2);
+         float dy1 = (v1->y * inv_w1) - (v2->y * inv_w2);
+         float dx2 = (v3->x * inv_w3) - (v2->x * inv_w2);
+@@ -1977,7 +1977,7 @@
+                 line_size = 1;
+             }
+ 
+-            tex_height[i] = tex_size_bytes / line_size;
++            tex_height[i] = mDuckTriangleMath.texture_height(i,tex_size_bytes,line_size);
+             switch (mRdp->texture_tile[tile].siz) {
+                 case G_IM_SIZ_4b:
+                     line_size <<= 1;
+@@ -2084,8 +2084,8 @@
+         int shifts = mRdp->texture_tile[effective_tile[t]].shifts;
+         int shiftt = mRdp->texture_tile[effective_tile[t]].shiftt;
+         
+-        inv_tex_width[t] = 1.0f / (float)tex_width[t];
+-        inv_tex_height[t] = 1.0f / (float)tex_height[t];
++        inv_tex_width[t] = mDuckTriangleMath.texture_inverse(t,0,tex_width[t]);
++        inv_tex_height[t] = mDuckTriangleMath.texture_inverse(t,1,tex_height[t]);
+ 
+         if (shifts != 0) {
+             u_scale[t] *= (shifts <= 10) ? (1.0f / (1 << shifts)) : (float)(1 << (16 - shifts));
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/interpreter.h
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/interpreter.h
+@@ -140,6 +140,8 @@
+ void gfx_cc_get_features(uint64_t shader_id0, uint64_t shader_id1, struct CCFeatures* cc_features);
+ 
+ union Gfx;
++
++#include "triangle_math_cache.h"
+ 
+ namespace Fast {
+ 
+@@ -605,6 +607,7 @@
+     uint64_t mDuckPaletteRevision=0;
+     uint32_t mDuckTextureHits=0,mDuckTextureUploads=0;
+     uint32_t mDuckLightColorUpdates = 0, mDuckVertexColorUpdates = 0;
++    DuckTriangleMathCache mDuckTriangleMath;
+     uintptr_t mGfxFrameBuffer{};
+ 	float mCurAspectRatioDeltaForX = (4.f / 3.f);
+ 

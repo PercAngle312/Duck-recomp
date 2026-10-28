@@ -36,6 +36,9 @@ def prepare(dependency: Path, output: Path) -> Path:
     cycle=here/'combiner-cycle.patch'
     subprocess.run(['git','apply','--check',str(cycle)],cwd=output,check=True)
     subprocess.run(['git','apply',str(cycle)],cwd=output,check=True)
+    math=here/'triangle-math.patch'
+    subprocess.run(['git','apply','--check',str(math)],cwd=output,check=True)
+    subprocess.run(['git','apply',str(math)],cwd=output,check=True)
     return output/'Source'
 
 if __name__=='__main__':

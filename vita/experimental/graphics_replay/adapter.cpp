@@ -39,6 +39,7 @@ static DuckGraphicsOptions graphics;
 static DuckSettingsMenu settings;
 static DuckEdgeAA edge_aa;
 static DuckFpsCounter fps_counter;
+static DuckFrameCosts frame_costs;
 static DuckFpsOverlay fps_overlay;
 static bool settings_save_failed;
 static unsigned settings_closing_buttons;
@@ -181,20 +182,21 @@ extern "C" int duck_fast3d_submit_task(uint32_t task_address){
  GLenum render_error=glGetError();
  if(first)fprintf(stderr,"Fast3D GL post-task error=0x%x\n",unsigned(render_error));
  if(render_error!=GL_NO_ERROR)return -7;
- if(graphics.live_stats)fps_overlay.draw(fps_counter.value,fps_counter.frame_us,fps_counter.ready,graphics.width,graphics.height);
+ if(graphics.live_stats)fps_overlay.draw(fps_counter.value,fps_counter.frame_us,fps_counter.ready,graphics.width,graphics.height,frame_costs.guest_us,frame_costs.translate_us,frame_costs.draw_us,frame_costs.read_us);
  vglSwapBuffers(GL_FALSE);
  uint64_t finished=sceKernelGetProcessTimeWide();
  fps_counter.presented(finished);
+ frame_costs.sample(started,translated,drawn,readback,finished);
  static uint64_t last_report,total_translate,total_draw,total_readback,total_present;
  static unsigned measured_tasks;
  if(!last_report)last_report=started;
  total_translate+=translated-started;total_draw+=drawn-translated;
  total_readback+=readback-drawn;total_present+=finished-readback;++measured_tasks;
  if(finished-last_report>=5000000){
-  fprintf(stderr,"Graphics timing: tasks=%u avg_us translate=%llu draw=%llu readback=%llu present=%llu light_updates=%u vertex_rgba_updates=%u texture_hits=%u texture_uploads=%u\n",
+  fprintf(stderr,"Graphics timing: tasks=%u avg_us translate=%llu draw=%llu readback=%llu present=%llu light_updates=%u vertex_rgba_updates=%u texture_hits=%u texture_uploads=%u division_cache_hits=%u division_cache_misses=%u\n",
       measured_tasks,(unsigned long long)(total_translate/measured_tasks),
       (unsigned long long)(total_draw/measured_tasks),(unsigned long long)(total_readback/measured_tasks),
-      (unsigned long long)(total_present/measured_tasks),interpreter->mDuckLightColorUpdates,interpreter->mDuckVertexColorUpdates,interpreter->mDuckTextureHits,interpreter->mDuckTextureUploads);
+      (unsigned long long)(total_present/measured_tasks),interpreter->mDuckLightColorUpdates,interpreter->mDuckVertexColorUpdates,interpreter->mDuckTextureHits,interpreter->mDuckTextureUploads,interpreter->mDuckTriangleMath.hits,interpreter->mDuckTriangleMath.misses);
   last_report=finished;total_translate=total_draw=total_readback=total_present=0;measured_tasks=0;
  }
  if(first)fprintf(stderr,"First framebuffer swap complete\n");
@@ -217,7 +219,7 @@ extern "C" int duck_fast3d_settings_poll(uint32_t buttons,uint64_t us){
   settings_closing_buttons=0;return 0;
  }
  auto action=settings.poll(buttons,us,graphics);
- if(action==DuckSettingsMenu::Opened){fps_counter.reset();settings_save_failed=false;fprintf(stderr,"Settings opened; guest dispatch paused\n");}
+ if(action==DuckSettingsMenu::Opened){fps_counter.reset();frame_costs.reset();settings_save_failed=false;fprintf(stderr,"Settings opened; guest dispatch paused\n");}
  if(action==DuckSettingsMenu::Apply){
   if(duck_save_graphics("ux0:data/DuckRecomp/graphics.ini",settings.pending)){
    graphics=settings.pending;
