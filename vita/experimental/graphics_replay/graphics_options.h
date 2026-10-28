@@ -3,11 +3,12 @@
 #include <cstring>
 #include <cstdint>
 
-// Startup-only configuration: no GL state changes while a task is executing.
+// Configuration applies only at task boundaries, including the paused menu.
 struct DuckGraphicsOptions {
     bool widescreen=false;
     bool smooth=false;
     bool edge_borders=true;
+    bool antialias=false;
     unsigned quality=0; // 0 native, 1 enhanced, 2 display
     unsigned filter=0;  // 0 N64 three-point, 1 bilinear, 2 nearest
     unsigned width=320,height=240;
@@ -28,6 +29,9 @@ struct DuckGraphicsOptions {
             if(!std::strcmp(value,"native"))quality=0;
             else if(!std::strcmp(value,"enhanced"))quality=1;
             else if(!std::strcmp(value,"display"))quality=2;else return false;
+        }else if(!std::strcmp(key,"aa")){
+            if(!std::strcmp(value,"off"))antialias=false;
+            else if(!std::strcmp(value,"edge"))antialias=true;else return false;
         }else if(!std::strcmp(key,"borders")){
             if(!std::strcmp(value,"edge"))edge_borders=true;
             else if(!std::strcmp(value,"original"))edge_borders=false;else return false;

@@ -19,6 +19,9 @@ int main(){
     assert(o.option("borders","original")&&!o.edge_borders);
     assert(o.option("borders","edge")&&o.edge_borders);
     assert(!o.option("borders","off")&&o.edge_borders);
+    assert(o.option("aa","edge")&&o.antialias);
+    assert(o.option("aa","off")&&!o.antialias);
+    assert(!o.option("aa","msaa")&&!o.antialias);
     int left=0,right=424;duck_graphics_readback_crop(left,right,0.75555556f);
     assert(left==52&&right==372);
     left=117;right=842;duck_graphics_readback_crop(left,right,1);assert(left==117&&right==842);

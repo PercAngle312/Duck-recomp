@@ -8,6 +8,7 @@
 #include "task_bounds.h"
 #include "fast3d_task.h"
 #include "graphics_options.h"
+#include "presentation.h"
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
@@ -34,6 +35,10 @@ static std::shared_ptr<Fast::Interpreter> interpreter;
 static Fast3DMemoryBridge bridge;
 static bool init_attempted;
 static DuckGraphicsOptions graphics;
+static DuckSettingsMenu settings;
+static DuckEdgeAA edge_aa;
+static bool settings_save_failed;
+static unsigned settings_closing_buttons;
 extern "C" int duck_fast3d_smooth_presentation(void){return graphics.smooth;}
 extern "C" int duck_fast3d_edge_borders(void){return graphics.edge_borders;}
 // The pinned vitaGL exports this initializer; it sets its own compiler state
@@ -61,6 +66,7 @@ extern "C" int duck_fast3d_init(uint8_t *rdram){
  if(!rdram||init_attempted)return -1;
  init_attempted=true;
  FILE *options=fopen("ux0:data/DuckRecomp/graphics.ini","r");
+ if(!options)options=fopen("ux0:data/DuckRecomp/graphics.ini.bak","r");
  // A packaged preset supplies release defaults; the user data file wins.
  if(!options)options=fopen("app0:graphics.ini","r");
  graphics.load(options);if(options)fclose(options);
@@ -139,7 +145,15 @@ extern "C" int duck_fast3d_submit_task(uint32_t task_address){
  // previously bound readback target; avoid disturbing cached rendering state.
  GLenum pre_error=glGetError();
  if(pre_error!=GL_NO_ERROR)fprintf(stderr,"GL pre-task error=0x%x\n",unsigned(pre_error));
- interpreter->StartFrame();DaedalusFast3D_PrepareTask(true);
+ interpreter->StartFrame();
+ // Display-resolution mode ordinarily renders directly to the screen. AA
+ // needs an owned source texture even when internal and display sizes match.
+ if(graphics.antialias&&!interpreter->mRendersToFb){
+  interpreter->mRendersToFb=true;
+  interpreter->GetCurrentRenderingAPI()->UpdateFramebufferParameters(interpreter->mGameFb,
+      interpreter->mCurDimensions.width,interpreter->mCurDimensions.height,true,true,true,true);
+ }
+ DaedalusFast3D_PrepareTask(true);
  if(first)fprintf(stderr,"Executing first Fast3D task\n");
  interpreter->Run(reinterpret_cast<Gfx*>(list),replacements);
  uint64_t drawn=sceKernelGetProcessTimeWide();
@@ -149,7 +163,14 @@ extern "C" int duck_fast3d_submit_task(uint32_t task_address){
  if(interpreter->mRendersToFb){
   // Run() leaves the default framebuffer clear; it doesn't present the game
   // FBO itself. Blit it explicitly, using its actual dimensions and orientation.
-  interpreter->GetCurrentRenderingAPI()->CopyFramebuffer(0,interpreter->mGameFb,
+  bool antialiased=graphics.antialias&&edge_aa.draw(
+      (GLuint)(uintptr_t)interpreter->GetCurrentRenderingAPI()->GetFramebufferTextureId(interpreter->mGameFb),
+      interpreter->mCurDimensions.width,interpreter->mCurDimensions.height,
+      graphics.display_x,graphics.display_width,graphics.display_height);
+  if(graphics.antialias&&!antialiased){
+      fprintf(stderr,"Edge AA unavailable; continuing with ordinary presentation\n");graphics.antialias=false;
+  }
+  if(!antialiased)interpreter->GetCurrentRenderingAPI()->CopyFramebuffer(0,interpreter->mGameFb,
       0,0,interpreter->mCurDimensions.width,interpreter->mCurDimensions.height,
       graphics.display_x,0,graphics.display_x+graphics.display_width,graphics.display_height);
  }
@@ -180,4 +201,38 @@ extern "C" int duck_fast3d_submit_task(uint32_t task_address){
 extern "C" int duck_fast3d_replay(uint32_t task_address){
  int result=duck_fast3d_submit_task(task_address);
  return result==1?0:result;
+}
+
+// Called by the production coordinator between complete guest dispatches.
+// The coordinator freezes its guest clock while this returns 1.
+extern "C" int duck_fast3d_settings_poll(uint32_t buttons,uint64_t us){
+ if(!interpreter)return 0;
+ if(settings_closing_buttons){
+  if(buttons&settings_closing_buttons){duck_draw_settings(settings,false);vglSwapBuffers(GL_FALSE);return 1;}
+  settings_closing_buttons=0;return 0;
+ }
+ auto action=settings.poll(buttons,us,graphics);
+ if(action==DuckSettingsMenu::Opened){settings_save_failed=false;fprintf(stderr,"Settings opened; guest dispatch paused\n");}
+ if(action==DuckSettingsMenu::Apply){
+  if(duck_save_graphics("ux0:data/DuckRecomp/graphics.ini",settings.pending)){
+   graphics=settings.pending;
+   interpreter->TextureCacheClear();
+   interpreter->mRdp->textures_changed[0]=interpreter->mRdp->textures_changed[1]=true;
+   interpreter->mRdp->viewport_or_scissor_changed=true;
+   interpreter->SetDisplayConfiguration(graphics.display_width,graphics.display_height,graphics.display_x,0,graphics.aspect_delta);
+   interpreter->mCurDimensions.width=graphics.width;interpreter->mCurDimensions.height=graphics.height;
+   interpreter->GetCurrentRenderingAPI()->SetTextureFilter(graphics.filter==1?Fast::FILTER_LINEAR:
+       graphics.filter==2?Fast::FILTER_NONE:Fast::FILTER_THREE_POINT);
+   settings.applied();settings_save_failed=false;
+   settings_closing_buttons=buttons&(DuckSettingsMenu::Select|DuckSettingsMenu::Cross|DuckSettingsMenu::Circle);
+   fprintf(stderr,"Settings applied: internal=%ux%u AA=%s aspect=%s filter=%u\n",graphics.width,graphics.height,
+       graphics.antialias?"edge":"off",graphics.widescreen?"wide":"original",graphics.filter);
+  }else {settings_save_failed=true;fprintf(stderr,"Graphics settings save failed; pending changes not applied\n");}
+ }
+ if(action==DuckSettingsMenu::Cancelled)settings_closing_buttons=buttons&(DuckSettingsMenu::Select|DuckSettingsMenu::Cross|DuckSettingsMenu::Circle);
+ if(settings_closing_buttons){duck_draw_settings(settings,false);vglSwapBuffers(GL_FALSE);return 1;}
+ if(settings.active){
+  duck_draw_settings(settings,settings_save_failed);vglSwapBuffers(GL_FALSE);return 1;
+ }
+ return 0;
 }
