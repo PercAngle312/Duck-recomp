@@ -35,7 +35,9 @@ static int playback(unsigned args,void *opaque){
    memset(pcm[buffer]+real*2,0,(DUCK_VITA_AUDIO_BLOCK_FRAMES-real)*2*sizeof(int16_t));
    atomic_fetch_add_explicit(&stream.underruns,1,memory_order_relaxed);
    atomic_fetch_add_explicit(&stream.padded,DUCK_VITA_AUDIO_BLOCK_FRAMES-real,memory_order_relaxed);
-   primed=0;
+   /* Keep the device paced after startup. Requiring another full prefill
+    * here turns a short shortage into a recurring 64-80ms silence. */
+   if(!real)gap.resume=16;
   }
   duck_vita_audio_gap_fade(&gap,pcm[buffer],real,DUCK_VITA_AUDIO_BLOCK_FRAMES);
   int rc=sceAudioOutOutput(port,pcm[buffer]);
@@ -124,6 +126,6 @@ int duck_vita_ai_vita_init(uint8_t *ram,unsigned clock){
  if(rc<0){duck_vita_ai_vita_close();return rc;}started=1;
  DuckAiAsyncSink sink={begin,poll,NULL,remaining_bytes,2};
  rc=duck_vita_ai_init_async(ram,clock,&sink);if(rc)duck_vita_ai_vita_close();
- else fprintf(stderr,"Native audio: timed AI, bounded stereo FIFO, 64ms prefill, 256-frame output, priority=0x%x\n",priority);
+ else fprintf(stderr,"Native audio: timed AI, bounded stereo FIFO, 64ms startup prefill, immediate underrun recovery, 256-frame output, priority=0x%x\n",priority);
  return rc;
 }

@@ -7,7 +7,7 @@ int sceKernelDelayThread(unsigned);
 #include <pthread.h>
 #include <stdlib.h>
 #include <time.h>
-static atomic_uint ticks,output_count,events;
+static atomic_uint ticks,output_count,events,sound_blocks;
 static atomic_int output_failure;
 static int reject_high,reject_all,last_priority;
 static pthread_t thread;
@@ -22,7 +22,7 @@ int sceKernelWaitThreadEnd(int id,int *r,unsigned *t){(void)id;(void)r;(void)t;r
 int sceKernelDeleteThread(int id){(void)id;return 0;}
 int sceAudioOutOpenPort(SceAudioOutPortType t,int f,int r,SceAudioOutMode m){assert(t==SCE_AUDIO_OUT_PORT_TYPE_MAIN&&f==256&&r==48000&&m==SCE_AUDIO_OUT_MODE_STEREO);return 2;}
 int sceAudioOutSetVolume(int p,SceAudioOutChannelFlag f,int *v){(void)p;(void)f;(void)v;return 0;}
-int sceAudioOutOutput(int p,const void *data){(void)p;if(data){const int16_t *s=data;for(unsigned i=0;i<256;i++){assert(s[i*2]>=0&&s[i*2]<=12000);assert(s[i*2+1]==-s[i*2]);}atomic_fetch_add(&output_count,1);nap();}return atomic_load(&output_failure);}
+int sceAudioOutOutput(int p,const void *data){(void)p;if(data){const int16_t *s=data;for(unsigned i=0;i<256;i++){assert(s[i*2]>=0&&s[i*2]<=12000);assert(s[i*2+1]==-s[i*2]);}for(unsigned i=0;i<256;i++)if(s[i*2]){atomic_fetch_add(&sound_blocks,1);break;}atomic_fetch_add(&output_count,1);nap();}return atomic_load(&output_failure);}
 int sceAudioOutReleasePort(int p){(void)p;return 0;}
 int duck_vita_os_event_emit(unsigned e){assert(e==6);atomic_fetch_add(&events,1);return 0;}
 static void fill(uint8_t *ram,unsigned frames){for(unsigned i=0;i<frames;i++){unsigned l=12000,r=(unsigned)(uint16_t)-12000;ram[(i*4)^3]=l>>8;ram[(i*4+1)^3]=l;ram[(i*4+2)^3]=r>>8;ram[(i*4+3)^3]=r;}}
@@ -46,6 +46,12 @@ int main(void){
  assert(!duck_vita_ai_vita_init(ram,48681812));c.r4=24000;osAiSetFrequency_recomp(ram,&c);enqueue(ram);
  for(int i=0;i<5;i++)nap();assert(!atomic_load(&output_count));atomic_store(&ticks,80001);
  for(int i=0;i<100&&!atomic_load(&output_count);i++)nap();assert(atomic_load(&output_count));
+ /* Drain the short sound, then submit more PCM without advancing clock.
+  * Recovery must not demand a fresh 64ms/80ms startup prefill. */
+ for(int i=0;i<200&&!atomic_load(&stream.underruns);i++)nap();assert(atomic_load(&stream.underruns));
+ unsigned sounds=atomic_load(&sound_blocks);enqueue(ram);
+ for(int i=0;i<100&&atomic_load(&sound_blocks)==sounds;i++)nap();
+ assert(atomic_load(&sound_blocks)>sounds);assert(atomic_load(&ticks)==80001);
  duck_vita_ai_vita_close();
  /* A device failure remains a fault, never a successful completion. */
  atomic_store(&output_failure,-77);atomic_store(&ticks,0);atomic_store(&output_count,0);
