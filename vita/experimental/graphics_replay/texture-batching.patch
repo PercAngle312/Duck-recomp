@@ -1,0 +1,58 @@
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/interpreter.cpp
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/interpreter.cpp
+@@ -144,6 +144,7 @@
+ void Interpreter::Flush() {
+     if (mBufVboNumTris > 0) {
+         //mRapi->SetCurrentPrimDepth((float)mRdp->prim_depth / N64_PRIM_DEPTH_MAX);
++        ++mDuckDrawCalls;mDuckDrawTriangles += (uint32_t)mBufVboNumTris;
+         mRapi->DrawTriangles(mBufVbo, mBufVboLen, mBufVboNumTris);
+         mBufVboLen = 0;
+         mBufVboNumTris = 0;
+@@ -473,6 +474,10 @@
+ 
+     if (it != mTextureCache.map.end()) {
+         ++mDuckTextureHits;
++        // Keep pending triangles only when the complete cached texture node
++        // already occupies this sampler. Other state changes flush below.
++        if (*n != &*it) Flush();
++        else if (mBufVboNumTris) ++mDuckTextureBatchKeeps;
+         mRapi->SelectTexture(i, it->second.texture_id);
+         *n = &*it;
+         mTextureCache.lru.splice(mTextureCache.lru.end(), mTextureCache.lru,
+@@ -480,6 +485,9 @@
+         return true;
+     }
+ 
++    // Retire geometry before an upload, eviction or recycled texture ID can
++    // change a source consumed by already-batched triangles.
++    Flush();
+     if (mTextureCache.map.size() >= TEXTURE_CACHE_MAX_SIZE) {
+         // Remove the texture that was least recently used
+         it = mTextureCache.lru.front().it;
+@@ -1196,6 +1204,7 @@
+         auto fbIt = mFbTextures.find((uintptr_t)origAddr);
+         if (fbIt != mFbTextures.end()) {
+             Flush();
++            mRenderingState.mTextures[i] = nullptr;
+             mRapi->SelectTextureFb(fbIt->second);
+             mRdp->textures_changed[i] = false;
+             return;
+@@ -1941,7 +1950,7 @@
+ 
+         if (comb->usedTextures[i]) {
+             if (mRdp->textures_changed[i]) {
+-                Flush();
++                // Import flushes at an actual binding/content transition.
+                 ImportTexture(i, tile, false);
+                 if (mRdp->loaded_texture[i].masked) {
+                     ImportTextureMask(SHADER_FIRST_MASK_TEXTURE + i, tile);
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/interpreter.h
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/interpreter.h
+@@ -608,6 +608,7 @@
+     uint32_t mDuckTextureHits=0,mDuckTextureUploads=0;
+     uint32_t mDuckLightColorUpdates = 0, mDuckVertexColorUpdates = 0;
+     DuckTriangleMathCache mDuckTriangleMath;
++    uint32_t mDuckDrawCalls=0,mDuckDrawTriangles=0,mDuckTextureBatchKeeps=0;
+     uintptr_t mGfxFrameBuffer{};
+ 	float mCurAspectRatioDeltaForX = (4.f / 3.f);
+ 

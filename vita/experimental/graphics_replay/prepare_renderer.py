@@ -39,6 +39,9 @@ def prepare(dependency: Path, output: Path) -> Path:
     math=here/'triangle-math.patch'
     subprocess.run(['git','apply','--check',str(math)],cwd=output,check=True)
     subprocess.run(['git','apply',str(math)],cwd=output,check=True)
+    batch=here/'texture-batching.patch'
+    subprocess.run(['git','apply','--check',str(batch)],cwd=output,check=True)
+    subprocess.run(['git','apply',str(batch)],cwd=output,check=True)
     return output/'Source'
 
 if __name__=='__main__':

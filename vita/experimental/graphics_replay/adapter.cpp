@@ -149,6 +149,7 @@ extern "C" int duck_fast3d_submit_task(uint32_t task_address){
  // previously bound readback target; avoid disturbing cached rendering state.
  GLenum pre_error=glGetError();
  if(pre_error!=GL_NO_ERROR)fprintf(stderr,"GL pre-task error=0x%x\n",unsigned(pre_error));
+ const unsigned draw_calls_before=interpreter->mDuckDrawCalls,triangles_before=interpreter->mDuckDrawTriangles;
  interpreter->StartFrame();
  // Display-resolution mode ordinarily renders directly to the screen. AA
  // needs an owned source texture even when internal and display sizes match.
@@ -182,7 +183,7 @@ extern "C" int duck_fast3d_submit_task(uint32_t task_address){
  GLenum render_error=glGetError();
  if(first)fprintf(stderr,"Fast3D GL post-task error=0x%x\n",unsigned(render_error));
  if(render_error!=GL_NO_ERROR)return -7;
- if(graphics.live_stats)fps_overlay.draw(fps_counter.value,fps_counter.frame_us,fps_counter.ready,graphics.width,graphics.height,frame_costs.guest_us,frame_costs.translate_us,frame_costs.draw_us,frame_costs.read_us);
+ if(graphics.live_stats)fps_overlay.draw(fps_counter.value,fps_counter.frame_us,fps_counter.ready,graphics.width,graphics.height,frame_costs.guest_us,frame_costs.translate_us,frame_costs.draw_us,frame_costs.read_us,interpreter->mDuckDrawCalls-draw_calls_before,interpreter->mDuckDrawTriangles-triangles_before);
  vglSwapBuffers(GL_FALSE);
  uint64_t finished=sceKernelGetProcessTimeWide();
  fps_counter.presented(finished);
@@ -193,10 +194,10 @@ extern "C" int duck_fast3d_submit_task(uint32_t task_address){
  total_translate+=translated-started;total_draw+=drawn-translated;
  total_readback+=readback-drawn;total_present+=finished-readback;++measured_tasks;
  if(finished-last_report>=5000000){
-  fprintf(stderr,"Graphics timing: tasks=%u avg_us translate=%llu draw=%llu readback=%llu present=%llu light_updates=%u vertex_rgba_updates=%u texture_hits=%u texture_uploads=%u division_cache_hits=%u division_cache_misses=%u\n",
+  fprintf(stderr,"Graphics timing: tasks=%u avg_us translate=%llu draw=%llu readback=%llu present=%llu light_updates=%u vertex_rgba_updates=%u texture_hits=%u texture_uploads=%u division_cache_hits=%u division_cache_misses=%u draws=%u tris=%u kept_batches=%u\n",
       measured_tasks,(unsigned long long)(total_translate/measured_tasks),
       (unsigned long long)(total_draw/measured_tasks),(unsigned long long)(total_readback/measured_tasks),
-      (unsigned long long)(total_present/measured_tasks),interpreter->mDuckLightColorUpdates,interpreter->mDuckVertexColorUpdates,interpreter->mDuckTextureHits,interpreter->mDuckTextureUploads,interpreter->mDuckTriangleMath.hits,interpreter->mDuckTriangleMath.misses);
+      (unsigned long long)(total_present/measured_tasks),interpreter->mDuckLightColorUpdates,interpreter->mDuckVertexColorUpdates,interpreter->mDuckTextureHits,interpreter->mDuckTextureUploads,interpreter->mDuckTriangleMath.hits,interpreter->mDuckTriangleMath.misses,interpreter->mDuckDrawCalls,interpreter->mDuckDrawTriangles,interpreter->mDuckTextureBatchKeeps);
   last_report=finished;total_translate=total_draw=total_readback=total_present=0;measured_tasks=0;
  }
  if(first)fprintf(stderr,"First framebuffer swap complete\n");

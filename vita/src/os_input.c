@@ -5,7 +5,7 @@
 #include <string.h>
 typedef struct {uint16_t buttons;int8_t x,y;int connected;} Snapshot;
 static Snapshot current,read_data,query_data;
-static int pending,read_ready,query_ready;
+static int pending,read_ready,query_ready,have_snapshot;
 static int span(uint64_t address,uint32_t size,uint32_t alignment,uint32_t *out){
  uint32_t a=(uint32_t)address,p=a&0x1fffffffu;
  if(address!=(uint64_t)a&&address!=(uint64_t)(int64_t)(int32_t)a)return -1;
@@ -14,9 +14,10 @@ static int span(uint64_t address,uint32_t size,uint32_t alignment,uint32_t *out)
  *out=p;return 0;
 }
 static void byte(uint8_t *r,uint32_t p,uint8_t value){r[p^3u]=value;}
-void duck_pad_reset(void){memset(&current,0,sizeof current);read_data=query_data=current;pending=read_ready=query_ready=0;}
+void duck_pad_reset(void){memset(&current,0,sizeof current);read_data=query_data=current;pending=read_ready=query_ready=have_snapshot=0;}
+int duck_pad_needs_poll(void){return !have_snapshot||pending!=0;}
 void duck_pad_update(int connected,uint16_t buttons,int8_t x,int8_t y){
- current.connected=!!connected;current.buttons=connected?buttons:0;current.x=connected?x:0;current.y=connected?y:0;
+ have_snapshot=1;current.connected=!!connected;current.buttons=connected?buttons:0;current.x=connected?x:0;current.y=connected?y:0;
 }
 static void status(uint8_t *r,uint32_t p,const Snapshot *s){
  for(unsigned i=0;i<4;i++){

@@ -15,7 +15,9 @@ static int service(void){
  int pi=duck_vita_os_pi_service();
  if(pi<0)return -1;
  live->pi_transfers+=(unsigned)pi;
- if(duck_vita_pad_poll()<0)return -1;
+ // Physical input is needed for startup and a queued guest SI read/query,
+ // not at every scheduler checkpoint. Timers/audio still run every service.
+ if(duck_pad_needs_poll()&&duck_vita_pad_poll()<0)return -1;
  if(duck_pad_service()<0)return -1;
  if(duck_vita_ai_service()<0)return -1;
  if(duck_vita_time_poll()<0)return -1;
