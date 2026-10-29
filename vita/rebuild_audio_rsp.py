@@ -15,7 +15,9 @@ p.add_argument('--native-multiply',action='store_true',help='Enable ARM32 fracti
 p.add_argument('--native-high-multiply',action='store_true',help='Enable VMUDH/VMADH widened NEON paths; requires --native-multiply and complete-task validation')
 p.add_argument('--native-mixed-multiply',action='store_true',help='Enable validated native ARM mixed multiply kernels')
 p.add_argument('--native-partial-loads',action='store_true',help='Enable exact NEON LQV<0>/LRV<0> loads')
+p.add_argument('--native-commands',action='store_true',help='Specialize validated clear/move/interleave/mixer command prefixes')
 a=p.parse_args();here=Path(__file__).resolve().parent;out=a.output.resolve()
+if a.native_commands and a.mode!='neon':p.error('--native-commands requires NEON')
 if a.native_partial_loads and a.mode!='neon':p.error('--native-partial-loads requires NEON')
 if a.native_mixed_multiply and a.mode!='neon':p.error('--native-mixed-multiply requires NEON')
 if a.native_multiply and a.mode!='neon':p.error('--native-multiply requires --mode neon')
@@ -41,17 +43,24 @@ if a.native_mixed_multiply:
 if a.native_partial_loads:
  from patch_rsp_partial import patch
  patch(headers)
+compiled_source=a.source.resolve()
+if a.native_commands:
+ from patch_audio_commands import patch
+ compiled_source=out/'audio_rsp.commands.private.cpp';patch(a.source,compiled_source)
 sdk=a.vitasdk.resolve()/'bin';obj=out/'audio_rsp.arm.o';archive=out/'libduck_vita_audio_rsp.a'
-cmd=[sdk/'arm-vita-eabi-g++','-std=c++20','-O2','-fwrapv','-fno-strict-aliasing','-ffunction-sections','-fdata-sections','-mcpu=cortex-a9','-mfpu=neon','-mfloat-abi=hard','-I'+str(headers),'-I'+str(here/'include'),'-I'+str(a.modern_runtime.resolve()/'ultramodern/include'),'-I'+str(a.modern_runtime.resolve()/'thirdparty/sse2neon'),'-c',a.source.resolve(),'-o',obj]
+cmd=[sdk/'arm-vita-eabi-g++','-std=c++20','-O2','-fwrapv','-fno-strict-aliasing','-ffunction-sections','-fdata-sections','-mcpu=cortex-a9','-mfpu=neon','-mfloat-abi=hard','-I'+str(headers),'-I'+str(here/'include'),'-I'+str(a.modern_runtime.resolve()/'ultramodern/include'),'-I'+str(a.modern_runtime.resolve()/'thirdparty/sse2neon'),'-c',compiled_source,'-o',obj]
 with (out/'compile.log').open('w') as f:r=subprocess.run(list(map(str,cmd)),stdout=f,stderr=subprocess.STDOUT)
 if r.returncode:raise SystemExit((out/'compile.log').read_text()[-3000:])
 # Use a new archive, retaining any previous archive under a unique checkpoint name.
 if archive.exists():archive.rename(out/('previous-'+hashlib.sha256(archive.read_bytes()).hexdigest()+'.a'))
 subprocess.run([sdk/'arm-vita-eabi-ar','rcs',archive,obj],check=True)
-report={'mode':a.mode,'fast_memory':a.fast_memory,'source_sha256':hashlib.sha256(a.source.read_bytes()).hexdigest(),'original_vector_header_sha256':hashlib.sha256((a.headers/'librecomp/rsp_vu.hpp').read_bytes()).hexdigest(),'sse2neon_sha256':hashlib.sha256((a.modern_runtime/'thirdparty/sse2neon/sse2neon.h').read_bytes()).hexdigest(),'archive_sha256':hashlib.sha256(archive.read_bytes()).hexdigest(),'float_abi':'hard','command':list(map(str,cmd)),'generated_source_modified':False,'hardware_tested':False}
+report={'mode':a.mode,'fast_memory':a.fast_memory,'source_sha256':hashlib.sha256(a.source.read_bytes()).hexdigest(),'original_vector_header_sha256':hashlib.sha256((a.headers/'librecomp/rsp_vu.hpp').read_bytes()).hexdigest(),'sse2neon_sha256':hashlib.sha256((a.modern_runtime/'thirdparty/sse2neon/sse2neon.h').read_bytes()).hexdigest(),'archive_sha256':hashlib.sha256(archive.read_bytes()).hexdigest(),'float_abi':'hard','command':list(map(str,cmd)),'generated_source_modified':a.native_commands,'hardware_tested':False}
 if a.fast_memory:
  report['fast_memory_helper_sha256']=hashlib.sha256((here/'include/duck_vita_rsp_memory.h').read_bytes()).hexdigest()
  report['patched_headers_sha256']={n:hashlib.sha256((headers/'librecomp'/n).read_bytes()).hexdigest() for n in ['rsp.hpp','rsp_vu.hpp','rsp_vu_impl.hpp']}
+report['native_commands']=a.native_commands
+if a.native_commands:
+ report['native_commands_helper_sha256']=hashlib.sha256((here/'include/duck_vita_audio_commands.h').read_bytes()).hexdigest()
 report['native_multiply']=a.native_multiply
 report['native_high_multiply']=a.native_high_multiply
 report['native_partial_loads']=a.native_partial_loads

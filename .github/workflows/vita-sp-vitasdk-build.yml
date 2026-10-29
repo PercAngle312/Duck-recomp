@@ -16,6 +16,15 @@ on:
       - 'vita/src/os_ai.c'
       - 'vita/src/audio_resample.c'
       - 'vita/src/audio_vita.c'
+      - 'vita/src/native_memory.c'
+      - 'vita/include/duck_vita_native_memory.h'
+      - 'vita/include/duck_vita_audio_commands.h'
+      - 'vita/patch_audio_commands.py'
+      - 'vita/specialize_guest_memory.py'
+      - 'vita/tests/native_geometry.cpp'
+      - 'vita/tests/run_native_geometry_arm.py'
+      - 'vita/tests/audio_command_kernels.cpp'
+      - 'vita/tests/run_audio_commands_arm.py'
       - 'vita/src/guest_fault.c'
       - 'vita/include/duck_vita_ai.h'
       - 'vita/include/duck_vita_sse2neon.h'
@@ -71,17 +80,17 @@ jobs:
           export VITASDK="$(dirname "$(dirname "$SDK_CC")")"
           echo "VitaSDK root: $VITASDK"
           "$SDK_CC" --version
-          for file in live live_registry sp sp_events sp_runtime os_sp game_loop dispatch recomp_bridge scheduler queue os_io os_queue os_core os_threads os_interrupt fiber_vita os_time os_vi os_vi_config os_input input_vita os_overlays os_eeprom eeprom_file os_ai audio_resample audio_vita guest_fault; do
+          for file in live live_registry sp sp_events sp_runtime os_sp game_loop dispatch recomp_bridge scheduler queue os_io os_queue os_core os_threads os_interrupt fiber_vita os_time os_vi os_vi_config os_input input_vita os_overlays os_eeprom eeprom_file os_ai audio_resample audio_vita native_memory guest_fault; do
             echo "::group::Compile $file.c"
             "$SDK_CC" -std=c11 -O1 -Wall -Wextra -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/include -I/tmp/duck-abi -c "vita/src/$file.c" -o "/tmp/duck-objects/$file.o"
             echo "::endgroup::"
           done
-          test "$(find /tmp/duck-objects -name '*.o' | wc -l)" -eq 29
+          test "$(find /tmp/duck-objects -name '*.o' | wc -l)" -eq 30
       - name: Relocatable ARM link of scheduler and graphics components
         run: |
           set -eu
           SDK_BIN="$(dirname "$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-gcc -print -quit)")"
-          "$SDK_BIN/arm-vita-eabi-gcc" -r /tmp/duck-objects/sp.o /tmp/duck-objects/sp_events.o /tmp/duck-objects/sp_runtime.o /tmp/duck-objects/os_sp.o /tmp/duck-objects/game_loop.o /tmp/duck-objects/live.o /tmp/duck-objects/live_registry.o /tmp/duck-objects/dispatch.o /tmp/duck-objects/recomp_bridge.o /tmp/duck-objects/scheduler.o /tmp/duck-objects/queue.o /tmp/duck-objects/os_io.o /tmp/duck-objects/os_queue.o /tmp/duck-objects/os_core.o /tmp/duck-objects/os_threads.o /tmp/duck-objects/os_interrupt.o /tmp/duck-objects/fiber_vita.o /tmp/duck-objects/os_time.o /tmp/duck-objects/os_vi.o /tmp/duck-objects/os_vi_config.o /tmp/duck-objects/os_input.o /tmp/duck-objects/input_vita.o /tmp/duck-objects/os_overlays.o /tmp/duck-objects/os_eeprom.o /tmp/duck-objects/eeprom_file.o /tmp/duck-objects/os_ai.o /tmp/duck-objects/audio_resample.o /tmp/duck-objects/audio_vita.o /tmp/duck-objects/guest_fault.o -o /tmp/duck-objects/duck-vita-graphics-runtime-linked.o
+          "$SDK_BIN/arm-vita-eabi-gcc" -r /tmp/duck-objects/sp.o /tmp/duck-objects/sp_events.o /tmp/duck-objects/sp_runtime.o /tmp/duck-objects/os_sp.o /tmp/duck-objects/game_loop.o /tmp/duck-objects/live.o /tmp/duck-objects/live_registry.o /tmp/duck-objects/dispatch.o /tmp/duck-objects/recomp_bridge.o /tmp/duck-objects/scheduler.o /tmp/duck-objects/queue.o /tmp/duck-objects/os_io.o /tmp/duck-objects/os_queue.o /tmp/duck-objects/os_core.o /tmp/duck-objects/os_threads.o /tmp/duck-objects/os_interrupt.o /tmp/duck-objects/fiber_vita.o /tmp/duck-objects/os_time.o /tmp/duck-objects/os_vi.o /tmp/duck-objects/os_vi_config.o /tmp/duck-objects/os_input.o /tmp/duck-objects/input_vita.o /tmp/duck-objects/os_overlays.o /tmp/duck-objects/os_eeprom.o /tmp/duck-objects/eeprom_file.o /tmp/duck-objects/os_ai.o /tmp/duck-objects/audio_resample.o /tmp/duck-objects/audio_vita.o /tmp/duck-objects/guest_fault.o /tmp/duck-objects/native_memory.o -o /tmp/duck-objects/duck-vita-graphics-runtime-linked.o
           "$SDK_BIN/arm-vita-eabi-nm" -u /tmp/duck-objects/duck-vita-graphics-runtime-linked.o | tee /tmp/duck-objects/unresolved-runtime.txt
           file /tmp/duck-objects/duck-vita-graphics-runtime-linked.o
           "$SDK_BIN/arm-vita-eabi-nm" /tmp/duck-objects/duck-vita-graphics-runtime-linked.o | grep -q " T duck_vita_live_run"
@@ -150,6 +159,7 @@ jobs:
       - name: Compare actual texture validation methods against previous bridge
         run: |
           cp -r /tmp/duck-renderer-prepared /tmp/duck-validation-reference
+          git -C /tmp/duck-validation-reference apply --reverse "$GITHUB_WORKSPACE/vita/experimental/graphics_replay/native-geometry.patch"
           git -C /tmp/duck-validation-reference apply --reverse "$GITHUB_WORKSPACE/vita/experimental/graphics_replay/command-scan.patch"
           git -C /tmp/duck-validation-reference apply --reverse "$GITHUB_WORKSPACE/vita/experimental/graphics_replay/conversion-cache.patch"
           git -C /tmp/duck-validation-reference apply --reverse "$GITHUB_WORKSPACE/vita/experimental/graphics_replay/texture-validation.patch"
@@ -204,14 +214,22 @@ jobs:
       - name: Compare exact geometry conversions and command scanning
         run: |
           cp -r /tmp/duck-renderer-prepared /tmp/duck-conversion-reference
+          git -C /tmp/duck-conversion-reference apply --reverse "$GITHUB_WORKSPACE/vita/experimental/graphics_replay/native-geometry.patch"
           git -C /tmp/duck-conversion-reference apply --reverse "$GITHUB_WORKSPACE/vita/experimental/graphics_replay/command-scan.patch"
           git -C /tmp/duck-conversion-reference apply --reverse "$GITHUB_WORKSPACE/vita/experimental/graphics_replay/conversion-cache.patch"
           python3 vita/experimental/graphics_replay/test_conversion_cache.py --source /tmp/duck-renderer-prepared/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.cpp --reference /tmp/duck-conversion-reference/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.cpp --report /tmp/duck-objects/conversion-cache.json
           SDK_CXX="$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-g++ -print -quit)"
           "$SDK_CXX" -std=c++17 -O2 -ffreestanding -fno-builtin -fno-exceptions -fno-unwind-tables -fno-asynchronous-unwind-tables -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/experimental/graphics_replay -nostdlib -Wl,-e,duck_test_command_scan -Wl,-Ttext=0x10000 vita/tests/command_scan.cpp -lgcc -o /tmp/duck-objects/command-scan.arm.elf
           /tmp/duck-fb-test/bin/python vita/tests/run_command_scan_arm.py /tmp/duck-objects/command-scan.arm.elf --report /tmp/duck-objects/command-scan.json
+      - name: Execute native geometry and audio command kernels
+        run: |
+          SDK_CXX="$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-g++ -print -quit)"
+          "$SDK_CXX" -std=c++17 -O2 -frounding-math -ffp-contract=off -ffreestanding -fno-builtin -fno-exceptions -fno-unwind-tables -fno-asynchronous-unwind-tables -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/experimental/graphics_replay -nostdlib -Wl,-e,duck_test_native_geometry -Wl,-Ttext=0x10000 vita/tests/native_geometry.cpp -lgcc -o /tmp/duck-objects/native-geometry.arm.elf
+          /tmp/duck-fb-test/bin/python vita/tests/run_native_geometry_arm.py /tmp/duck-objects/native-geometry.arm.elf --report /tmp/duck-objects/native-geometry.json
+          "$SDK_CXX" -std=c++20 -O2 -ffreestanding -fno-builtin -fno-exceptions -fno-unwind-tables -fno-asynchronous-unwind-tables -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/include -nostdlib -Wl,-e,duck_test_audio_commands -Wl,-Ttext=0x10000 vita/tests/audio_command_kernels.cpp -lgcc -o /tmp/duck-objects/audio-commands.arm.elf
+          /tmp/duck-fb-test/bin/python vita/tests/run_audio_commands_arm.py /tmp/duck-objects/audio-commands.arm.elf --report /tmp/duck-objects/audio-commands.json
       - name: Check private final-link script syntax
-        run: python3 -m py_compile vita/link_private_game.py vita/rebuild_audio_rsp.py vita/patch_rsp_memory.py vita/patch_rsp_multiply.py
+        run: python3 -m py_compile vita/link_private_game.py vita/rebuild_audio_rsp.py vita/patch_rsp_memory.py vita/patch_rsp_multiply.py vita/patch_audio_commands.py vita/specialize_guest_memory.py vita/test_audio_commands.py vita/test_native_memory.py
       - uses: actions/upload-artifact@v4
         with:
           name: duck-vita-sp-arm-objects
@@ -221,3 +239,5 @@ jobs:
             /tmp/duck-objects/pinned-toolchain.json
             /tmp/duck-objects/conversion-cache.json
             /tmp/duck-objects/command-scan.json
+            /tmp/duck-objects/native-geometry.json
+            /tmp/duck-objects/audio-commands.json

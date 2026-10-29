@@ -8,6 +8,7 @@ def method(text,name):
  start=text.index('void* Fast3DMemoryBridge::'+name+'(');end=text.index('\n}\n',start)+3;return text[start:end]
 prefix=r'''
 #include "conversion_cache.h"
+#include "native_geometry.h"
 #include <vector>
 #include <memory>
 #include <cassert>

@@ -54,6 +54,9 @@ def prepare(dependency: Path, output: Path) -> Path:
     scan=here/'command-scan.patch'
     subprocess.run(['git','apply','--check',str(scan)],cwd=output,check=True)
     subprocess.run(['git','apply',str(scan)],cwd=output,check=True)
+    native=here/'native-geometry.patch'
+    subprocess.run(['git','apply','--check',str(native)],cwd=output,check=True)
+    subprocess.run(['git','apply',str(native)],cwd=output,check=True)
     return output/'Source'
 
 if __name__=='__main__':
