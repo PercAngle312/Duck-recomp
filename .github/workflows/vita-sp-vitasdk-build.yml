@@ -20,6 +20,11 @@ on:
       - 'vita/include/duck_vita_native_memory.h'
       - 'vita/include/duck_vita_audio_commands.h'
       - 'vita/patch_audio_commands.py'
+      - 'vita/patch_rsp_samples.py'
+      - 'vita/include/duck_vita_rsp_samples.h'
+      - 'vita/include/duck_vita_rsp_elements.h'
+      - 'vita/tests/rsp_samples.cpp'
+      - 'vita/tests/run_rsp_samples_arm.py'
       - 'vita/specialize_guest_memory.py'
       - 'vita/tests/native_geometry.cpp'
       - 'vita/tests/run_native_geometry_arm.py'
@@ -228,8 +233,13 @@ jobs:
           /tmp/duck-fb-test/bin/python vita/tests/run_native_geometry_arm.py /tmp/duck-objects/native-geometry.arm.elf --report /tmp/duck-objects/native-geometry.json
           "$SDK_CXX" -std=c++20 -O2 -ffreestanding -fno-builtin -fno-exceptions -fno-unwind-tables -fno-asynchronous-unwind-tables -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/include -nostdlib -Wl,-e,duck_test_audio_commands -Wl,-Ttext=0x10000 vita/tests/audio_command_kernels.cpp -lgcc -o /tmp/duck-objects/audio-commands.arm.elf
           /tmp/duck-fb-test/bin/python vita/tests/run_audio_commands_arm.py /tmp/duck-objects/audio-commands.arm.elf --report /tmp/duck-objects/audio-commands.json
+      - name: Execute native DSP sample windows and element selectors
+        run: |
+          SDK_CXX="$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-g++ -print -quit)"
+          "$SDK_CXX" -std=c++20 -O2 -ffreestanding -fno-builtin -fno-exceptions -fno-unwind-tables -fno-asynchronous-unwind-tables -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/include -nostdlib -Wl,-e,duck_test_rsp_samples -Wl,-Ttext=0x10000 vita/tests/rsp_samples.cpp -lgcc -o /tmp/duck-objects/rsp-samples.arm.elf
+          /tmp/duck-fb-test/bin/python vita/tests/run_rsp_samples_arm.py /tmp/duck-objects/rsp-samples.arm.elf --report /tmp/duck-objects/rsp-samples.json
       - name: Check private final-link script syntax
-        run: python3 -m py_compile vita/link_private_game.py vita/rebuild_audio_rsp.py vita/patch_rsp_memory.py vita/patch_rsp_multiply.py vita/patch_audio_commands.py vita/specialize_guest_memory.py vita/test_audio_commands.py vita/test_native_memory.py
+        run: python3 -m py_compile vita/link_private_game.py vita/rebuild_audio_rsp.py vita/patch_rsp_memory.py vita/patch_rsp_multiply.py vita/patch_audio_commands.py vita/specialize_guest_memory.py vita/test_audio_commands.py vita/test_native_memory.py vita/patch_rsp_samples.py
       - uses: actions/upload-artifact@v4
         with:
           name: duck-vita-sp-arm-objects
@@ -241,3 +251,4 @@ jobs:
             /tmp/duck-objects/command-scan.json
             /tmp/duck-objects/native-geometry.json
             /tmp/duck-objects/audio-commands.json
+            /tmp/duck-objects/rsp-samples.json

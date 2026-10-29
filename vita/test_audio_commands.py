@@ -5,6 +5,7 @@ from unicorn.arm_const import *
 import argparse
 p=argparse.ArgumentParser(description='Compare complete pinned DSP tasks, including hidden vector/scalar state')
 for name in ['source','headers','modern-runtime','vitasdk','output']:p.add_argument('--'+name,type=Path,required=True)
+p.add_argument('--reference-headers',type=Path)
 a=p.parse_args();out=a.output.resolve();out.mkdir(parents=True,exist_ok=True);sdk=a.vitasdk.resolve()/'bin';repo=Path(__file__).resolve().parent
 if out==repo.parent or repo.parent in out.parents:raise ValueError('Private test output must be outside public checkout')
 from patch_audio_commands import patch
@@ -17,7 +18,7 @@ for label,source in [('reference',a.source),('candidate',candidate)]:
  if label=='reference':text=text.replace('duck_audio_rsp(', 'reference_audio_rsp(')
  instrumented=out/(label+'.private.cpp');instrumented.write_text('#include <cstdint>\nextern "C" void duck_test_capture(const void*,const uint32_t*);\n'+text)
  obj=out/(label+'.o');objects.append(obj)
- subprocess.run([str(sdk/'arm-vita-eabi-g++'),'-std=c++20','-O2','-fwrapv','-fno-strict-aliasing','-ffunction-sections','-fdata-sections','-mcpu=cortex-a9','-mfpu=neon','-mfloat-abi=hard','-I'+str(a.headers.resolve()),'-I'+str(repo/'include'),'-I'+str(a.modern_runtime.resolve()/'thirdparty/sse2neon'),'-I'+str(a.modern_runtime.resolve()/'ultramodern/include'),'-c',str(instrumented),'-o',str(obj)],check=True)
+ subprocess.run([str(sdk/'arm-vita-eabi-g++'),'-std=c++20','-O2','-fwrapv','-fno-strict-aliasing','-ffunction-sections','-fdata-sections','-mcpu=cortex-a9','-mfpu=neon','-mfloat-abi=hard','-I'+str((a.reference_headers if label=='reference' and a.reference_headers else a.headers).resolve()),'-I'+str(repo/'include'),'-I'+str(a.modern_runtime.resolve()/'thirdparty/sse2neon'),'-I'+str(a.modern_runtime.resolve()/'ultramodern/include'),'-c',str(instrumented),'-o',str(obj)],check=True)
 elf=out/'commands-state-pair.elf'
 subprocess.run([str(sdk/'arm-vita-eabi-g++'),'-std=c++20','-O2','-ffreestanding','-fno-builtin','-mcpu=cortex-a9','-mfpu=neon','-mfloat-abi=hard','-nostdlib','-Wl,-Ttext=0x10000','-Wl,-e,_Z14duck_audio_rspPhj',*[str(x) for x in objects],str(repo/'tests/audio_command_shim.cpp'),'-lgcc','-o',str(elf)],check=True)
 symbols={}
@@ -32,11 +33,11 @@ for i in range(n):
 u.reg_write(UC_ARM_REG_C1_C0_2,0xf00000);u.reg_write(UC_ARM_REG_FPEXC,0x40000000)
 rng=random.Random(0xd028);count=0
 for seed in range(96):
- for kind in range(5):
+ for kind in range(8):
   ram=bytearray(0x800000);dm=bytearray(rng.randbytes(4096));source=0x50000;dest=0x60000;command=0x40000
   ram[source:source+4096]=rng.randbytes(4096)
   # Synthetic jump table explicitly selects the same pinned DSP handlers.
-  for op,target in {2:0x119c,4:0x11c8,6:0x1208,10:0x1348,12:0x1c84,13:0x12d4}.items():struct.pack_into('<H',dm,(op*2)^2,target)
+  for op,target in {1:0x139c,2:0x119c,4:0x11c8,5:0x17ec,6:0x1208,10:0x1348,11:0x1248,12:0x1c84,13:0x12d4}.items():struct.pack_into('<H',dm,(op*2)^2,target)
   factor=[-32768,-32767,-1,0,1,16384,32767][seed%7];struct.pack_into('<h',dm,(0x50+10)^2,factor)
   length=[0,1,15,16,17,31,32,64,128,368,512,736][seed%12]
   save=lambda offset,n:(0x06000000|(n<<12)|offset,dest)
@@ -48,12 +49,20 @@ for seed in range(96):
   elif kind==3:
    src=([0,16,32,0x300][seed%4])+(seed%3 if seed%4==0 else 0);dst=[0,16,0x300,0x400][seed%4];gain=[0,1,0x4000,0x7fff,0xffff,0x8000][seed%6]
    commands=[(0x0c000000|gain,(src<<16)|dst),save(0,1536)]
-  else:
+  elif kind==4:
    commands=[]
    for j in range(12):
     op=rng.choice([2,10,12,13]);offset=rng.choice([0,16,32,0x300,0x400]);n=rng.choice([0,16,32,64,128,368])
     commands.append((0x02000000|offset,n) if op==2 else (0x0a000000|offset,(rng.choice([0,16,0x300])<<16)|n) if op==10 else (0x0c000000|rng.randrange(65536),(offset<<16)|rng.choice([0,16,0x300])) if op==12 else (0x0d000000,0))
    commands.append(save(0,1536))
+  if kind>=5:
+   # NAudio state address is in word0; pitch/flags/buffer fields are in word1.
+   # Prior generic-ABI guesses swapped these fields and did not test these handlers.
+   for i in range(0,256,9):dm[(0x4f0+i)^3]=((seed%13)<<4)|(seed%8)
+   adpcm=(0x01061000,((seed%2)<<28)|([32,64,128,384][seed%4]<<16)|0x300)
+   resample=(0x05062000,((seed%2)<<30)|([0x2000,0x4000,0x8000,0xffff][seed%4]<<14)|(0x300<<2)|1)
+   ram[0x52000:0x52100]=rng.randbytes(256);ram[0x61000:0x61020]=rng.randbytes(32);ram[0x62000:0x62010]=rng.randbytes(16)
+   commands=[(0x0b000100,0x52000),adpcm,save(0x300,416)] if kind==5 else [resample,save(0x170,368)] if kind==6 else [(0x0b000100,0x52000),adpcm,resample,(0x0c004000,0x01700300),save(0,1536)]
   for i,(a,b) in enumerate(commands):struct.pack_into('<II',ram,command+i*8,a,b)
   struct.pack_into('<16I',dm,0xfc0,2,0,0,0,0x8001e500,0xc60,0x80026780,0x2b0,0,0,0,0,command,len(commands)*8,0,0)
   outputs=[]
@@ -66,4 +75,4 @@ for seed in range(96):
   if outputs[0]!=outputs[1]:
    diffs=[(i,a,b) for i,(a,b) in enumerate(zip(outputs[0][1],outputs[1][1])) if a!=b];raise AssertionError(('mismatch',seed,kind,diffs[:20]))
   count+=1
-report={'ARM32_complete_tasks':count,'RDRAM_bytes_per_task':8388608,'DMEM_bytes_per_task':4096,'mismatches':0,'vector_accumulator_flags_and_scalar_state_compared':True,'real_game_audio_validated':False,'hardware_speed_measured':False};(out/'commands-comparison.json').write_text(json.dumps(report,indent=2)+'\n');print(report)
+report={'ARM32_complete_tasks':count,'RDRAM_bytes_per_task':8388608,'DMEM_bytes_per_task':4096,'mismatches':0,'vector_accumulator_flags_and_scalar_state_compared':True,'ADPCM_and_resampling_handlers_compared':True,'real_game_audio_validated':False,'hardware_speed_measured':False};(out/'commands-comparison.json').write_text(json.dumps(report,indent=2)+'\n');print(report)

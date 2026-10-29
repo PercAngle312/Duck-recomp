@@ -16,7 +16,9 @@ p.add_argument('--native-high-multiply',action='store_true',help='Enable VMUDH/V
 p.add_argument('--native-mixed-multiply',action='store_true',help='Enable validated native ARM mixed multiply kernels')
 p.add_argument('--native-partial-loads',action='store_true',help='Enable exact NEON LQV<0>/LRV<0> loads')
 p.add_argument('--native-commands',action='store_true',help='Specialize validated clear/move/interleave/mixer command prefixes')
+p.add_argument('--native-samples',action='store_true',help='Native unaligned sample windows and constant vector selectors')
 a=p.parse_args();here=Path(__file__).resolve().parent;out=a.output.resolve()
+if a.native_samples and a.mode!='neon':p.error('--native-samples requires NEON')
 if a.native_commands and a.mode!='neon':p.error('--native-commands requires NEON')
 if a.native_partial_loads and a.mode!='neon':p.error('--native-partial-loads requires NEON')
 if a.native_mixed_multiply and a.mode!='neon':p.error('--native-mixed-multiply requires NEON')
@@ -43,6 +45,10 @@ if a.native_mixed_multiply:
 if a.native_partial_loads:
  from patch_rsp_partial import patch
  patch(headers)
+sample_sites=0
+if a.native_samples:
+ from patch_rsp_samples import patch
+ sample_sites=patch(headers)
 compiled_source=a.source.resolve()
 if a.native_commands:
  from patch_audio_commands import patch
@@ -58,6 +64,8 @@ report={'mode':a.mode,'fast_memory':a.fast_memory,'source_sha256':hashlib.sha256
 if a.fast_memory:
  report['fast_memory_helper_sha256']=hashlib.sha256((here/'include/duck_vita_rsp_memory.h').read_bytes()).hexdigest()
  report['patched_headers_sha256']={n:hashlib.sha256((headers/'librecomp'/n).read_bytes()).hexdigest() for n in ['rsp.hpp','rsp_vu.hpp','rsp_vu_impl.hpp']}
+report['native_samples']=a.native_samples
+report['native_element_sites']=sample_sites
 report['native_commands']=a.native_commands
 if a.native_commands:
  report['native_commands_helper_sha256']=hashlib.sha256((here/'include/duck_vita_audio_commands.h').read_bytes()).hexdigest()
