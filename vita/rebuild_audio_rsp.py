@@ -14,7 +14,9 @@ p.add_argument('--fast-memory',action='store_true',help='Enable validated aligne
 p.add_argument('--native-multiply',action='store_true',help='Enable ARM32 fractional multiply paths; requires NEON mode and output validation')
 p.add_argument('--native-high-multiply',action='store_true',help='Enable VMUDH/VMADH widened NEON paths; requires --native-multiply and complete-task validation')
 p.add_argument('--native-mixed-multiply',action='store_true',help='Enable validated native ARM mixed multiply kernels')
+p.add_argument('--native-partial-loads',action='store_true',help='Enable exact NEON LQV<0>/LRV<0> loads')
 a=p.parse_args();here=Path(__file__).resolve().parent;out=a.output.resolve()
+if a.native_partial_loads and a.mode!='neon':p.error('--native-partial-loads requires NEON')
 if a.native_mixed_multiply and a.mode!='neon':p.error('--native-mixed-multiply requires NEON')
 if a.native_multiply and a.mode!='neon':p.error('--native-multiply requires --mode neon')
 if a.native_high_multiply and not a.native_multiply:p.error('--native-high-multiply requires --native-multiply')
@@ -36,6 +38,9 @@ if a.native_multiply:
 if a.native_mixed_multiply:
  from patch_rsp_mixed import patch
  patch(headers)
+if a.native_partial_loads:
+ from patch_rsp_partial import patch
+ patch(headers)
 sdk=a.vitasdk.resolve()/'bin';obj=out/'audio_rsp.arm.o';archive=out/'libduck_vita_audio_rsp.a'
 cmd=[sdk/'arm-vita-eabi-g++','-std=c++20','-O2','-fwrapv','-fno-strict-aliasing','-ffunction-sections','-fdata-sections','-mcpu=cortex-a9','-mfpu=neon','-mfloat-abi=hard','-I'+str(headers),'-I'+str(here/'include'),'-I'+str(a.modern_runtime.resolve()/'ultramodern/include'),'-I'+str(a.modern_runtime.resolve()/'thirdparty/sse2neon'),'-c',a.source.resolve(),'-o',obj]
 with (out/'compile.log').open('w') as f:r=subprocess.run(list(map(str,cmd)),stdout=f,stderr=subprocess.STDOUT)
@@ -49,6 +54,9 @@ if a.fast_memory:
  report['patched_headers_sha256']={n:hashlib.sha256((headers/'librecomp'/n).read_bytes()).hexdigest() for n in ['rsp.hpp','rsp_vu.hpp','rsp_vu_impl.hpp']}
 report['native_multiply']=a.native_multiply
 report['native_high_multiply']=a.native_high_multiply
+report['native_partial_loads']=a.native_partial_loads
+if a.native_partial_loads:
+ report['native_partial_helper_sha256']=hashlib.sha256((here/'include/duck_vita_rsp_partial.h').read_bytes()).hexdigest()
 report['native_mixed_multiply']=a.native_mixed_multiply
 if a.native_mixed_multiply:
  report['native_mixed_helper_sha256']=hashlib.sha256((here/'include/duck_vita_rsp_mixed.h').read_bytes()).hexdigest()

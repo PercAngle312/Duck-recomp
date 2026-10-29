@@ -8,6 +8,25 @@
 extern void osSendMesg_recomp(uint8_t*,recomp_context*);
 enum { TIMERS=32,EVENT_BUDGET=128 };
 static struct {uint32_t key,queue,message;uint64_t deadline,interval;int active;} timers[TIMERS];
+// Cache the earliest active timer until a timer mutation. Idle scheduler
+// checkpoints still update Count/Compare and VI, without scanning 32 slots.
+static int earliest_timer_index=-1,timer_index_dirty=1;
+#ifdef DUCK_TIME_SCAN_INSTRUMENT
+uint64_t duck_test_timer_slot_visits;
+#endif
+static int earliest_timer(void){
+ if(timer_index_dirty){
+  earliest_timer_index=-1;
+  for(int i=0;i<TIMERS;i++){
+#ifdef DUCK_TIME_SCAN_INSTRUMENT
+   ++duck_test_timer_slot_visits;
+#endif
+   if(timers[i].active&&(earliest_timer_index<0||timers[i].deadline<timers[earliest_timer_index].deadline))earliest_timer_index=i;
+  }
+  timer_index_dirty=0;
+ }
+ return earliest_timer_index;
+}
 static uint8_t *ram;
 static DuckVitaTickClock clock_source;
 static void *clock_opaque;
@@ -47,7 +66,7 @@ int duck_vita_time_bind(uint8_t *rdram,DuckVitaTickClock clock,void *opaque,uint
  if(!rdram||!clock||!period)return -1;
  ram=rdram;clock_source=clock;clock_opaque=opaque;epoch=clock(opaque);
  now=time_origin=last_count_tick=0;vi_period=period;next_vi=period;vi_remaining=0;
- initialized=vi_active=error=0;vi_generation=0;
+ initialized=vi_active=error=0;vi_generation=0;earliest_timer_index=-1;timer_index_dirty=1;
  memset(timers,0,sizeof timers);memset(&stats,0,sizeof stats);duck_cp0_reset(0);
  return 0;
 }
@@ -90,14 +109,14 @@ void osSetTimer_recomp(uint8_t *r,recomp_context *c){
  if(i==TIMERS)for(i=0;i<TIMERS&&timers[i].active;i++);
  if(i==TIMERS)return;
  timers[i].key=p;timers[i].queue=queue;timers[i].message=message;
- timers[i].deadline=now+delay;timers[i].interval=interval;timers[i].active=1;
+ timers[i].deadline=now+delay;timers[i].interval=interval;timers[i].active=1;timer_index_dirty=1;
  wr(p,0);wr(p+4,0);wr64(p+8,interval);wr64(p+16,delay);wr(p+24,queue);wr(p+28,message);
  c->r2=0;
 }
 void osStopTimer_recomp(uint8_t *r,recomp_context *c){
  uint32_t p;if(!c)return;c->r2=(gpr)-1;
  if(r!=ram||offset(c->r4,32,&p))return;
- for(int i=0;i<TIMERS;i++)if(timers[i].active&&timers[i].key==p){timers[i].active=0;c->r2=0;return;}
+ for(int i=0;i<TIMERS;i++)if(timers[i].active&&timers[i].key==p){timers[i].active=0;timer_index_dirty=1;c->r2=0;return;}
 }
 void osCreateViManager_recomp(uint8_t *r,recomp_context *c){
  if(!c||r!=ram||!initialized||c->r4>255||update_clock()){error=1;return;}
@@ -117,9 +136,8 @@ int duck_vita_time_poll(void){
  if(!initialized)return 0;
  int work=0;
  while(work<EVENT_BUDGET){
-  int earliest=-1;
-  for(int i=0;i<TIMERS;i++)if(timers[i].active&&timers[i].deadline<=now&&
-    (earliest<0||timers[i].deadline<timers[earliest].deadline))earliest=i;
+  int earliest=earliest_timer();
+  if(earliest>=0&&timers[earliest].deadline>now)earliest=-1;
   if(vi_active&&next_vi<=now&&(earliest<0||next_vi<timers[earliest].deadline)){
    if(vi_period>UINT64_MAX-next_vi){error=1;return -1;}
    next_vi+=vi_period;stats.retraces++;work++;
@@ -139,6 +157,9 @@ int duck_vita_time_poll(void){
    if(timers[i].interval>UINT64_MAX-timers[i].deadline){error=1;return -1;}
    timers[i].deadline+=timers[i].interval;
   }else timers[i].active=0;
+  // Delivery can switch fibers and rearm/stop timers. Invalidate first so a
+  // nested poll cannot observe the previously expired record as earliest.
+  timer_index_dirty=1;
   work++;int sent=deliver(q,msg);if(sent)stats.timer_messages++;
  }
  return work;
