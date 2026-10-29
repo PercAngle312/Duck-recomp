@@ -1,0 +1,57 @@
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/interpreter.cpp
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/interpreter.cpp
+@@ -1,3 +1,4 @@
++#include "draw_batch.h"
+ #include "combiner_cycle.h"
+ #include "graphics_options.h"
+ #include "texture_layout.h"
+@@ -117,7 +118,7 @@
+     return filePath;
+ }
+ 
+-constexpr size_t MAX_TRI_BUFFER = 256;
++constexpr size_t MAX_TRI_BUFFER = DuckMaxTriangles;
+ 
+ Interpreter::Interpreter() {
+     mRsp = new RSP();
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/gfx_opengl.cpp
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/gfx_opengl.cpp
+@@ -1,3 +1,4 @@
++#include "draw_batch.h"
+ #include "graphics_options.h"
+ #include "framebuffer_pack.h"
+ #ifdef ENABLE_OPENGL
+@@ -69,6 +70,7 @@
+ }
+ 
+ void GfxRenderingAPIOGL::SetUniforms(ShaderProgram* prg) const {
++    if (!prg->duck_uniforms.changed((uint32_t)mFrameCount,mCurrentNoiseScale)) return;
+     glUniform1i(prg->frameCountLocation, mFrameCount);
+     glUniform1f(prg->noiseScaleLocation, mCurrentNoiseScale);
+ }
+@@ -813,9 +815,7 @@
+ 
+     // The CPU batch can be reused after this call; the GPU owns a distinct
+     // mapped snapshot until vitaGL retires it. Never reserve a fixed task arena.
+-    if (!mCurrentShaderProgram || !buf_vbo_num_tris || buf_vbo_num_tris > 256 ||
+-        buf_vbo_len != buf_vbo_num_tris * 3 * mCurrentShaderProgram->numFloats ||
+-        buf_vbo_len > 256 * 3 * 64) {
++    if (!mCurrentShaderProgram || !duck_vertex_batch_valid(mCurrentShaderProgram->numFloats,buf_vbo_len,buf_vbo_num_tris)) {
+         fprintf(stderr, "Invalid Fast3D vertex batch: %u floats, %u triangles\n",
+                 (unsigned)buf_vbo_len, (unsigned)buf_vbo_num_tris); fflush(stderr); abort();
+     }
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/backends/gfx_opengl.h
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/backends/gfx_opengl.h
+@@ -1,3 +1,4 @@
++#include "frame_uniform_cache.h"
+ #pragma once
+ 
+ #include "gfx_rendering_api.h"
+@@ -27,6 +28,7 @@
+ #endif
+ namespace Fast {
+ struct ShaderProgram {
++    DuckUniformStamp duck_uniforms;
+     GLuint openglProgramId;
+     uint8_t numInputs;
+     bool usedTextures[SHADER_MAX_TEXTURES];

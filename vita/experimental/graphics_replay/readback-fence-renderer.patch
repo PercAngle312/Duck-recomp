@@ -1,0 +1,91 @@
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/gfx_opengl.cpp
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/src/gfx_opengl.cpp
+@@ -33,6 +33,8 @@
+ #include <psp2/gxm.h>
+ extern "C" {
+     void vglBufferData(GLenum target, const GLvoid *data);
++    int duck_vgl_wait_read_framebuffer(void);
++    GLboolean _glReadPixels_gpu(GLint,GLint,GLsizei,GLsizei,GLenum,GLenum,GLvoid*,GLboolean);
+ };
+ #define SHADER_MAGIC (1)
+ #endif
+@@ -1092,16 +1094,28 @@
+     }
+     auto microseconds=[](){return (uint64_t)std::chrono::duration_cast<std::chrono::microseconds>(
+         std::chrono::steady_clock::now().time_since_epoch()).count();};
+-    // Run() switches to the display FBO after drawing the game FBO. Pinned
+-    // vitaGL glReadPixels waits only if the read FBO is its in-use scene.
+-    // Explicitly finish all pending draws before either readback method.
+-    uint64_t beforeWait=microseconds();glFinish();uint64_t afterWait=microseconds();
++    // Wait only for the source FBO's submitted fragment notification. Leave
++    // unrelated later scenes in flight. Unknown/collided fences use the old
++    // full-context synchronization before the unchanged readback fallback.
++    uint64_t beforeWait=microseconds();
++    const bool fenced=mDuckFenceEnabled && duck_vgl_wait_read_framebuffer()==0;
++    if(!fenced)glFinish();
++    uint64_t afterWait=microseconds();
++    static unsigned fenceReads=0,fullWaits=0;
++    if(fenced)++fenceReads;else ++fullWaits;
++    auto readPixels=[&](GLenum format,GLenum type,void *data){
++        // The pinned helper owns and completes a GPU format transfer to a
++        // temporary mapped buffer, then copies to caller-owned CPU memory.
++        // It is safe here only after the source framebuffer fence completed.
++        if(fenced && _glReadPixels_gpu(0,0,width,height,format,type,data,GL_FALSE))return;
++        glReadPixels(0,0,width,height,format,type,data);
++    };
+     uint64_t packedStart=afterWait;
+     if(mPackedReadback>=0){
+         // Pinned vitaGL's non-fast-store path uses a GPU format transfer and
+         // explicitly reswizzles ABGR1555 to logical N64 RGBA5551. Avoid reading
+         // uncached RGBA8 on the CPU and then packing every pixel ourselves.
+-        glReadPixels(0,0,width,height,GL_RGBA,GL_UNSIGNED_SHORT_1_5_5_5_REV,rgba16_buf);
++        readPixels(GL_RGBA,GL_UNSIGNED_SHORT_1_5_5_5_REV,rgba16_buf);
+         duck_abgr1555_to_rgba5551(rgba16_buf,(size_t)width*height);
+         GLenum error=glGetError();
+         if(error!=GL_NO_ERROR){
+@@ -1113,7 +1127,12 @@
+     if(mPackedReadback<=0){
+         uint64_t referenceStart=mPackedReadback==0?microseconds():0;
+         mReadbackPixels.resize((size_t)width*height*4);
+-        glReadPixels(0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,mReadbackPixels.data());
++        // Calibrate against the original full-context wait and CPU readback.
++        // Any mismatch disables both optimized paths for this renderer.
++        if(mPackedReadback==0){
++            if(fenced)glFinish();
++            glReadPixels(0,0,width,height,GL_RGBA,GL_UNSIGNED_BYTE,mReadbackPixels.data());
++        }else readPixels(GL_RGBA,GL_UNSIGNED_BYTE,mReadbackPixels.data());
+         bool same=true;
+         for(size_t i=0;i<(size_t)width*height;i++){
+             uint16_t expected=duck_rgba8_to_rgba5551(mReadbackPixels.data()+i*4);
+@@ -1124,6 +1143,7 @@
+             mReferenceReadbackUs+=microseconds()-referenceStart;
+             ++mReadbackProbes;
+             if(!same){
++                mDuckFenceEnabled=false;
+                 mPackedReadback=-1;
+                 fprintf(stderr,"Framebuffer readback: RGBA8 fallback (packed pixels differed)\n");
+             }else if(mReadbackProbes==6){
+@@ -1138,10 +1158,10 @@
+     static uint64_t waitTotal=0,copyTotal=0;static unsigned readCount=0;
+     waitTotal+=afterWait-beforeWait;copyTotal+=microseconds()-afterWait;
+     if(++readCount==256){
+-        fprintf(stderr,"Framebuffer timing: calls=256 avg_us GPU_wait=%llu transfer_pack=%llu path=%s\n",
++        fprintf(stderr,"Framebuffer timing: calls=256 avg_us GPU_wait=%llu transfer_pack=%llu path=%s fence_reads=%u full_waits=%u\n",
+             (unsigned long long)(waitTotal/256),(unsigned long long)(copyTotal/256),
+-            mPackedReadback==1?"packed":"RGBA8");
+-        readCount=0;waitTotal=copyTotal=0;
++            mPackedReadback==1?"packed":"RGBA8",fenceReads,fullWaits);
++        readCount=0;waitTotal=copyTotal=0;fenceReads=fullWaits=0;
+     }
+     glBindFramebuffer(GL_FRAMEBUFFER, currentFbo);
+     glReadBuffer(currentFbo == 0 ? GL_BACK : GL_COLOR_ATTACHMENT0);
+--- a/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/backends/gfx_opengl.h
++++ b/Source/SysVita/HLEGraphics/Accurate/Fast3D/include/fast/backends/gfx_opengl.h
+@@ -115,6 +115,7 @@
+ 
+     std::vector<TextureInfo> textures;
+     std::vector<uint8_t> mReadbackPixels;
++    bool mDuckFenceEnabled=true;
+     int mPackedReadback=0; // calibrating, verified packed (1), RGBA8 fallback (-1)
+     unsigned mReadbackProbes=0;
+     uint64_t mPackedReadbackUs=0,mReferenceReadbackUs=0;

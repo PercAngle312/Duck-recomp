@@ -1,0 +1,62 @@
+--- a/source/gxm.c
++++ b/source/gxm.c
+@@ -1,3 +1,4 @@
++#include "framebuffer_fence.h"
+ /*
+  * This file is part of vitaGL
+  * Copyright 2017, 2018, 2019, 2020 Rinnegatamante
+@@ -67,6 +68,10 @@
+ static GLboolean needs_end_scene = GL_FALSE; // Flag for gxm end scene requirement at scene reset
+ static GLboolean needs_scene_reset = GL_TRUE; // Flag for when a scene reset is required
+ static GLboolean scene_not_flushed = GL_FALSE; // Flag for when a scene had been forcibly flushed as last operation
++static DuckFramebufferFences duck_framebuffer_fences;
++static framebuffer *duck_scene_target;
++static int duck_fence_wrap;
++
+ 
+ SceGxmContext *gxm_context; // sceGxm context instance
+ GLenum vgl_error = GL_NO_ERROR; // Error returned by glGetError
+@@ -574,7 +579,10 @@
+ static inline __attribute__((always_inline)) void scene_end(void) {
+ 	// Ends current gxm scene
+ 	query_fence.value++;
+-	sceGxmEndScene(gxm_context, NULL, &query_fence);
++	if (!query_fence.value) duck_fence_wrap = 1;
++	int duck_end_result = sceGxmEndScene(gxm_context, NULL, &query_fence);
++	if (duck_scene_target) duck_fence_record(&duck_framebuffer_fences,duck_scene_target,
++	    duck_end_result < 0 ? 0 : query_fence.value);
+ 	if (system_app_mode && vsync_interval)
+ 		sceDisplayWaitVblankStartMulti(vsync_interval);
+ }
+@@ -614,6 +622,9 @@
+ 		}
+ #endif
+ 
++		// Track the actual scene independently: scene_reset changes
++		// in_use_framebuffer before closing the preceding scene.
++		duck_scene_target = active_write_fb;
+ 		// Starting drawing scene
+ 		is_rendering_display = !active_write_fb;
+ 		if (is_rendering_display) { // Default framebuffer is used
+@@ -1038,3 +1049,21 @@
+ 	gxm_display_rt_size = size_main;
+ 	gxm_fbo_rt_size = size_fbos;
+ }
++
++// Complete only the source framebuffer's last submitted scene. The renderer
++// must fall back to glFinish when no valid tracked fence is available.
++int duck_vgl_wait_read_framebuffer(void) {
++    THREAD_SAFE()
++    if (!active_read_fb || !query_fence.address || duck_fence_wrap) return -1;
++    if (needs_end_scene && duck_scene_target == active_read_fb) {
++        dirty_framebuffer = GL_TRUE;
++        scene_reset();
++    }
++    uint32_t serial=duck_fence_lookup(&duck_framebuffer_fences,active_read_fb,query_fence.value);
++    if (!serial || duck_fence_wrap) return -1;
++    if (*query_fence.address < serial) {
++        SceGxmNotification required=query_fence;required.value=serial;
++        return sceGxmNotificationWait(&required);
++    }
++    return 0;
++}

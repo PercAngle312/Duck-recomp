@@ -42,6 +42,12 @@ def prepare(dependency: Path, output: Path) -> Path:
     batch=here/'texture-batching.patch'
     subprocess.run(['git','apply','--check',str(batch)],cwd=output,check=True)
     subprocess.run(['git','apply',str(batch)],cwd=output,check=True)
+    draw=here/'draw-batch-uniform.patch'
+    subprocess.run(['git','apply','--check',str(draw)],cwd=output,check=True)
+    subprocess.run(['git','apply',str(draw)],cwd=output,check=True)
+    fence=here/'readback-fence-renderer.patch'
+    subprocess.run(['git','apply','--check',str(fence)],cwd=output,check=True)
+    subprocess.run(['git','apply',str(fence)],cwd=output,check=True)
     return output/'Source'
 
 if __name__=='__main__':
