@@ -194,10 +194,10 @@ extern "C" int duck_fast3d_submit_task(uint32_t task_address){
  total_translate+=translated-started;total_draw+=drawn-translated;
  total_readback+=readback-drawn;total_present+=finished-readback;++measured_tasks;
  if(finished-last_report>=5000000){
-  fprintf(stderr,"Graphics timing: tasks=%u avg_us translate=%llu draw=%llu readback=%llu present=%llu light_updates=%u vertex_rgba_updates=%u texture_hits=%u texture_uploads=%u division_cache_hits=%u division_cache_misses=%u draws=%u tris=%u kept_batches=%u\n",
+  fprintf(stderr,"Graphics timing: tasks=%u avg_us translate=%llu draw=%llu readback=%llu present=%llu light_updates=%u vertex_rgba_updates=%u texture_hits=%u texture_uploads=%u division_cache_hits=%u division_cache_misses=%u draws=%u tris=%u kept_batches=%u conversion_hits=%u conversion_misses=%u task_conversion_reuses=%u\n",
       measured_tasks,(unsigned long long)(total_translate/measured_tasks),
       (unsigned long long)(total_draw/measured_tasks),(unsigned long long)(total_readback/measured_tasks),
-      (unsigned long long)(total_present/measured_tasks),interpreter->mDuckLightColorUpdates,interpreter->mDuckVertexColorUpdates,interpreter->mDuckTextureHits,interpreter->mDuckTextureUploads,interpreter->mDuckTriangleMath.hits,interpreter->mDuckTriangleMath.misses,interpreter->mDuckDrawCalls,interpreter->mDuckDrawTriangles,interpreter->mDuckTextureBatchKeeps);
+      (unsigned long long)(total_present/measured_tasks),interpreter->mDuckLightColorUpdates,interpreter->mDuckVertexColorUpdates,interpreter->mDuckTextureHits,interpreter->mDuckTextureUploads,interpreter->mDuckTriangleMath.hits,interpreter->mDuckTriangleMath.misses,interpreter->mDuckDrawCalls,interpreter->mDuckDrawTriangles,interpreter->mDuckTextureBatchKeeps,bridge.ConversionHits(),bridge.ConversionMisses(),bridge.ConversionTaskReuses());
   last_report=finished;total_translate=total_draw=total_readback=total_present=0;measured_tasks=0;
  }
  if(first)fprintf(stderr,"First framebuffer swap complete\n");

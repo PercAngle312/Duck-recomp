@@ -17,6 +17,7 @@ a=p.parse_args()
 here=Path(__file__).resolve().parent
 prefix=r'''
 #include "texture_stage_index.h"
+#include "conversion_cache.h"
 #include <unordered_map>
 #include <cstdint>
 #include <cstring>
@@ -41,6 +42,12 @@ public:
  TextureStage *mTextureStages=nullptr;
  u32 mTextureStageCount=0,mTextureStageCapacity=0,mBuildSerial=0;
  std::unordered_map<DuckTextureStageKey,u32,DuckTextureStageKey::Hasher> mTextureStageIndex;
+ // BuildDisplayList invalidates task pointers on serial wrap; conversion
+ // behavior itself is tested separately against the uncached methods.
+ DuckConversionCache<64,64,128> mDuckMatrixCache;
+ DuckConversionCache<516,768,256> mDuckVertexCache;
+ DuckConversionCache<20,16,64> mDuckViewportCache;
+ DuckConversionCache<28,24,64> mDuckLightCache;
  GPU gpu;GPU *mInterpreter=&gpu;
  bool mTranslationFailed=false,mSawFullSync=false,mHaveTextureImage=false;
  u32 mTextureImageW0=0,mTextureImageResolved=0;void *mTextureImageCommand=nullptr;u8 *mTextureImageStaging=nullptr;

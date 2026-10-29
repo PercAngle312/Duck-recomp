@@ -48,6 +48,12 @@ def prepare(dependency: Path, output: Path) -> Path:
     fence=here/'readback-fence-renderer.patch'
     subprocess.run(['git','apply','--check',str(fence)],cwd=output,check=True)
     subprocess.run(['git','apply',str(fence)],cwd=output,check=True)
+    conversion=here/'conversion-cache.patch'
+    subprocess.run(['git','apply','--check',str(conversion)],cwd=output,check=True)
+    subprocess.run(['git','apply',str(conversion)],cwd=output,check=True)
+    scan=here/'command-scan.patch'
+    subprocess.run(['git','apply','--check',str(scan)],cwd=output,check=True)
+    subprocess.run(['git','apply',str(scan)],cwd=output,check=True)
     return output/'Source'
 
 if __name__=='__main__':

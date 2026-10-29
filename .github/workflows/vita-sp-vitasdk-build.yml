@@ -2,7 +2,7 @@ name: Compile Vita game graphics runtime with pinned VitaSDK
 on:
   workflow_dispatch:
   push:
-    branches: [vita/arm32-bringup]
+    branches: [vita/arm32-bringup, vita/audio-buffer019]
     paths:
       - 'vita/src/sp*.c'
       - 'vita/src/os_sp.c'
@@ -29,6 +29,8 @@ on:
       - 'vita/tests/rsp_multiply.cpp'
       - 'vita/tests/run_rsp_multiply_arm.py'
       - 'vita/tests/neon_bridge.cpp'
+      - 'vita/tests/command_scan.cpp'
+      - 'vita/tests/run_command_scan_arm.py'
       - 'vita/tests/framebuffer_neon.cpp'
       - 'vita/tests/run_framebuffer_neon.py'
       - 'vita/src/eeprom_file.c'
@@ -148,6 +150,8 @@ jobs:
       - name: Compare actual texture validation methods against previous bridge
         run: |
           cp -r /tmp/duck-renderer-prepared /tmp/duck-validation-reference
+          git -C /tmp/duck-validation-reference apply --reverse "$GITHUB_WORKSPACE/vita/experimental/graphics_replay/command-scan.patch"
+          git -C /tmp/duck-validation-reference apply --reverse "$GITHUB_WORKSPACE/vita/experimental/graphics_replay/conversion-cache.patch"
           git -C /tmp/duck-validation-reference apply --reverse "$GITHUB_WORKSPACE/vita/experimental/graphics_replay/texture-validation.patch"
           ASAN_OPTIONS=detect_leaks=0 python3 vita/experimental/graphics_replay/test_texture_validation.py --source /tmp/duck-renderer-prepared/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.cpp --reference /tmp/duck-validation-reference/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.cpp --report /tmp/duck-objects/texture-validation.json
       - name: Validate explicit tile origins and single-row decoders
@@ -197,6 +201,15 @@ jobs:
           SDK_CXX="$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-g++ -print -quit)"
           "$SDK_CXX" -std=c++20 -O2 -fwrapv -fno-strict-aliasing -fno-builtin -fno-exceptions -fno-rtti -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/include -nostdlib -Wl,-e,duck_test_rsp_multiply -Wl,-Ttext=0x10000 -Wl,-Tdata=0x200000 vita/tests/rsp_multiply.cpp -lgcc -o /tmp/duck-objects/rsp-multiply.arm.elf
           /tmp/duck-fb-test/bin/python vita/tests/run_rsp_multiply_arm.py /tmp/duck-objects/rsp-multiply.arm.elf --report /tmp/duck-objects/rsp-multiply.json
+      - name: Compare exact geometry conversions and command scanning
+        run: |
+          cp -r /tmp/duck-renderer-prepared /tmp/duck-conversion-reference
+          git -C /tmp/duck-conversion-reference apply --reverse "$GITHUB_WORKSPACE/vita/experimental/graphics_replay/command-scan.patch"
+          git -C /tmp/duck-conversion-reference apply --reverse "$GITHUB_WORKSPACE/vita/experimental/graphics_replay/conversion-cache.patch"
+          python3 vita/experimental/graphics_replay/test_conversion_cache.py --source /tmp/duck-renderer-prepared/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.cpp --reference /tmp/duck-conversion-reference/Source/SysVita/HLEGraphics/Accurate/Fast3DMemoryBridge.cpp --report /tmp/duck-objects/conversion-cache.json
+          SDK_CXX="$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-g++ -print -quit)"
+          "$SDK_CXX" -std=c++17 -O2 -ffreestanding -fno-builtin -fno-exceptions -fno-unwind-tables -fno-asynchronous-unwind-tables -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/experimental/graphics_replay -nostdlib -Wl,-e,duck_test_command_scan -Wl,-Ttext=0x10000 vita/tests/command_scan.cpp -lgcc -o /tmp/duck-objects/command-scan.arm.elf
+          /tmp/duck-fb-test/bin/python vita/tests/run_command_scan_arm.py /tmp/duck-objects/command-scan.arm.elf --report /tmp/duck-objects/command-scan.json
       - name: Check private final-link script syntax
         run: python3 -m py_compile vita/link_private_game.py vita/rebuild_audio_rsp.py vita/patch_rsp_memory.py vita/patch_rsp_multiply.py
       - uses: actions/upload-artifact@v4
@@ -206,3 +219,5 @@ jobs:
             /tmp/duck-objects/*.o
             /tmp/duck-objects/runtime-providers.txt
             /tmp/duck-objects/pinned-toolchain.json
+            /tmp/duck-objects/conversion-cache.json
+            /tmp/duck-objects/command-scan.json
