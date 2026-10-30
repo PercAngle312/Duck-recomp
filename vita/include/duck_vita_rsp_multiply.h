@@ -2,6 +2,7 @@
 #if defined(__ARM_NEON)
 #include <arm_neon.h>
 #include <cstdint>
+#include "duck_vita_rsp_accumulator.h"
 
 // VMUDH/VMADH add a signed 16x16 product at accumulator bit 16. The low
 // accumulator slice is zeroed by VMUDH and untouched by VMADH. Widened NEON
@@ -33,7 +34,7 @@ inline void duck_rsp_multiply_high(void *destination,const void *source,const vo
 // instruction's element shuffle. Preserve all 48 accumulator bits, including
 // overflow: saturating arithmetic belongs only on the destination register.
 template<bool Accumulate, bool Unsigned>
-inline void duck_rsp_multiply(void *destination,const void *source,const void *target,
+__attribute__((always_inline)) inline void duck_rsp_multiply(void *destination,const void *source,const void *target,
                               void *low,void *middle,void *high){
     const int16x8_t a=vld1q_s16(static_cast<const int16_t*>(source));
     const int16x8_t b=vld1q_s16(static_cast<const int16_t*>(target));
@@ -53,18 +54,13 @@ inline void duck_rsp_multiply(void *destination,const void *source,const void *t
         const uint16x8_t oldh=vld1q_u16(static_cast<const uint16_t*>(high));
         const int32x4_t p=vmull_s16(vget_low_s16(a),vget_low_s16(b));
         const int32x4_t q=vmull_s16(vget_high_s16(a),vget_high_s16(b));
-        auto half=[](int32x4_t product,uint16x4_t al,uint16x4_t am,uint16x4_t ah,
-                     uint16x4_t &ol,uint16x4_t &om,uint16x4_t &oh){
-            const uint32x4_t twice=vshlq_n_u32(vreinterpretq_u32_s32(product),1);
-            const uint32x4_t ls=vaddq_u32(vmovl_u16(al),vandq_u32(twice,vdupq_n_u32(0xffff)));
-            const uint32x4_t ms=vaddq_u32(vaddq_u32(vmovl_u16(am),vshrq_n_u32(twice,16)),vshrq_n_u32(ls,16));
-            ol=vmovn_u32(ls);om=vmovn_u32(ms);
-            oh=vadd_u16(vadd_u16(ah,vmovn_u32(vreinterpretq_u32_s32(vshrq_n_s32(product,31)))),vmovn_u32(vshrq_n_u32(ms,16)));
-        };
-        uint16x4_t ll,lm,lh,hl,hm,hh;
-        half(p,vget_low_u16(oldl),vget_low_u16(oldm),vget_low_u16(oldh),ll,lm,lh);
-        half(q,vget_high_u16(oldl),vget_high_u16(oldm),vget_high_u16(oldh),hl,hm,hh);
-        l=vcombine_u16(ll,hl);m=vcombine_u16(lm,hm);h=vcombine_u16(lh,hh);
+        const uint16x8_t pl=vcombine_u16(vmovn_u32(vreinterpretq_u32_s32(p)),vmovn_u32(vreinterpretq_u32_s32(q)));
+        const uint16x8_t pm=vreinterpretq_u16_s16(vcombine_s16(vshrn_n_s32(p,16),vshrn_n_s32(q,16)));
+        const uint16x8_t product_low=vshlq_n_u16(pl,1);
+        const uint16x8_t product_middle=vorrq_u16(vshlq_n_u16(pm,1),vshrq_n_u16(pl,15));
+        const uint16x8_t product_high=vreinterpretq_u16_s16(vshrq_n_s16(vreinterpretq_s16_u16(pm),15));
+        l=oldl;m=oldm;h=oldh;
+        duck_rsp_accumulate48(l,m,h,product_low,product_middle,product_high);
     }
     uint16x8_t result;
     if constexpr (Unsigned){
@@ -72,9 +68,7 @@ inline void duck_rsp_multiply(void *destination,const void *source,const void *t
         const uint16x8_t overflow=vorrq_u16(vmvnq_u16(vceqq_u16(h,vdupq_n_u16(0))),vcltq_s16(vreinterpretq_s16_u16(m),vdupq_n_s16(0)));
         result=vbicq_u16(vorrq_u16(m,overflow),negative);
     }else{
-        const int32x4_t x=vreinterpretq_s32_u32(vorrq_u32(vmovl_u16(vget_low_u16(m)),vshlq_n_u32(vmovl_u16(vget_low_u16(h)),16)));
-        const int32x4_t y=vreinterpretq_s32_u32(vorrq_u32(vmovl_u16(vget_high_u16(m)),vshlq_n_u32(vmovl_u16(vget_high_u16(h)),16)));
-        result=vreinterpretq_u16_s16(vcombine_s16(vqmovn_s32(x),vqmovn_s32(y)));
+        result=duck_rsp_saturate_middle(m,h);
     }
     vst1q_u16(static_cast<uint16_t*>(low),l);
     vst1q_u16(static_cast<uint16_t*>(middle),m);

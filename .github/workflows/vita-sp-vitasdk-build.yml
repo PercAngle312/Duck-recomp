@@ -20,6 +20,7 @@ on:
       - 'vita/include/duck_vita_native_memory.h'
       - 'vita/include/duck_vita_audio_commands.h'
       - 'vita/patch_audio_commands.py'
+      - 'vita/test_audio_commands.py'
       - 'vita/patch_rsp_samples.py'
       - 'vita/include/duck_vita_rsp_samples.h'
       - 'vita/include/duck_vita_rsp_elements.h'
@@ -39,6 +40,10 @@ on:
       - 'vita/tests/rsp_memory*.cpp'
       - 'vita/tests/run_rsp_memory_arm.py'
       - 'vita/include/duck_vita_rsp_multiply.h'
+      - 'vita/include/duck_vita_rsp_accumulator.h'
+      - 'vita/include/duck_vita_rsp_mixed.h'
+      - 'vita/tests/rsp_mixed.cpp'
+      - 'vita/tests/run_rsp_mixed_arm.py'
       - 'vita/patch_rsp_multiply.py'
       - 'vita/tests/rsp_multiply.cpp'
       - 'vita/tests/run_rsp_multiply_arm.py'
@@ -216,6 +221,8 @@ jobs:
           SDK_CXX="$(find /tmp/duck-sdk/root -type f -name arm-vita-eabi-g++ -print -quit)"
           "$SDK_CXX" -std=c++20 -O2 -fwrapv -fno-strict-aliasing -fno-builtin -fno-exceptions -fno-rtti -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/include -nostdlib -Wl,-e,duck_test_rsp_multiply -Wl,-Ttext=0x10000 -Wl,-Tdata=0x200000 vita/tests/rsp_multiply.cpp -lgcc -o /tmp/duck-objects/rsp-multiply.arm.elf
           /tmp/duck-fb-test/bin/python vita/tests/run_rsp_multiply_arm.py /tmp/duck-objects/rsp-multiply.arm.elf --report /tmp/duck-objects/rsp-multiply.json
+          "$SDK_CXX" -std=c++20 -O2 -fwrapv -fno-strict-aliasing -fno-builtin -fno-exceptions -fno-rtti -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Ivita/include -nostdlib -Wl,-e,duck_test_rsp_mixed -Wl,-Ttext=0x10000 -Wl,-Tdata=0x200000 vita/tests/rsp_mixed.cpp -lgcc -o /tmp/duck-objects/rsp-mixed.arm.elf
+          /tmp/duck-fb-test/bin/python vita/tests/run_rsp_mixed_arm.py /tmp/duck-objects/rsp-mixed.arm.elf --report /tmp/duck-objects/rsp-mixed.json
       - name: Compare exact geometry conversions and command scanning
         run: |
           cp -r /tmp/duck-renderer-prepared /tmp/duck-conversion-reference
@@ -252,3 +259,5 @@ jobs:
             /tmp/duck-objects/native-geometry.json
             /tmp/duck-objects/audio-commands.json
             /tmp/duck-objects/rsp-samples.json
+            /tmp/duck-objects/rsp-multiply.json
+            /tmp/duck-objects/rsp-mixed.json

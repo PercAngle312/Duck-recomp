@@ -70,6 +70,8 @@ report['native_commands']=a.native_commands
 if a.native_commands:
  report['native_commands_helper_sha256']=hashlib.sha256((here/'include/duck_vita_audio_commands.h').read_bytes()).hexdigest()
 report['native_multiply']=a.native_multiply
+if a.native_multiply or a.native_mixed_multiply:
+ report['native_accumulator_helper_sha256']=hashlib.sha256((here/'include/duck_vita_rsp_accumulator.h').read_bytes()).hexdigest()
 report['native_high_multiply']=a.native_high_multiply
 report['native_partial_loads']=a.native_partial_loads
 if a.native_partial_loads:
